@@ -148,48 +148,48 @@ let menuData = {
         },
         {
             id: 'detroit-style-pizza',
-            name: 'Detroit-Style Pizza',
+            name: 'NY-Style Pizza',
             items: [
                 {
                     id: 'classic-pepperoni',
                     name: '經典紅醬起司臘腸披薩',
                     nameEn: 'Classic Tomato Sauce Cheese & Pepperoni Pizza',
-                    price: 530,
+                    price: 430,
                     description: ''
                 },
                 {
                     id: 'seafood-chowder',
                     name: '蒔蘿巧達海鮮濃湯披薩',
                     nameEn: 'Seafood Chowder with Dill Pizza',
-                    price: 570,
+                    price: 470,
                     description: ''
                 },
                 {
                     id: 'amigo-beef',
                     name: '阿米哥火辣牛肉披薩',
                     nameEn: 'Amigo Spicy Beef Pizza',
-                    price: 580,
+                    price: 480,
                     description: ''
                 },
                 {
                     id: 'provencal-ratatouille',
                     name: '☘️普羅旺斯燉菜披薩',
                     nameEn: 'Provençal Ratatouille Pizza',
-                    price: 550,
+                    price: 450,
                     description: ''
                 },
                 {
                     id: 'takoyaki-pizza',
                     name: '日式風章魚燒披薩',
                     nameEn: 'Japanese-style Takoyaki Pizza',
-                    price: 560,
+                    price: 460,
                     description: ''
                 },
                 {
                     id: 'four-cheese-walnut',
                     name: '☘️四起司胡桃楓糖披薩',
                     nameEn: 'Four Cheese Walnut & Maple Syrup Pizza',
-                    price: 550,
+                    price: 450,
                     description: ''
                 }
             ]
