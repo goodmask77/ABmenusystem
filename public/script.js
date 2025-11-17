@@ -1930,49 +1930,49 @@ function loadSampleData() {
         menuData.categories = [
             {
                 id: generateId(),
-                name: 'DETROIT-STYLE PIZZA',
+                name: 'NY-Style Pizza',
                 items: [
                     {
                         id: generateId(),
-                        name: '經典紅醬起司鑲腸披薩',
+                        name: '經典紅醬起司臘腸披薩',
                         nameEn: 'Classic Tomato Sauce Cheese & Pepperoni Pizza',
                         description: '',
-                        price: 530
+                        price: 430
                     },
                     {
                         id: generateId(),
-                        name: '時蘿巧達海鮮濃湯薩',
+                        name: '蒔蘿巧達海鮮濃湯披薩',
                         nameEn: 'Seafood Chowder with Dill Pizza',
                         description: '',
-                        price: 570
+                        price: 470
                     },
                     {
                         id: generateId(),
                         name: '阿米哥火辣牛肉披薩',
                         nameEn: 'Amigo Spicy Beef Pizza',
                         description: '',
-                        price: 580
+                        price: 480
                     },
                     {
                         id: generateId(),
-                        name: '普羅旺斯燉菜披薩',
+                        name: '☘️普羅旺斯燉菜披薩',
                         nameEn: 'Provençal Ratatouille Pizza',
-                        description: '🥬',
-                        price: 550
+                        description: '',
+                        price: 450
                     },
                     {
                         id: generateId(),
-                        name: '日式風雲魚燒披薩',
+                        name: '日式風章魚燒披薩',
                         nameEn: 'Japanese-style Takoyaki Pizza',
-                        description: '🥬',
-                        price: 560
+                        description: '',
+                        price: 460
                     },
                     {
                         id: generateId(),
-                        name: '四起司胡桃楓糖披薩',
+                        name: '☘️四起司胡桃楓糖披薩',
                         nameEn: 'Four Cheese Walnut & Maple Syrup Pizza',
-                        description: '🥬',
-                        price: 550
+                        description: '',
+                        price: 450
                     }
                 ]
             },
