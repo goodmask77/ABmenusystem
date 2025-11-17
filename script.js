@@ -666,6 +666,9 @@ function bindEvents() {
 }
 
 function setupSortable() {
+    // 只在後台模式下啟用拖曳排序
+    if (!isAdminMode) return;
+    
     // 類別標籤排序
     const categoryTabs = document.getElementById('categoryTabs');
     if (categoryTabs) {
@@ -737,12 +740,16 @@ function toggleMode() {
         modeBtn.innerHTML = '<i class="fas fa-toggle-on"></i><span>切換至前台</span>';
         modeBtn.classList.remove('btn-mode');
         modeBtn.classList.add('btn-primary');
+        // 啟用拖曳排序
+        setupSortable();
     } else {
         adminControls.forEach(el => el.style.display = 'none');
         itemControls.forEach(el => el.style.display = 'none');
         modeBtn.innerHTML = '<i class="fas fa-toggle-off"></i><span>切換至後台</span>';
         modeBtn.classList.remove('btn-primary');
         modeBtn.classList.add('btn-mode');
+        // 需要重新渲染以移除 Sortable 實例
+        location.reload();
     }
 }
 
