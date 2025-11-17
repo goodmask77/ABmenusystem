@@ -1022,18 +1022,14 @@ function updateTableCount() {
 // 清除購物車
 function clearCart() {
     if (cart.length === 0) {
-        alert('購物車已經是空的');
         return;
     }
     
-    if (confirm('確定要清除所有菜單嗎？')) {
-        cart = [];
-        renderCart();
-        renderMenu(); // 重新渲染菜單以移除選中狀態
-        updateCartSummary();
-        saveToStorage();
-        alert('購物車已清除');
-    }
+    cart = [];
+    renderCart();
+    renderMenu(); // 重新渲染菜單以移除選中狀態
+    updateCartSummary();
+    saveToStorage();
 }
 
 // 計算購物車摘要
