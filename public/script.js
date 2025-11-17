@@ -717,9 +717,8 @@ function setupSortable() {
 
 function setupCategoryItemSortable() {
     // 為每個類別的項目列表設置拖曳排序
-    const categories = document.querySelectorAll('.category');
-    categories.forEach(categoryEl => {
-        const itemsList = categoryEl.querySelector('.menu-items');
+    menuData.categories.forEach(category => {
+        const itemsList = document.getElementById(`category-${category.id}`);
         if (itemsList) {
             const instance = new Sortable(itemsList, {
                 animation: 150,
@@ -727,8 +726,7 @@ function setupCategoryItemSortable() {
                 dragClass: 'sortable-drag',
                 group: 'menu-items',
                 onEnd: function(evt) {
-                    const categoryId = categoryEl.dataset.categoryId;
-                    reorderCategoryItems(categoryId, evt.oldIndex, evt.newIndex);
+                    reorderCategoryItems(category.id, evt.oldIndex, evt.newIndex);
                 }
             });
             sortableInstances.push(instance);
@@ -1781,25 +1779,13 @@ function renderMenu() {
         </div>
     `).join('');
     
-    // 設定每個類別的品項排序
-    menuData.categories.forEach(category => {
-        const itemsContainer = document.getElementById(`category-${category.id}`);
-        if (itemsContainer) {
-            new Sortable(itemsContainer, {
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                dragClass: 'sortable-drag',
-                onEnd: function(evt) {
-                    reorderCategoryItems(category.id, evt.oldIndex, evt.newIndex);
-                }
-            });
-        }
-    });
-    
     // 渲染類別標籤
     renderCategoryTabs();
     // 應用當前篩選
     filterByCategory(activeCategory);
+    
+    // 重新設定拖曳排序（會根據 isAdminMode 決定是否啟用）
+    setupSortable();
 }
 
 function renderMenuItem(categoryId, item) {
