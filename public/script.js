@@ -7,6 +7,9 @@ let editingItem = null;
 let activeCategory = 'all';
 let editingCategory = null;
 
+// Sortable 實例追蹤
+let sortableInstances = [];
+
 // 歷史紀錄排序狀態
 let historySort = {
     field: 'date',
@@ -666,13 +669,16 @@ function bindEvents() {
 }
 
 function setupSortable() {
+    // 先銷毀所有現有的 Sortable 實例
+    destroySortableInstances();
+    
     // 只在後台模式下啟用拖曳排序
     if (!isAdminMode) return;
     
     // 類別標籤排序
     const categoryTabs = document.getElementById('categoryTabs');
     if (categoryTabs) {
-        new Sortable(categoryTabs, {
+        const instance = new Sortable(categoryTabs, {
             animation: 150,
             ghostClass: 'sortable-ghost',
             dragClass: 'sortable-drag',
@@ -684,6 +690,7 @@ function setupSortable() {
                 }
             }
         });
+        sortableInstances.push(instance);
     }
     
     // 菜單項目內排序（在每個類別內）
@@ -695,7 +702,7 @@ function setupSortable() {
     
     // 購物車排序
     if (elements.cartItems) {
-        new Sortable(elements.cartItems, {
+        const instance = new Sortable(elements.cartItems, {
             animation: 150,
             ghostClass: 'sortable-ghost',
             dragClass: 'sortable-drag',
@@ -704,6 +711,7 @@ function setupSortable() {
                 reorderCartItems(evt.oldIndex, evt.newIndex);
             }
         });
+        sortableInstances.push(instance);
     }
 }
 
@@ -713,7 +721,7 @@ function setupCategoryItemSortable() {
     categories.forEach(categoryEl => {
         const itemsList = categoryEl.querySelector('.menu-items');
         if (itemsList) {
-            new Sortable(itemsList, {
+            const instance = new Sortable(itemsList, {
                 animation: 150,
                 ghostClass: 'sortable-ghost',
                 dragClass: 'sortable-drag',
@@ -723,8 +731,19 @@ function setupCategoryItemSortable() {
                     reorderCategoryItems(categoryId, evt.oldIndex, evt.newIndex);
                 }
             });
+            sortableInstances.push(instance);
         }
     });
+}
+
+// 銷毀所有 Sortable 實例
+function destroySortableInstances() {
+    sortableInstances.forEach(instance => {
+        if (instance && instance.destroy) {
+            instance.destroy();
+        }
+    });
+    sortableInstances = [];
 }
 
 // 模式切換
@@ -748,8 +767,8 @@ function toggleMode() {
         modeBtn.innerHTML = '<i class="fas fa-toggle-off"></i><span>切換至後台</span>';
         modeBtn.classList.remove('btn-primary');
         modeBtn.classList.add('btn-mode');
-        // 需要重新渲染以移除 Sortable 實例
-        location.reload();
+        // 禁用拖曳排序（銷毀所有 Sortable 實例）
+        destroySortableInstances();
     }
 }
 
