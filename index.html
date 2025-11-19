@@ -34,6 +34,12 @@
                     <button id="viewChangeLog" class="btn btn-secondary">
                         <i class="fas fa-history"></i> 修改紀錄
                     </button>
+                    <button id="manageAccounts" class="btn btn-secondary" style="display: none;">
+                        <i class="fas fa-users-cog"></i> 帳號管理
+                    </button>
+                    <button id="loginButton" class="btn btn-secondary">
+                        <i class="fas fa-user-lock"></i> 登入後台
+                    </button>
                 </div>
             </div>
         </header>
@@ -271,6 +277,39 @@
             </div>
             <div class="modal-body change-log-content">
                 <pre id="changeLogContent">載入中...</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- 後台登入對話框 -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content small">
+            <button class="close" onclick="closeModal('loginModal')">&times;</button>
+            <h3>後台登入</h3>
+            <p class="modal-description">輸入授權帳號即可進入後台，無需密碼。</p>
+            <input type="text" id="loginUsername" class="input-field" placeholder="請輸入帳號名稱">
+            <div class="modal-footer">
+                <button id="confirmLogin" class="btn btn-primary">登入</button>
+                <button class="btn btn-secondary" onclick="closeModal('loginModal')">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 帳號管理對話框 -->
+    <div id="accountModal" class="modal">
+        <div class="modal-content large">
+            <button class="close" onclick="closeModal('accountModal')">&times;</button>
+            <h3>帳號管理</h3>
+            <div class="account-manager">
+                <div class="account-list" id="accountList"></div>
+                <div class="account-form">
+                    <input type="text" id="newAccountName" class="input-field" placeholder="輸入新帳號">
+                    <select id="newAccountRole" class="input-field">
+                        <option value="editor">一般使用者</option>
+                        <option value="admin">管理員</option>
+                    </select>
+                    <button id="addAccountButton" class="btn btn-primary">新增帳號</button>
+                </div>
             </div>
         </div>
     </div>

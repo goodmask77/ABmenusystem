@@ -1670,6 +1670,74 @@ body {
   margin-left: var(--space-xxs);
 }
 
+.modal-content.small {
+    max-width: 420px;
+}
+
+.modal-description {
+    color: #6c757d;
+    margin-bottom: 12px;
+}
+
+.login-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: #2c3e50;
+    color: #fff;
+    font-size: 0.85rem;
+}
+
+.account-manager {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.account-list {
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 12px;
+    background: #fff;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.account-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.account-row:last-child {
+    border-bottom: none;
+}
+
+.account-row strong {
+    font-size: 0.95rem;
+    color: #212529;
+}
+
+.account-role {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.account-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.account-form .input-field {
+    flex: 1;
+    min-width: 160px;
+}
+
 /* 手機／窄螢幕調整：略縮內距，但保留邊匡感 */
 @media (max-width: 768px) {
   .history-modal .modal-content { 
@@ -1689,4 +1757,73 @@ body {
   .history-modal .preview-cell { 
     max-width: 260px; 
   }
+}
+
+/* 授權與帳號管理 */
+.modal-content.small {
+    max-width: 420px;
+}
+
+.modal-description {
+    color: #6c757d;
+    margin-bottom: 12px;
+}
+
+.account-manager {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.account-list {
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 12px;
+    background: #fff;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.account-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.account-row:last-child {
+    border-bottom: none;
+}
+
+.account-row strong {
+    font-size: 0.95rem;
+    color: #212529;
+}
+
+.account-role {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.account-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.account-form .input-field {
+    flex: 1;
+    min-width: 160px;
+}
+
+.login-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: #2c3e50;
+    color: #fff;
+    font-size: 0.85rem;
 }
