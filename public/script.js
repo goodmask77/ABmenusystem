@@ -1,3 +1,126 @@
+function restoreCurrentUser() {
+    try {
+        const stored = localStorage.getItem(CURRENT_USER_KEY);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed?.username) {
+                currentUser = parsed;
+            }
+        }
+    } catch (error) {
+        console.warn('讀取登入資訊失敗：', error);
+    }
+}
+
+function persistCurrentUser() {
+    if (currentUser) {
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
+    } else {
+        localStorage.removeItem(CURRENT_USER_KEY);
+    }
+    updateAuthUI();
+}
+
+function requireLogin(action) {
+    if (currentUser) {
+        return true;
+    }
+    postLoginAction = action || null;
+    openModal('loginModal');
+    if (elements.loginUsername) {
+        elements.loginUsername.focus();
+    }
+    return false;
+}
+
+function ensureEditorAccess() {
+    if (!currentUser) {
+        requireLogin(ensureEditorAccess);
+        return false;
+    }
+    return true;
+}
+
+function ensureAdminAccess() {
+    if (!currentUser) {
+        requireLogin(ensureAdminAccess);
+        return false;
+    }
+    const user = accounts.find(acc => acc.username === currentUser.username);
+    if (user?.role === 'admin') {
+        return true;
+    }
+    alert('只有管理員可以執行此操作');
+    return false;
+}
+
+async function handleLogin() {
+    const username = elements.loginUsername.value.trim();
+    if (!username) {
+        alert('請輸入帳號名稱');
+        return;
+    }
+    const account = accounts.find(acc => acc.username === username);
+    if (!account) {
+        alert('找不到此帳號，請聯繫管理員。');
+        return;
+    }
+    currentUser = account;
+    persistCurrentUser();
+    closeModal('loginModal');
+    renderAccountInfo();
+    if (typeof postLoginAction === 'function') {
+        const action = postLoginAction;
+        postLoginAction = null;
+        action();
+    }
+}
+
+function logoutUser() {
+    currentUser = null;
+    persistCurrentUser();
+    updateAuthUI();
+}
+
+function updateAuthUI() {
+    const badgeId = 'loginStatus';
+    let badge = document.getElementById(badgeId);
+    if (!badge) {
+        badge = document.createElement('span');
+        badge.id = badgeId;
+        badge.className = 'login-status-badge';
+        elements.headerControls = document.querySelector('.header-controls');
+        if (elements.headerControls) {
+            elements.headerControls.appendChild(badge);
+        }
+    }
+    if (currentUser) {
+        badge.innerHTML = `<i class="fas fa-user-shield"></i> ${currentUser.username}`;
+        badge.style.display = 'inline-flex';
+        if (elements.loginButton) {
+            elements.loginButton.textContent = '登出';
+            elements.loginButton.onclick = logoutUser;
+        }
+        if (elements.manageAccounts) {
+            const currentAccount = accounts.find(acc => acc.username === currentUser.username);
+            elements.manageAccounts.style.display = currentAccount?.role === 'admin' ? 'inline-flex' : 'none';
+            elements.manageAccounts.onclick = () => {
+                if (!ensureAdminAccess()) return;
+                renderAccountList();
+                openModal('accountModal');
+            };
+        }
+    } else {
+        badge.style.display = 'none';
+        if (elements.loginButton) {
+            elements.loginButton.innerHTML = '<i class="fas fa-user-lock"></i> 登入後台';
+            elements.loginButton.onclick = () => openModal('loginModal');
+        }
+        if (elements.manageAccounts) {
+            elements.manageAccounts.style.display = 'none';
+        }
+    }
+}
 // 全域變數
 let isAdminMode = false;
 let cart = [];
@@ -19,11 +142,17 @@ let historySort = {
 const MENU_STATE_KEY = 'MENU_STATE';
 const CART_STATE_KEY = 'CART_STATE';
 const AUTO_HISTORY_FLAG = '__AUTO_HISTORY__';
+const ACCOUNT_TABLE = 'menu_accounts';
+const ADMIN_USERNAME = 'goodmask77';
+const CURRENT_USER_KEY = 'CURRENT_USER';
 let supabaseClient = null;
 let supabaseSyncQueue = Promise.resolve();
 let supabaseInitialized = false;
 let syncStatusTimer = null;
 let changeLogCache = null;
+let accounts = [];
+let currentUser = null;
+let postLoginAction = null;
 
 let menuData = {
     categories: [
@@ -533,6 +662,8 @@ const elements = {
     toggleMode: document.getElementById('toggleMode'),
     syncCloud: document.getElementById('syncCloud'),
     viewChangeLog: document.getElementById('viewChangeLog'),
+    loginButton: document.getElementById('loginButton'),
+    manageAccounts: document.getElementById('manageAccounts'),
     addCategory: document.getElementById('addCategory'),
     importMenu: document.getElementById('importMenu'),
     exportCartExcel: document.getElementById('exportCartExcel'),
@@ -553,13 +684,24 @@ const elements = {
     serviceFee: document.getElementById('serviceFee'),
     total: document.getElementById('total'),
     perPerson: document.getElementById('perPerson'),
-    totalItems: document.getElementById('totalItems')
+    totalItems: document.getElementById('totalItems'),
+    loginModal: document.getElementById('loginModal'),
+    accountModal: document.getElementById('accountModal'),
+    loginUsername: document.getElementById('loginUsername'),
+    confirmLogin: document.getElementById('confirmLogin'),
+    accountList: document.getElementById('accountList'),
+    newAccountName: document.getElementById('newAccountName'),
+    newAccountRole: document.getElementById('newAccountRole'),
+    addAccountButton: document.getElementById('addAccountButton')
 };
 // 初始化應用程式
 document.addEventListener('DOMContentLoaded', async function() {
     await prepareInitialState();
     initializeApp();
     bindEvents();
+    await initAccounts();
+    restoreCurrentUser();
+    updateAuthUI();
 });
 
 function initializeApp() {
@@ -689,6 +831,26 @@ async function loadStateFromSupabase() {
     } catch (error) {
         console.error('處理 Supabase 狀態時發生錯誤：', error);
         return false;
+    }
+}
+
+async function initAccounts() {
+    const client = supabaseClient || await initSupabaseClient();
+    if (!client) return;
+    try {
+        const { data, error } = await client
+            .from(ACCOUNT_TABLE)
+            .select('*')
+            .order('created_at');
+        if (error) throw error;
+        accounts = data || [];
+        if (!accounts.some(acc => acc.username === ADMIN_USERNAME)) {
+            await client.from(ACCOUNT_TABLE).upsert({ username: ADMIN_USERNAME, role: 'admin' });
+            accounts.push({ username: ADMIN_USERNAME, role: 'admin' });
+        }
+    } catch (error) {
+        console.error('載入帳號資料失敗：', error);
+        accounts = [{ username: ADMIN_USERNAME, role: 'admin' }];
     }
 }
 
@@ -890,24 +1052,45 @@ async function persistStateToSupabase(statePayload) {
 
 function bindEvents() {
     // 模式切換
-    elements.toggleMode.addEventListener('click', toggleMode);
+    elements.toggleMode.addEventListener('click', () => {
+        if (!currentUser) {
+            requireLogin(toggleMode);
+            return;
+        }
+        toggleMode();
+    });
     if (elements.viewChangeLog) {
         elements.viewChangeLog.addEventListener('click', showChangeLogModal);
     }
     if (elements.syncCloud) {
-        elements.syncCloud.addEventListener('click', manualCloudSave);
+        elements.syncCloud.addEventListener('click', () => {
+            if (!currentUser) {
+                requireLogin(manualCloudSave);
+                return;
+            }
+            manualCloudSave();
+        });
     }
     
     // 類別管理
-    elements.addCategory.addEventListener('click', showCategoryModal);
+    elements.addCategory.addEventListener('click', () => {
+        if (!ensureEditorAccess()) return;
+        showCategoryModal();
+    });
     
     // 匯入匯出
-    elements.importMenu.addEventListener('click', showImportModal);
+    elements.importMenu.addEventListener('click', () => {
+        if (!ensureEditorAccess()) return;
+        showImportModal();
+    });
     elements.exportCartExcel.addEventListener('click', exportCartToExcel);
     elements.exportCartImage.addEventListener('click', exportCartToImage);
     
     // 儲存載入
-    elements.saveMenu.addEventListener('click', saveMenuToStorage);
+    elements.saveMenu.addEventListener('click', () => {
+        if (!ensureEditorAccess()) return;
+        saveMenuToStorage();
+    });
     elements.loadMenu.addEventListener('click', showHistoryModal);
     
     // 人數控制
@@ -1076,6 +1259,7 @@ function showCategoryModal() {
 }
 
 function addCategory() {
+    if (!ensureEditorAccess()) return;
     const categoryName = document.getElementById('categoryName').value.trim();
     if (!categoryName) {
         alert('請輸入類別名稱');
@@ -1104,6 +1288,7 @@ function editCategory(categoryId) {
 }
 
 function updateCategory() {
+    if (!ensureEditorAccess()) return addCategory();
     if (!editingCategory) return addCategory();
     
     const categoryName = document.getElementById('categoryName').value.trim();
@@ -1122,6 +1307,7 @@ function updateCategory() {
 }
 
 function deleteCategory(categoryId) {
+    if (!ensureAdminAccess()) return;
     if (confirm('確定要刪除此類別？此操作無法復原。')) {
         menuData.categories = menuData.categories.filter(c => c.id !== categoryId);
         removeInvalidCartItems();
@@ -1134,6 +1320,7 @@ function deleteCategory(categoryId) {
 
 // 品項管理
 function showItemModal(categoryId = null) {
+    if (!ensureEditorAccess()) return;
     editingItem = { categoryId, itemId: null };
     document.getElementById('itemModalTitle').textContent = '新增品項';
     document.getElementById('itemName').value = '';
@@ -1144,6 +1331,7 @@ function showItemModal(categoryId = null) {
 }
 
 function editItem(categoryId, itemId) {
+    if (!ensureEditorAccess()) return;
     const category = menuData.categories.find(c => c.id === categoryId);
     const item = category?.items.find(i => i.id === itemId);
     if (!item) return;
@@ -1158,6 +1346,7 @@ function editItem(categoryId, itemId) {
 }
 
 function saveItem() {
+    if (!ensureEditorAccess()) return;
     const name = document.getElementById('itemName').value.trim();
     const nameEn = document.getElementById('itemNameEn').value.trim();
     const description = document.getElementById('itemDescription').value.trim();
@@ -1210,6 +1399,7 @@ function saveItem() {
 }
 
 function deleteItem(categoryId, itemId) {
+    if (!ensureEditorAccess()) return;
     if (confirm('確定要刪除此品項？')) {
         const category = menuData.categories.find(c => c.id === categoryId);
         if (category) {
@@ -1227,6 +1417,10 @@ function deleteItem(categoryId, itemId) {
 
 // 購物車功能
 function addToCart(categoryId, itemId) {
+    if (!currentUser) {
+        requireLogin(() => addToCart(categoryId, itemId));
+        return;
+    }
     const category = menuData.categories.find(c => c.id === categoryId);
     const item = category?.items.find(i => i.id === itemId);
     if (!item) return;
@@ -1254,6 +1448,10 @@ function addToCart(categoryId, itemId) {
 }
 
 function removeFromCart(itemId) {
+    if (!currentUser) {
+        requireLogin(() => removeFromCart(itemId));
+        return;
+    }
     cart = cart.filter(item => item.id !== itemId);
     renderCart();
     renderMenu(); // 重新渲染菜單以更新選中狀態
@@ -1262,6 +1460,10 @@ function removeFromCart(itemId) {
 }
 
 function updateCartItemQuantity(itemId, quantity) {
+    if (!currentUser) {
+        requireLogin(() => updateCartItemQuantity(itemId, quantity));
+        return;
+    }
     const cartItem = cart.find(item => item.id === itemId);
     if (cartItem) {
         if (quantity <= 0) {
@@ -1276,6 +1478,10 @@ function updateCartItemQuantity(itemId, quantity) {
 }
 
 function changePeopleCount(delta) {
+    if (!currentUser) {
+        requireLogin(() => changePeopleCount(delta));
+        return;
+    }
     console.log(`changePeopleCount 被呼叫，delta: ${delta}, 目前人數: ${peopleCount}`);
     const newCount = peopleCount + delta;
     if (newCount >= 1 && newCount <= 99) {
@@ -1288,6 +1494,10 @@ function changePeopleCount(delta) {
 }
 
 function updatePeopleCount() {
+    if (!currentUser) {
+        requireLogin(updatePeopleCount);
+        return;
+    }
     const count = parseInt(elements.peopleCountInput.value);
     if (count >= 1 && count <= 99) {
         peopleCount = count;
@@ -1300,6 +1510,10 @@ function updatePeopleCount() {
 
 // 桌數控制
 function changeTableCount(delta) {
+    if (!currentUser) {
+        requireLogin(() => changeTableCount(delta));
+        return;
+    }
     const newCount = tableCount + delta;
     if (newCount >= 1 && newCount <= 99) {
         const oldTableCount = tableCount;
@@ -1318,6 +1532,10 @@ function changeTableCount(delta) {
 }
 
 function updateTableCount() {
+    if (!currentUser) {
+        requireLogin(updateTableCount);
+        return;
+    }
     const count = parseInt(elements.tableCountInput.value);
     if (count >= 1 && count <= 99) {
         const oldTableCount = tableCount;
@@ -1338,6 +1556,10 @@ function updateTableCount() {
 
 // 清除購物車
 function clearCart() {
+    if (!currentUser) {
+        requireLogin(clearCart);
+        return;
+    }
     if (cart.length === 0) {
         return;
     }
@@ -2305,6 +2527,27 @@ function bindModalEvents() {
         historySort.direction = 'desc'; // 重設為降序
         renderHistoryList();
     });
+
+    if (elements.confirmLogin) {
+        elements.confirmLogin.addEventListener('click', handleLogin);
+    }
+    if (elements.addAccountButton) {
+        elements.addAccountButton.addEventListener('click', addAccount);
+    }
+}
+
+function openModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) {
+        modal.style.display = 'block';
+    }
+}
+
+function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 // 工具函數
