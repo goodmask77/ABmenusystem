@@ -451,70 +451,70 @@ let menuData = {
                     id: 'american-classic',
                     name: '美式經典早餐',
                     nameEn: 'American Classic Brunch',
-                    price: 280,
+                    price: 350,
                     description: ''
                 },
                 {
                     id: 'soul-chicken-waffle',
                     name: '靈魂炸雞鬆餅',
                     nameEn: 'Soul Fried Chicken Waffle',
-                    price: 280,
+                    price: 350,
                     description: ''
                 },
                 {
                     id: 'hawaiian-burger',
                     name: '夏威夷海灘漢堡',
                     nameEn: 'Hawaiian Beach Burger',
-                    price: 280,
+                    price: 350,
                     description: ''
                 },
                 {
                     id: 'eggs-benedict',
                     name: '煙燻火腿班尼迪克蛋',
                     nameEn: 'Smoked Ham Eggs Benedict',
-                    price: 280,
+                    price: 350,
                     description: ''
                 },
                 {
                     id: 'salmon-omelette',
                     name: '鹽漬生鮭歐姆蛋布里歐',
                     nameEn: 'Salt-Cured Salmon & Omelette Brioche',
-                    price: 280,
+                    price: 350,
                     description: ''
                 },
                 {
                     id: 'spicy-chicken-quesadilla',
                     name: '辣味花生醬開心果起司雞肉薄餅',
                     nameEn: 'Spicy Peanut Pistachio Chicken Quesadilla',
-                    price: 280,
+                    price: 350,
                     description: ''
                 },
                 {
                     id: 'jalapeno-beef-tacos',
                     name: '墨西哥辣椒香脆牛肉塔可',
                     nameEn: 'Crispy Jalapeño Beef Cheek Tacos',
-                    price: 280,
+                    price: 350,
                     description: ''
                 },
                 {
                     id: 'maple-pancakes',
                     name: '☘️奶油楓糖美式煎餅',
                     nameEn: 'Buttery Maple Syrup Pancakes',
-                    price: 280,
+                    price: 350,
                     description: ''
                 },
                 {
                     id: 'waffles-combo',
                     name: '☘️格子鬆餅# 巧克力莓果│焦糖香蕉',
                     nameEn: 'Waffles – Chocolate Berry / Caramel Banana',
-                    price: 280,
+                    price: 350,
                     description: ''
                 },
                 {
                     id: 'best-french-toast',
                     name: '☘️命中註定出現的那塊法式吐司',
                     nameEn: "I'm the Best French Toast in TAIPEI",
-                    price: 280,
+                    price: 350,
                     description: ''
                 }
             ]
