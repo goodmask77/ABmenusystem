@@ -169,18 +169,264 @@ function normalizeAccountList(list = []) {
     return normalized;
 }
 
-async function persistAccountsState(clientOverride = null) {
+async function persistNamedState(name, payload, clientOverride = null) {
     const client = clientOverride || supabaseClient || await initSupabaseClient();
     if (!client) {
-        throw new Error('Supabase 尚未就緒，無法同步帳號資料');
+        throw new Error('Supabase 尚未就緒，無法同步資料');
     }
-    const payload = { accounts };
     const { error } = await client
         .from('menu_state')
-        .upsert({ name: ACCOUNTS_STATE_KEY, payload, updated_at: new Date().toISOString() }, { onConflict: 'name' });
+        .upsert({ name, payload, updated_at: new Date().toISOString() }, { onConflict: 'name' });
     if (error) {
         throw error;
     }
+    return client;
+}
+
+async function fetchNamedState(name, clientOverride = null) {
+    const client = clientOverride || supabaseClient || await initSupabaseClient();
+    if (!client) {
+        return null;
+    }
+    const { data, error } = await client
+        .from('menu_state')
+        .select('payload')
+        .eq('name', name)
+        .maybeSingle();
+    if (error && error.code !== 'PGRST116') {
+        throw error;
+    }
+    return data?.payload ?? null;
+}
+
+async function persistAccountsState(clientOverride = null) {
+    await persistNamedState(ACCOUNTS_STATE_KEY, { accounts }, clientOverride);
+}
+
+function loadLocalChangeLog() {
+    try {
+        const raw = localStorage.getItem(CHANGELOG_LOCAL_KEY);
+        return sanitizeChangeLogEntries(raw ? JSON.parse(raw) : []);
+    } catch (error) {
+        console.warn('載入本機修改紀錄失敗：', error);
+        return [];
+    }
+}
+
+function persistLocalChangeLog() {
+    try {
+        localStorage.setItem(CHANGELOG_LOCAL_KEY, JSON.stringify(changeLogEntries.slice(0, 100)));
+    } catch (error) {
+        console.warn('儲存本機修改紀錄失敗：', error);
+    }
+}
+
+function mergeChangeLogEntries(primary = [], secondary = []) {
+    const map = new Map();
+    [...primary, ...secondary].forEach(entry => {
+        if (!entry) return;
+        const sanitized = sanitizeChangeLogEntries([entry])[0];
+        if (!sanitized) return;
+        map.set(sanitized.id, sanitized);
+    });
+    return Array.from(map.values()).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+}
+
+function sanitizeChangeLogEntries(entries = []) {
+    const seen = new Set();
+    return entries.reduce((list, entry) => {
+        if (!entry) return list;
+        const id = entry.id || generateId();
+        if (seen.has(id)) return list;
+        seen.add(id);
+        const timestamp = entry.timestamp || new Date().toISOString();
+        const metadata = entry.metadata || entry.meta || {};
+        const sanitizedEntry = {
+            id,
+            timestamp,
+            user: entry.user || metadata.createdBy || '未知',
+            reason: entry.reason || 'update',
+            summary: entry.summary || metadata.preview || '更新菜單內容',
+            metadata: {
+                itemCount: metadata.itemCount || 0,
+                preview: metadata.preview || '無品項預覽',
+                createdBy: metadata.createdBy || entry.user || '未知',
+                estimatedTotal: metadata.estimatedTotal,
+                estimatedPerPerson: metadata.estimatedPerPerson
+            },
+            snapshot: {
+                peopleCount: entry.snapshot?.peopleCount || 1,
+                tableCount: entry.snapshot?.tableCount || 1,
+                menuName: entry.snapshot?.menuName || entry.snapshot?.name || ''
+            }
+        };
+        list.push(sanitizedEntry);
+        return list;
+    }, []);
+}
+
+async function persistChangeLogEntries(clientOverride = null) {
+    persistLocalChangeLog();
+    try {
+        await persistNamedState(CHANGELOG_STATE_KEY, { entries: changeLogEntries.slice(0, 100) }, clientOverride);
+    } catch (error) {
+        console.warn('同步修改紀錄失敗：', error);
+    }
+}
+
+async function initChangeLog() {
+    changeLogEntries = loadLocalChangeLog();
+    try {
+        const payload = await fetchNamedState(CHANGELOG_STATE_KEY);
+        const remoteEntries = sanitizeChangeLogEntries(payload?.entries || []);
+        if (remoteEntries.length) {
+            changeLogEntries = mergeChangeLogEntries(remoteEntries, changeLogEntries).slice(0, 100);
+            persistLocalChangeLog();
+        } else if (changeLogEntries.length) {
+            await persistChangeLogEntries();
+        }
+    } catch (error) {
+        console.warn('載入修改紀錄失敗：', error);
+    }
+}
+
+async function refreshChangeLogEntries() {
+    try {
+        const payload = await fetchNamedState(CHANGELOG_STATE_KEY);
+        if (payload?.entries) {
+            changeLogEntries = sanitizeChangeLogEntries(payload.entries).slice(0, 100);
+            persistLocalChangeLog();
+        }
+    } catch (error) {
+        console.warn('重新整理修改紀錄失敗：', error);
+    }
+    return changeLogEntries;
+}
+
+function getChangeReasonLabel(reason) {
+    switch (reason) {
+        case 'manual-save':
+            return '手動儲存';
+        case 'auto-sync':
+            return '自動同步';
+        case 'manual-sync':
+            return '手動同步';
+        case 'structure-change':
+            return '內容更新';
+        default:
+            return '更新';
+    }
+}
+
+function computeMenuFingerprint(snapshot) {
+    const compactMenu = (snapshot.menu?.categories || []).map(category => ({
+        id: category.id,
+        name: category.name,
+        items: (category.items || []).map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            nameEn: item.nameEn
+        }))
+    }));
+    return JSON.stringify({
+        menu: compactMenu,
+        peopleCount: snapshot.peopleCount,
+        tableCount: snapshot.tableCount
+    });
+}
+
+function buildChangeSummary(reason, metadata, snapshot, options = {}) {
+    const preview = metadata.preview || '無品項預覽';
+    if (reason === 'manual-save' && options.menuName) {
+        return `儲存菜單「${options.menuName}」 (${metadata.itemCount} 道)`;
+    }
+    return `更新 ${metadata.itemCount} 道餐點 · ${preview}`;
+}
+
+function recordMenuChange(reason = 'auto-sync', snapshot = null, options = {}) {
+    if (options.skip) {
+        return;
+    }
+    const stateSnapshot = snapshot || getCurrentStateSnapshot();
+    if (!stateSnapshot?.menu) {
+        return;
+    }
+    const fingerprint = computeMenuFingerprint(stateSnapshot);
+    if (!options.force && fingerprint === lastChangeFingerprint) {
+        return;
+    }
+    lastChangeFingerprint = fingerprint;
+    const metadataOverrides = {
+        createdBy: options.createdBy || stateSnapshot.updatedBy || currentUser?.username || '未知'
+    };
+    if (typeof options.itemCount === 'number') {
+        metadataOverrides.itemCount = options.itemCount;
+    }
+    if (options.preview) {
+        metadataOverrides.preview = options.preview;
+    }
+    if (Number.isFinite(options.estimatedTotal)) {
+        metadataOverrides.estimatedTotal = options.estimatedTotal;
+    }
+    if (Number.isFinite(options.estimatedPerPerson)) {
+        metadataOverrides.estimatedPerPerson = options.estimatedPerPerson;
+    }
+    const metadata = createHistoryMetadata(stateSnapshot.menu, metadataOverrides);
+    const entry = {
+        id: generateId(),
+        timestamp: stateSnapshot.updatedAt || new Date().toISOString(),
+        user: metadata.createdBy,
+        reason,
+        summary: options.summary || buildChangeSummary(reason, metadata, stateSnapshot, options),
+        metadata,
+        snapshot: {
+            peopleCount: stateSnapshot.peopleCount,
+            tableCount: stateSnapshot.tableCount,
+            menuName: options.menuName || ''
+        }
+    };
+    changeLogEntries.unshift(entry);
+    changeLogEntries = sanitizeChangeLogEntries(changeLogEntries).slice(0, 100);
+    persistLocalChangeLog();
+    persistChangeLogEntries();
+}
+
+function renderChangeLogEntries() {
+    const container = document.getElementById('changeLogContent');
+    if (!container) return;
+    if (!changeLogEntries.length) {
+        container.innerHTML = '<div class="change-log-empty">目前沒有可顯示的修改紀錄。</div>';
+        return;
+    }
+    container.innerHTML = changeLogEntries.map(entry => {
+        const timestamp = entry.timestamp ? formatDate(new Date(entry.timestamp)) : '';
+        const total = Number.isFinite(entry.metadata?.estimatedTotal) ? entry.metadata.estimatedTotal : null;
+        const perPerson = Number.isFinite(entry.metadata?.estimatedPerPerson) ? entry.metadata.estimatedPerPerson : null;
+        const metaParts = [
+            `<span><i class="fas fa-list"></i> ${entry.metadata?.itemCount || 0} 道餐點</span>`,
+            `<span><i class="fas fa-users"></i> ${entry.snapshot?.peopleCount || 1} 人</span>`,
+            `<span><i class="fas fa-chair"></i> ${entry.snapshot?.tableCount || 1} 桌</span>`
+        ];
+        if (total !== null) {
+            metaParts.push(`<span><i class="fas fa-dollar-sign"></i> 總額 $${total}</span>`);
+        }
+        if (perPerson !== null) {
+            metaParts.push(`<span><i class="fas fa-user"></i> 人均 $${perPerson}</span>`);
+        }
+        return `
+            <div class="change-log-entry">
+                <div class="change-log-entry-header">
+                    <span class="change-log-user"><i class="fas fa-user-circle"></i> ${entry.user || '未知使用者'}</span>
+                    <span class="change-log-time">${timestamp}</span>
+                    <span class="change-log-reason">${getChangeReasonLabel(entry.reason)}</span>
+                </div>
+                <div class="change-log-summary">${entry.summary}</div>
+                <div class="change-log-meta">${metaParts.join('')}</div>
+                <div class="change-log-preview"><i class="fas fa-utensils"></i> ${entry.metadata?.preview || '無品項預覽'}</div>
+            </div>
+        `;
+    }).join('');
 }
 
 async function addAccount() {
@@ -264,16 +510,19 @@ const MENU_STATE_KEY = 'MENU_STATE';
 const CART_STATE_KEY = 'CART_STATE';
 const AUTO_HISTORY_FLAG = '__AUTO_HISTORY__';
 const ACCOUNTS_STATE_KEY = 'MENU_ACCOUNTS';
+const CHANGELOG_STATE_KEY = 'MENU_CHANGELOG';
+const CHANGELOG_LOCAL_KEY = 'MENU_CHANGELOG';
 const ADMIN_USERNAME = 'goodmask77';
 const CURRENT_USER_KEY = 'CURRENT_USER';
 let supabaseClient = null;
 let supabaseSyncQueue = Promise.resolve();
 let supabaseInitialized = false;
 let syncStatusTimer = null;
-let changeLogCache = null;
 let accounts = [];
 let currentUser = null;
 let postLoginAction = null;
+let changeLogEntries = [];
+let lastChangeFingerprint = null;
 
 let menuData = {
     categories: [
@@ -821,6 +1070,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     initializeApp();
     bindEvents();
     await initAccounts();
+    await initChangeLog();
     restoreCurrentUser();
     updateAuthUI();
 });
@@ -878,7 +1128,7 @@ async function prepareInitialState() {
     }
     if (!remoteRestored && !localRestored) {
         // 將預設資料同步到本機與遠端，確保後續操作有一致基準
-        saveToStorage();
+        saveToStorage({ skipChangeLog: true, reason: 'bootstrap' });
     }
 }
 
@@ -1016,10 +1266,11 @@ function restoreFromLocalStorage() {
 
 function getCurrentStateSnapshot() {
     return {
-        menu: menuData,
+        menu: deepClone(menuData),
         peopleCount: peopleCount,
         tableCount: tableCount,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        updatedBy: currentUser?.username || '未知'
     };
 }
 
@@ -1057,7 +1308,7 @@ function sanitizeHistoryEntries(entries) {
     });
 }
 
-function createHistoryMetadata(menuSnapshot = menuData) {
+function createHistoryMetadata(menuSnapshot = menuData, overrides = {}) {
     const categories = Array.isArray(menuSnapshot?.categories) ? menuSnapshot.categories : [];
     const categoryCount = categories.length;
     const itemCount = categories.reduce((sum, category) => sum + (category.items?.length || 0), 0);
@@ -1067,10 +1318,17 @@ function createHistoryMetadata(menuSnapshot = menuData) {
             previewItems.push(`${category.name}·${category.items[0].name}`);
         }
     });
+    const baseMeta = menuSnapshot?.meta || {};
+    const fallbackPreview = baseMeta.preview || previewItems.slice(0, 3).join(', ') || '無品項預覽';
+    const fallbackCreatedBy = baseMeta.createdBy || menuSnapshot?.createdBy || currentUser?.username || '未知';
     return {
         categoryCount,
         itemCount,
-        preview: previewItems.slice(0, 3).join(', ') || '無品項預覽'
+        preview: fallbackPreview,
+        createdBy: fallbackCreatedBy,
+        estimatedTotal: baseMeta.estimatedTotal,
+        estimatedPerPerson: baseMeta.estimatedPerPerson,
+        ...overrides
     };
 }
 
@@ -2111,13 +2369,14 @@ function confirmSaveMenu() {
     }
     
     const menuSnapshot = deepClone(menuData);
+    const createdBy = currentUser?.username || '未知';
     const menuVersion = {
         ...menuSnapshot,
         peopleCount: peopleCount,
         tableCount: tableCount,
         savedAt: new Date().toISOString(),
         name: menuName,
-        meta: createHistoryMetadata()
+        meta: createHistoryMetadata(menuSnapshot, { createdBy })
     };
     
     const savedMenus = JSON.parse(localStorage.getItem('savedMenus') || '[]');
@@ -2135,44 +2394,36 @@ function confirmSaveMenu() {
     document.getElementById('saveMenuModal').style.display = 'none';
     
     alert(`菜單「${menuName}」已成功儲存！`);
-    saveToStorage();
+    saveToStorage({ reason: 'manual-save', summary: `儲存菜單「${menuName}」`, menuName });
 }
 
-function saveToStorage() {
+function saveToStorage(options = {}) {
     const snapshot = getCurrentStateSnapshot();
     upsertAutoHistoryEntry(snapshot);
     const currentData = getCurrentStatePayload(snapshot);
     localStorage.setItem('currentMenu', JSON.stringify(currentData));
     syncStateToSupabase(currentData);
+    if (!options.skipChangeLog) {
+        recordMenuChange(options.reason || 'auto-sync', snapshot, {
+            summary: options.summary,
+            menuName: options.menuName
+        });
+    }
+    return snapshot;
 }
 
 async function showChangeLogModal() {
     const modal = document.getElementById('changeLogModal');
     const content = document.getElementById('changeLogContent');
     if (!modal || !content) return;
-    content.textContent = '載入中...';
     modal.style.display = 'block';
-    const text = await loadChangeLogText();
-    content.textContent = text.trim();
-}
-
-async function loadChangeLogText() {
-    if (changeLogCache) {
-        return changeLogCache;
+    content.innerHTML = '<div class="change-log-loading"><i class="fas fa-spinner fa-spin"></i> 載入中…</div>';
+    try {
+        await refreshChangeLogEntries();
+    } catch (error) {
+        console.warn('載入最新修改紀錄失敗：', error);
     }
-    const sources = ['/CHANGELOG.md', 'CHANGELOG.md', '/public/CHANGELOG.md'];
-    for (const source of sources) {
-        try {
-            const response = await fetch(source, { cache: 'no-cache' });
-            if (!response.ok) continue;
-            changeLogCache = await response.text();
-            return changeLogCache;
-        } catch (error) {
-            console.warn(`載入修改紀錄失敗 (${source})：`, error);
-        }
-    }
-    changeLogCache = '目前沒有可顯示的修改紀錄。';
-    return changeLogCache;
+    renderChangeLogEntries();
 }
 
 async function manualCloudSave() {
@@ -2181,7 +2432,7 @@ async function manualCloudSave() {
         showSyncStatus('無法連線至雲端，請稍後再試', 'error');
         return;
     }
-    saveToStorage();
+    saveToStorage({ reason: 'manual-sync', summary: '手動同步菜單' });
 }
 
 function upsertAutoHistoryEntry(statePayload) {
@@ -2207,6 +2458,7 @@ function upsertAutoHistoryEntry(statePayload) {
 function createAutoHistoryEntry(statePayload) {
     const timestamp = new Date();
     const clonedMenu = deepClone(statePayload.menu);
+    const author = statePayload.updatedBy || currentUser?.username || '系統';
     return {
         ...clonedMenu,
         peopleCount: statePayload.peopleCount,
@@ -2215,7 +2467,7 @@ function createAutoHistoryEntry(statePayload) {
         name: `最新同步 ${formatDate(timestamp)}`,
         autoGenerated: true,
         flag: AUTO_HISTORY_FLAG,
-        meta: createHistoryMetadata(clonedMenu)
+        meta: createHistoryMetadata(clonedMenu, { createdBy: author })
     };
 }
 
@@ -2319,6 +2571,7 @@ function renderHistoryList() {
                     <th class="sortable ${historySort.field === 'tables' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('tables')">桌數</th>
                     <th class="sortable ${historySort.field === 'total' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('total')">總金額</th>
                     <th class="sortable ${historySort.field === 'price' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('price')">人均</th>
+                    <th>建立者</th>
                     <th>餐點內容</th>
                     <th>操作</th>
                 </tr>
@@ -2341,6 +2594,7 @@ function renderHistoryList() {
                             <td class="table-cell">${menu.tableCount || 1}</td>
                             <td class="total-cell">${typeof total === 'number' ? '$' + total : '--'}</td>
                             <td class="perperson-cell">${typeof perPerson === 'number' ? '$' + perPerson : '--'}</td>
+                            <td class="creator-cell">${menu.meta?.createdBy || '未知'}</td>
                             <td class="preview-cell" title="${cartPreview}">${cartPreview}</td>
                             <td class="actions-cell" onclick="event.stopPropagation();">
                                 <button class="btn-small btn-edit" onclick="editHistoryMenu(${originalMenuIndex})" title="編輯">
@@ -2434,7 +2688,7 @@ function loadHistoryMenu(index) {
         renderCart();
         updateCartSummary();
         document.getElementById('historyModal').style.display = 'none';
-        saveToStorage();
+        saveToStorage({ skipChangeLog: true, reason: 'history-load' });
         persistCartState();
         alert('菜單已載入');
     }

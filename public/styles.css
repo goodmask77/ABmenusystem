@@ -1179,6 +1179,15 @@ body {
     width: 30px;
     height: 30px;
     display: flex;
+.modal-content.small {
+    max-width: 420px;
+}
+
+.modal-description {
+    color: #6c757d;
+    margin-bottom: 12px;
+}
+
     align-items: center;
     justify-content: center;
     border-radius: 50%;
@@ -1189,6 +1198,66 @@ body {
 
 .modal .close:hover,
 .modal .close:focus {
+
+.account-manager {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.account-list {
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 12px;
+    background: #fff;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.account-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.account-row:last-child {
+    border-bottom: none;
+}
+
+.account-row strong {
+    font-size: 0.95rem;
+    color: #212529;
+}
+
+.account-role {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.account-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.account-empty {
+    text-align: center;
+    color: #6c757d;
+    padding: 20px 0;
+}
+
+.account-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.account-form .input-field {
+    flex: 1;
+    min-width: 160px;
+}
     color: #fff;
     background: #dc3545;
     transform: scale(1.1);
@@ -1466,6 +1535,93 @@ body {
     background: #dc3545;
 }
 
+.change-log-content {
+    max-height: 70vh;
+    overflow-y: auto;
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1.25rem;
+    border: 1px solid #e0e0e0;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.change-log-entry {
+    background: #fff;
+    border-radius: 12px;
+    padding: 0.9rem 1.1rem;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    margin-bottom: 0.85rem;
+}
+
+.change-log-entry-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.change-log-user {
+    font-weight: 600;
+    color: #0d6efd;
+}
+
+.change-log-time {
+    color: #adb5bd;
+}
+
+.change-log-reason {
+    margin-left: auto;
+    font-size: 0.78rem;
+    background: #e9ecef;
+    color: #495057;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+}
+
+.change-log-summary {
+    margin: 0.4rem 0;
+    font-weight: 600;
+    color: #212529;
+}
+
+.change-log-preview {
+    margin-top: 0.35rem;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.change-log-preview i {
+    margin-right: 0.35rem;
+}
+
+.change-log-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+    color: #495057;
+}
+
+.change-log-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.change-log-empty,
+.change-log-loading {
+    text-align: center;
+    padding: 1.5rem;
+    color: #6c757d;
+}
+
+.change-log-loading i {
+    margin-right: 0.35rem;
+}
+
 /* 響應式設計 */
 @media (max-width: 768px) {
     .modal-content.extra-large {
@@ -1480,20 +1636,7 @@ body {
 
     .change-log-content {
         max-height: 60vh;
-        overflow-y: auto;
-        background: #f8f9fa;
-        border-radius: 8px;
         padding: 1rem;
-        border: 1px solid #e0e0e0;
-    }
-
-    .change-log-content pre {
-        white-space: pre-wrap;
-        word-break: break-word;
-        margin: 0;
-        font-size: 0.9rem;
-        line-height: 1.5;
-        color: #343a40;
     }
     }
     
@@ -1668,86 +1811,6 @@ body {
 .history-modal .actions-cell .btn-small {
   padding: 6px 10px;
   margin-left: var(--space-xxs);
-}
-
-.modal-content.small {
-    max-width: 420px;
-}
-
-.modal-description {
-    color: #6c757d;
-    margin-bottom: 12px;
-}
-
-.login-status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 10px;
-    border-radius: 999px;
-    background: #2c3e50;
-    color: #fff;
-    font-size: 0.85rem;
-}
-
-.account-manager {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.account-list {
-    border: 1px solid #e9ecef;
-    border-radius: 12px;
-    padding: 12px;
-    background: #fff;
-    max-height: 320px;
-    overflow-y: auto;
-}
-
-.account-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid #f1f3f5;
-}
-
-.account-row:last-child {
-    border-bottom: none;
-}
-
-.account-row strong {
-    font-size: 0.95rem;
-    color: #212529;
-}
-
-.account-role {
-    font-size: 0.85rem;
-    color: #6c757d;
-}
-
-.account-row-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.account-empty {
-    text-align: center;
-    color: #6c757d;
-    padding: 20px 0;
-}
-
-.account-form {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.account-form .input-field {
-    flex: 1;
-    min-width: 160px;
 }
 
 /* 手機／窄螢幕調整：略縮內距，但保留邊匡感 */
