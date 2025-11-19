@@ -156,6 +156,33 @@ function renderAccountList() {
     }).join('');
 }
 
+function normalizeAccountList(list = []) {
+    const seen = new Set();
+    const normalized = [];
+    [...list, { username: ADMIN_USERNAME, role: 'admin' }].forEach(account => {
+        const username = (account?.username || '').trim();
+        if (!username || seen.has(username)) return;
+        const role = account.role === 'admin' ? 'admin' : 'editor';
+        seen.add(username);
+        normalized.push({ username, role });
+    });
+    return normalized;
+}
+
+async function persistAccountsState(clientOverride = null) {
+    const client = clientOverride || supabaseClient || await initSupabaseClient();
+    if (!client) {
+        throw new Error('Supabase 尚未就緒，無法同步帳號資料');
+    }
+    const payload = { accounts };
+    const { error } = await client
+        .from('menu_state')
+        .upsert({ name: ACCOUNTS_STATE_KEY, payload, updated_at: new Date().toISOString() }, { onConflict: 'name' });
+    if (error) {
+        throw error;
+    }
+}
+
 async function addAccount() {
     if (!ensureAdminAccess()) return;
     const username = elements.newAccountName.value.trim();
@@ -173,15 +200,16 @@ async function addAccount() {
         alert('尚未設定雲端資料庫，無法新增帳號');
         return;
     }
+    const previousAccounts = [...accounts];
+    accounts = normalizeAccountList([...accounts, { username, role }]);
     try {
-        const { error } = await client.from(ACCOUNT_TABLE).upsert({ username, role });
-        if (error) throw error;
-        accounts.push({ username, role });
+        await persistAccountsState(client);
         elements.newAccountName.value = '';
         elements.newAccountRole.value = 'editor';
         renderAccountList();
     } catch (error) {
         console.error('新增帳號失敗：', error);
+        accounts = previousAccounts;
         alert('新增帳號失敗，請稍後再試');
     }
 }
@@ -200,16 +228,17 @@ async function deleteAccount(username) {
         alert('尚未設定雲端資料庫，無法刪除帳號');
         return;
     }
+    const previousAccounts = [...accounts];
+    accounts = normalizeAccountList(accounts.filter(acc => acc.username !== username));
     try {
-        const { error } = await client.from(ACCOUNT_TABLE).delete().eq('username', username);
-        if (error) throw error;
-        accounts = accounts.filter(acc => acc.username !== username);
+        await persistAccountsState(client);
         if (currentUser?.username === username) {
             logoutUser();
         }
         renderAccountList();
     } catch (error) {
         console.error('刪除帳號失敗：', error);
+        accounts = previousAccounts;
         alert('刪除帳號失敗，請稍後再試');
     }
 }
@@ -234,7 +263,7 @@ let historySort = {
 const MENU_STATE_KEY = 'MENU_STATE';
 const CART_STATE_KEY = 'CART_STATE';
 const AUTO_HISTORY_FLAG = '__AUTO_HISTORY__';
-const ACCOUNT_TABLE = 'menu_accounts';
+const ACCOUNTS_STATE_KEY = 'MENU_ACCOUNTS';
 const ADMIN_USERNAME = 'goodmask77';
 const CURRENT_USER_KEY = 'CURRENT_USER';
 let supabaseClient = null;
@@ -929,27 +958,27 @@ async function loadStateFromSupabase() {
 async function initAccounts() {
     const client = supabaseClient || await initSupabaseClient();
     if (!client) {
-        accounts = [{ username: ADMIN_USERNAME, role: 'admin' }];
+        accounts = normalizeAccountList();
         renderAccountList();
         return;
     }
     try {
         const { data, error } = await client
-            .from(ACCOUNT_TABLE)
-            .select('*')
-            .order('created_at');
-        if (error) throw error;
-        accounts = data || [];
-        if (!accounts.some(acc => acc.username === ADMIN_USERNAME)) {
-            await client.from(ACCOUNT_TABLE).upsert({ username: ADMIN_USERNAME, role: 'admin' });
-            accounts.push({ username: ADMIN_USERNAME, role: 'admin' });
+            .from('menu_state')
+            .select('payload')
+            .eq('name', ACCOUNTS_STATE_KEY)
+            .maybeSingle();
+        if (error && error.code !== 'PGRST116') {
+            throw error;
         }
-        renderAccountList();
+        const stored = Array.isArray(data?.payload?.accounts) ? data.payload.accounts : [];
+        accounts = normalizeAccountList(stored);
+        await persistAccountsState(client);
     } catch (error) {
         console.error('載入帳號資料失敗：', error);
-        accounts = [{ username: ADMIN_USERNAME, role: 'admin' }];
-        renderAccountList();
+        accounts = normalizeAccountList();
     }
+    renderAccountList();
 }
 
 function applyStatePayload(payload) {
