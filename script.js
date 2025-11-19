@@ -121,6 +121,98 @@ function updateAuthUI() {
         }
     }
 }
+
+function renderAccountInfo() {
+    // 目前僅需刷新登入徽章與權限相關按鈕
+    updateAuthUI();
+}
+
+function renderAccountList() {
+    if (!elements.accountList) return;
+    const list = [...accounts].sort((a, b) => {
+        if (a.role === b.role) {
+            return a.username.localeCompare(b.username);
+        }
+        return a.role === 'admin' ? -1 : 1;
+    });
+    if (!list.length) {
+        elements.accountList.innerHTML = '<p class="account-empty">目前沒有任何帳號。</p>';
+        return;
+    }
+    elements.accountList.innerHTML = list.map(account => {
+        const roleLabel = account.role === 'admin' ? '管理員' : '一般使用者';
+        const deleteButton = account.username === ADMIN_USERNAME
+            ? '<span class="account-role">預設管理員</span>'
+            : '<button class="btn btn-secondary btn-small" data-delete-account="' + account.username + '"><i class="fas fa-trash"></i> 刪除</button>';
+        return `
+            <div class="account-row" data-username="${account.username}">
+                <div>
+                    <strong>${account.username}</strong>
+                    <div class="account-role">${roleLabel}</div>
+                </div>
+                <div class="account-row-actions">${deleteButton}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function addAccount() {
+    if (!ensureAdminAccess()) return;
+    const username = elements.newAccountName.value.trim();
+    const role = elements.newAccountRole.value;
+    if (!username) {
+        alert('請輸入帳號名稱');
+        return;
+    }
+    if (accounts.some(acc => acc.username === username)) {
+        alert('此帳號已存在');
+        return;
+    }
+    const client = supabaseClient || await initSupabaseClient();
+    if (!client) {
+        alert('尚未設定雲端資料庫，無法新增帳號');
+        return;
+    }
+    try {
+        const { error } = await client.from(ACCOUNT_TABLE).upsert({ username, role });
+        if (error) throw error;
+        accounts.push({ username, role });
+        elements.newAccountName.value = '';
+        elements.newAccountRole.value = 'editor';
+        renderAccountList();
+    } catch (error) {
+        console.error('新增帳號失敗：', error);
+        alert('新增帳號失敗，請稍後再試');
+    }
+}
+
+async function deleteAccount(username) {
+    if (!ensureAdminAccess()) return;
+    if (!username || username === ADMIN_USERNAME) {
+        alert('無法刪除預設管理員帳號');
+        return;
+    }
+    if (!confirm(`確認刪除帳號「${username}」？`)) {
+        return;
+    }
+    const client = supabaseClient || await initSupabaseClient();
+    if (!client) {
+        alert('尚未設定雲端資料庫，無法刪除帳號');
+        return;
+    }
+    try {
+        const { error } = await client.from(ACCOUNT_TABLE).delete().eq('username', username);
+        if (error) throw error;
+        accounts = accounts.filter(acc => acc.username !== username);
+        if (currentUser?.username === username) {
+            logoutUser();
+        }
+        renderAccountList();
+    } catch (error) {
+        console.error('刪除帳號失敗：', error);
+        alert('刪除帳號失敗，請稍後再試');
+    }
+}
 // 全域變數
 let isAdminMode = false;
 let cart = [];
@@ -836,7 +928,11 @@ async function loadStateFromSupabase() {
 
 async function initAccounts() {
     const client = supabaseClient || await initSupabaseClient();
-    if (!client) return;
+    if (!client) {
+        accounts = [{ username: ADMIN_USERNAME, role: 'admin' }];
+        renderAccountList();
+        return;
+    }
     try {
         const { data, error } = await client
             .from(ACCOUNT_TABLE)
@@ -848,9 +944,11 @@ async function initAccounts() {
             await client.from(ACCOUNT_TABLE).upsert({ username: ADMIN_USERNAME, role: 'admin' });
             accounts.push({ username: ADMIN_USERNAME, role: 'admin' });
         }
+        renderAccountList();
     } catch (error) {
         console.error('載入帳號資料失敗：', error);
         accounts = [{ username: ADMIN_USERNAME, role: 'admin' }];
+        renderAccountList();
     }
 }
 
@@ -2533,6 +2631,15 @@ function bindModalEvents() {
     }
     if (elements.addAccountButton) {
         elements.addAccountButton.addEventListener('click', addAccount);
+    }
+    if (elements.accountList) {
+        elements.accountList.addEventListener('click', event => {
+            const target = event.target.closest('[data-delete-account]');
+            if (target) {
+                const username = target.getAttribute('data-delete-account');
+                deleteAccount(username);
+            }
+        });
     }
 }
 

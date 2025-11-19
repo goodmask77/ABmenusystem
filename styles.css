@@ -1236,6 +1236,18 @@ body {
     color: #6c757d;
 }
 
+.account-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.account-empty {
+    text-align: center;
+    color: #6c757d;
+    padding: 20px 0;
+}
+
 .account-form {
     display: flex;
     flex-wrap: wrap;
