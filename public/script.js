@@ -17,6 +17,8 @@ let historySort = {
 };
 
 const MENU_STATE_KEY = 'MENU_STATE';
+const CART_STATE_KEY = 'CART_STATE';
+const AUTO_HISTORY_FLAG = '__AUTO_HISTORY__';
 let supabaseClient = null;
 let supabaseSyncQueue = Promise.resolve();
 let supabaseInitialized = false;
@@ -607,6 +609,10 @@ async function prepareInitialState() {
     const localRestored = restoreFromLocalStorage();
     await initSupabaseClient();
     const remoteRestored = await loadStateFromSupabase();
+    const cartRestored = restoreCartState();
+    if (!cartRestored) {
+        persistCartState();
+    }
     if (!remoteRestored && !localRestored) {
         // 將預設資料同步到本機與遠端，確保後續操作有一致基準
         saveToStorage();
@@ -671,7 +677,14 @@ async function loadStateFromSupabase() {
             return false;
         }
         applyStatePayload(data.payload);
-        localStorage.setItem('currentMenu', JSON.stringify(data.payload));
+        upsertAutoHistoryEntry(data.payload);
+        const latestHistory = sanitizeHistoryEntries(getSavedMenus());
+        const enrichedPayload = {
+            ...data.payload,
+            historyEntries: latestHistory,
+            savedMenus: latestHistory
+        };
+        localStorage.setItem('currentMenu', JSON.stringify(enrichedPayload));
         return true;
     } catch (error) {
         console.error('處理 Supabase 狀態時發生錯誤：', error);
@@ -687,9 +700,16 @@ function applyStatePayload(payload) {
             categories: payload.menu.categories
         };
     }
-    cart = Array.isArray(payload?.cart) ? payload.cart : [];
     peopleCount = Number(payload?.peopleCount) > 0 ? payload.peopleCount : 1;
     tableCount = Number(payload?.tableCount) > 0 ? payload.tableCount : 1;
+    const remoteHistory = Array.isArray(payload?.historyEntries)
+        ? payload.historyEntries
+        : Array.isArray(payload?.savedMenus)
+            ? payload.savedMenus
+            : null;
+    if (remoteHistory) {
+        localStorage.setItem('savedMenus', JSON.stringify(remoteHistory.slice(0, 50)));
+    }
 }
 
 function restoreFromLocalStorage() {
@@ -705,14 +725,107 @@ function restoreFromLocalStorage() {
     }
 }
 
-function getCurrentStatePayload() {
+function getCurrentStateSnapshot() {
     return {
         menu: menuData,
-        cart: cart,
         peopleCount: peopleCount,
         tableCount: tableCount,
         updatedAt: new Date().toISOString()
     };
+}
+
+function getSavedMenus() {
+    try {
+        return JSON.parse(localStorage.getItem('savedMenus') || '[]');
+    } catch (error) {
+        console.warn('解析歷史紀錄失敗：', error);
+        return [];
+    }
+}
+
+function getCurrentStatePayload(snapshot = null) {
+    const baseState = snapshot || getCurrentStateSnapshot();
+    const historyEntries = sanitizeHistoryEntries(getSavedMenus());
+    return {
+        ...baseState,
+        historyEntries,
+        savedMenus: historyEntries
+    };
+}
+
+function sanitizeHistoryEntries(entries) {
+    return entries.map(entry => {
+        const sanitized = { ...entry };
+        const metadata = createHistoryMetadata(entry);
+        sanitized.meta = {
+            ...metadata,
+            ...sanitized.meta
+        };
+        if ('cart' in sanitized) {
+            delete sanitized.cart;
+        }
+        return sanitized;
+    });
+}
+
+function createHistoryMetadata(menuSnapshot = menuData) {
+    const categories = Array.isArray(menuSnapshot?.categories) ? menuSnapshot.categories : [];
+    const categoryCount = categories.length;
+    const itemCount = categories.reduce((sum, category) => sum + (category.items?.length || 0), 0);
+    const previewItems = [];
+    categories.forEach(category => {
+        if (category.items?.length) {
+            previewItems.push(`${category.name}·${category.items[0].name}`);
+        }
+    });
+    return {
+        categoryCount,
+        itemCount,
+        preview: previewItems.slice(0, 3).join(', ') || '無品項預覽'
+    };
+}
+
+function persistCartState() {
+    try {
+        const payload = {
+            cart,
+            peopleCount,
+            tableCount,
+            updatedAt: new Date().toISOString()
+        };
+        localStorage.setItem(CART_STATE_KEY, JSON.stringify(payload));
+    } catch (error) {
+        console.warn('儲存購物車狀態失敗：', error);
+    }
+}
+
+function restoreCartState() {
+    try {
+        const raw = localStorage.getItem(CART_STATE_KEY);
+        if (!raw) return false;
+        const payload = JSON.parse(raw);
+        cart = Array.isArray(payload?.cart) ? payload.cart : [];
+        if (Number(payload?.peopleCount) > 0) {
+            peopleCount = payload.peopleCount;
+            if (elements.peopleCountInput) {
+                elements.peopleCountInput.value = peopleCount;
+            }
+        }
+        if (Number(payload?.tableCount) > 0) {
+            tableCount = payload.tableCount;
+            if (elements.tableCountInput) {
+                elements.tableCountInput.value = tableCount;
+            }
+        }
+        return true;
+    } catch (error) {
+        console.warn('載入購物車狀態失敗：', error);
+        return false;
+    }
+}
+
+function clearCartStateStorage() {
+    localStorage.removeItem(CART_STATE_KEY);
 }
 
 function showSyncStatus(message, status = 'pending') {
@@ -1011,13 +1124,7 @@ function updateCategory() {
 function deleteCategory(categoryId) {
     if (confirm('確定要刪除此類別？此操作無法復原。')) {
         menuData.categories = menuData.categories.filter(c => c.id !== categoryId);
-        // 同時移除購物車中該類別的品項
-        cart = cart.filter(item => {
-            const category = menuData.categories.find(c => 
-                c.items.some(i => i.id === item.id)
-            );
-            return category !== undefined;
-        });
+        removeInvalidCartItems();
         renderMenu();
         renderCart();
         updateCartSummary();
@@ -1097,6 +1204,7 @@ function saveItem() {
     renderMenu();
     renderCart();
     updateCartSummary();
+    persistCartState();
     document.getElementById('itemModal').style.display = 'none';
     saveToStorage();
 }
@@ -1111,6 +1219,7 @@ function deleteItem(categoryId, itemId) {
             renderMenu();
             renderCart();
             updateCartSummary();
+            persistCartState();
             saveToStorage();
         }
     }
@@ -1137,12 +1246,11 @@ function addToCart(categoryId, itemId) {
             categoryId: categoryId
         };
         cart.push(cartItem);
+        persistCartState();
+        renderCart();
+        renderMenu(); // 重新渲染菜單以更新選中狀態
+        updateCartSummary();
     }
-    
-    renderCart();
-    renderMenu(); // 重新渲染菜單以更新選中狀態
-    updateCartSummary();
-    saveToStorage();
 }
 
 function removeFromCart(itemId) {
@@ -1150,7 +1258,7 @@ function removeFromCart(itemId) {
     renderCart();
     renderMenu(); // 重新渲染菜單以更新選中狀態
     updateCartSummary();
-    saveToStorage();
+    persistCartState();
 }
 
 function updateCartItemQuantity(itemId, quantity) {
@@ -1162,7 +1270,7 @@ function updateCartItemQuantity(itemId, quantity) {
             cartItem.quantity = quantity;
             renderCart();
             updateCartSummary();
-            saveToStorage();
+            persistCartState();
         }
     }
 }
@@ -1175,7 +1283,7 @@ function changePeopleCount(delta) {
         elements.peopleCountInput.value = peopleCount;
         console.log(`人數已更改為: ${peopleCount}`);
         updateCartSummary();
-        saveToStorage();
+        persistCartState();
     }
 }
 
@@ -1184,7 +1292,7 @@ function updatePeopleCount() {
     if (count >= 1 && count <= 99) {
         peopleCount = count;
         updateCartSummary();
-        saveToStorage();
+        persistCartState();
     } else {
         elements.peopleCountInput.value = peopleCount;
     }
@@ -1205,7 +1313,7 @@ function changeTableCount(delta) {
         
         renderCart();
         updateCartSummary();
-        saveToStorage();
+        persistCartState();
     }
 }
 
@@ -1222,7 +1330,7 @@ function updateTableCount() {
         
         renderCart();
         updateCartSummary();
-        saveToStorage();
+        persistCartState();
     } else {
         elements.tableCountInput.value = tableCount;
     }
@@ -1238,7 +1346,21 @@ function clearCart() {
     renderCart();
     renderMenu(); // 重新渲染菜單以移除選中狀態
     updateCartSummary();
-    saveToStorage();
+    persistCartState();
+}
+
+function removeInvalidCartItems() {
+    const validItemIds = new Set();
+    menuData.categories.forEach(category => {
+        category.items?.forEach(item => validItemIds.add(item.id));
+    });
+    const originalLength = cart.length;
+    cart = cart.filter(item => validItemIds.has(item.id));
+    if (cart.length !== originalLength) {
+        persistCartState();
+        return true;
+    }
+    return false;
 }
 
 // 計算購物車摘要
@@ -1268,7 +1390,7 @@ function reorderCategories(oldIndex, newIndex) {
 function reorderCartItems(oldIndex, newIndex) {
     const [movedItem] = cart.splice(oldIndex, 1);
     cart.splice(newIndex, 0, movedItem);
-    saveToStorage();
+    persistCartState();
 }
 
 function reorderCategoryItems(categoryId, oldIndex, newIndex) {
@@ -1639,13 +1761,14 @@ function confirmSaveMenu() {
         return;
     }
     
+    const menuSnapshot = deepClone(menuData);
     const menuVersion = {
-        ...menuData,
-        cart: cart,
+        ...menuSnapshot,
         peopleCount: peopleCount,
         tableCount: tableCount,
         savedAt: new Date().toISOString(),
-        name: menuName
+        name: menuName,
+        meta: createHistoryMetadata()
     };
     
     const savedMenus = JSON.parse(localStorage.getItem('savedMenus') || '[]');
@@ -1663,10 +1786,13 @@ function confirmSaveMenu() {
     document.getElementById('saveMenuModal').style.display = 'none';
     
     alert(`菜單「${menuName}」已成功儲存！`);
+    saveToStorage();
 }
 
 function saveToStorage() {
-    const currentData = getCurrentStatePayload();
+    const snapshot = getCurrentStateSnapshot();
+    upsertAutoHistoryEntry(snapshot);
+    const currentData = getCurrentStatePayload(snapshot);
     localStorage.setItem('currentMenu', JSON.stringify(currentData));
     syncStateToSupabase(currentData);
 }
@@ -1709,6 +1835,41 @@ async function manualCloudSave() {
     saveToStorage();
 }
 
+function upsertAutoHistoryEntry(statePayload) {
+    try {
+        if (!statePayload || !statePayload.menu) return;
+        const savedMenus = getSavedMenus();
+        const autoEntry = createAutoHistoryEntry(statePayload);
+        const existingIndex = savedMenus.findIndex(menu => menu.flag === AUTO_HISTORY_FLAG);
+        if (existingIndex >= 0) {
+            savedMenus[existingIndex] = autoEntry;
+        } else {
+            savedMenus.unshift(autoEntry);
+        }
+        if (savedMenus.length > 50) {
+            savedMenus.splice(50);
+        }
+        localStorage.setItem('savedMenus', JSON.stringify(savedMenus));
+    } catch (error) {
+        console.warn('更新修改紀錄失敗：', error);
+    }
+}
+
+function createAutoHistoryEntry(statePayload) {
+    const timestamp = new Date();
+    const clonedMenu = deepClone(statePayload.menu);
+    return {
+        ...clonedMenu,
+        peopleCount: statePayload.peopleCount,
+        tableCount: statePayload.tableCount,
+        savedAt: timestamp.toISOString(),
+        name: `最新同步 ${formatDate(timestamp)}`,
+        autoGenerated: true,
+        flag: AUTO_HISTORY_FLAG,
+        meta: createHistoryMetadata(clonedMenu)
+    };
+}
+
 function showHistoryModal() {
     document.getElementById('historyModal').style.display = 'block';
     renderHistoryList();
@@ -1718,7 +1879,7 @@ function showHistoryModal() {
 }
 
 function renderHistoryList() {
-    const savedMenus = JSON.parse(localStorage.getItem('savedMenus') || '[]');
+    const savedMenus = getSavedMenus();
     const historyList = document.getElementById('historyList');
     const searchTerm = document.getElementById('historySearch').value.toLowerCase();
     const sortBy = historySort.field;
@@ -1729,12 +1890,32 @@ function renderHistoryList() {
             return true;
         }
         
-        // 搜尋購物車中的餐點名稱
+        // 搜尋菜單分類與品項名稱
+        if (Array.isArray(menu.categories)) {
+            const foundInCategories = menu.categories.some(category => {
+                if (category.name?.toLowerCase().includes(searchTerm)) {
+                    return true;
+                }
+                return category.items?.some(item => 
+                    item.name?.toLowerCase().includes(searchTerm) ||
+                    (item.nameEn && item.nameEn.toLowerCase().includes(searchTerm))
+                );
+            });
+            if (foundInCategories) {
+                return true;
+            }
+        }
+        
+        // 舊版歷史資料中的購物車搜尋（相容用）
         if (menu.cart && menu.cart.length > 0) {
             return menu.cart.some(item => 
-                item.name.toLowerCase().includes(searchTerm) ||
+                item.name?.toLowerCase().includes(searchTerm) ||
                 (item.nameEn && item.nameEn.toLowerCase().includes(searchTerm))
             );
+        }
+
+        if (menu.meta?.preview && menu.meta.preview.toLowerCase().includes(searchTerm)) {
+            return true;
         }
         
         return false;
@@ -1745,11 +1926,9 @@ function renderHistoryList() {
         let result = 0;
         switch (sortBy) {
             case 'price':
-                const aTotal = calculateMenuTotal(a);
-                const bTotal = calculateMenuTotal(b);
-                const aPerPerson = Math.round(aTotal / (a.peopleCount || 1));
-                const bPerPerson = Math.round(bTotal / (b.peopleCount || 1));
-                result = bPerPerson - aPerPerson;
+                const aPrice = getHistoryMetrics(a).perPerson || 0;
+                const bPrice = getHistoryMetrics(b).perPerson || 0;
+                result = bPrice - aPrice;
                 break;
             case 'date':
                 result = new Date(b.savedAt) - new Date(a.savedAt);
@@ -1764,10 +1943,10 @@ function renderHistoryList() {
                 result = (b.tableCount || 1) - (a.tableCount || 1);
                 break;
             case 'total':
-                result = calculateMenuTotal(b) - calculateMenuTotal(a);
+                result = (getHistoryMetrics(b).total || 0) - (getHistoryMetrics(a).total || 0);
                 break;
             case 'items':
-                result = (b.cart?.length || 0) - (a.cart?.length || 0);
+                result = (getHistoryMetrics(b).itemCount || 0) - (getHistoryMetrics(a).itemCount || 0);
                 break;
             default:
                 result = 0;
@@ -1797,24 +1976,22 @@ function renderHistoryList() {
             </thead>
             <tbody>
                 ${filteredMenus.map((menu, originalIndex) => {
-                    const total = calculateMenuTotal(menu);
-                    const perPerson = Math.round(total / (menu.peopleCount || 1));
+                    const metrics = getHistoryMetrics(menu);
+                    const total = metrics.total;
+                    const perPerson = metrics.perPerson;
                     const originalMenuIndex = savedMenus.indexOf(menu);
                     
-                    // 生成購物車項目預覽
-                    const cartPreview = menu.cart && menu.cart.length > 0 
-                        ? menu.cart.slice(0, 2).map(item => item.name).join(', ') + (menu.cart.length > 2 ? '...' : '')
-                        : '無項目';
+                    const cartPreview = metrics.preview;
                     
                     return `
                         <tr class="history-row" onclick="loadHistoryMenu(${originalMenuIndex})" style="cursor: pointer;">
                             <td class="menu-name-cell" title="${menu.name || '未命名菜單'}">${menu.name || '未命名菜單'}</td>
                             <td class="date-cell">${formatDate(new Date(menu.savedAt))}</td>
-                            <td class="count-cell">${menu.cart?.length || 0}</td>
+                            <td class="count-cell">${metrics.itemCount}</td>
                             <td class="people-cell">${menu.peopleCount || 1}</td>
                             <td class="table-cell">${menu.tableCount || 1}</td>
-                            <td class="total-cell">$${total}</td>
-                            <td class="perperson-cell">$${perPerson}</td>
+                            <td class="total-cell">${typeof total === 'number' ? '$' + total : '--'}</td>
+                            <td class="perperson-cell">${typeof perPerson === 'number' ? '$' + perPerson : '--'}</td>
                             <td class="preview-cell" title="${cartPreview}">${cartPreview}</td>
                             <td class="actions-cell" onclick="event.stopPropagation();">
                                 <button class="btn-small btn-edit" onclick="editHistoryMenu(${originalMenuIndex})" title="編輯">
@@ -1853,19 +2030,35 @@ function sortHistoryBy(field) {
     renderHistoryList();
 }
 
-function calculateMenuTotal(menu) {
-    if (!menu.cart) return 0;
-    const subtotal = menu.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const serviceFee = Math.round(subtotal * 0.1);
-    return subtotal + serviceFee;
+function getHistoryMetrics(menu) {
+    const meta = menu.meta || {};
+    const legacy = menu.cart ? getLegacyCartSummary(menu) : null;
+    const total = Number.isFinite(meta.estimatedTotal) ? meta.estimatedTotal : legacy?.total ?? null;
+    const perPerson = Number.isFinite(meta.estimatedPerPerson) ? meta.estimatedPerPerson : legacy?.perPerson ?? null;
+    const itemCount = Number.isFinite(meta.itemCount) ? meta.itemCount : legacy?.itemCount ?? 0;
+    const preview = meta.preview || legacy?.preview || '無品項預覽';
+    return { total, perPerson, itemCount, preview };
 }
 
-function getTotalItems(menu) {
-    return menu.categories?.reduce((total, category) => total + (category.items?.length || 0), 0) || 0;
+function getLegacyCartSummary(menu) {
+    if (!Array.isArray(menu.cart) || menu.cart.length === 0) {
+        return null;
+    }
+    const subtotal = menu.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const serviceFee = Math.round(subtotal * 0.1);
+    const total = subtotal + serviceFee;
+    const perPerson = Math.round(total / (menu.peopleCount || 1));
+    const preview = menu.cart.slice(0, 2).map(item => item.name).join(', ') + (menu.cart.length > 2 ? '...' : '');
+    return {
+        itemCount: menu.cart.length,
+        total,
+        perPerson,
+        preview: preview || '無項目'
+    };
 }
 
 function loadHistoryMenu(index) {
-    const savedMenus = JSON.parse(localStorage.getItem('savedMenus') || '[]');
+    const savedMenus = getSavedMenus();
     const menu = savedMenus[index];
     
     if (menu) {
@@ -1875,21 +2068,31 @@ function loadHistoryMenu(index) {
             createdAt: menu.createdAt || new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
-        cart = menu.cart || [];
-        peopleCount = menu.peopleCount || 1;
-        elements.peopleCountInput.value = peopleCount;
+        if (Number(menu.peopleCount) > 0) {
+            peopleCount = menu.peopleCount;
+            if (elements.peopleCountInput) {
+                elements.peopleCountInput.value = peopleCount;
+            }
+        }
+        if (Number(menu.tableCount) > 0) {
+            tableCount = menu.tableCount;
+            if (elements.tableCountInput) {
+                elements.tableCountInput.value = tableCount;
+            }
+        }
         
         renderMenu();
         renderCart();
         updateCartSummary();
         document.getElementById('historyModal').style.display = 'none';
-        
+        saveToStorage();
+        persistCartState();
         alert('菜單已載入');
     }
 }
 
 function editHistoryMenu(index) {
-    const savedMenus = JSON.parse(localStorage.getItem('savedMenus') || '[]');
+    const savedMenus = getSavedMenus();
     const menu = savedMenus[index];
     
     if (menu) {
@@ -1908,7 +2111,7 @@ function editHistoryMenu(index) {
 }
 
 function deleteHistoryMenu(index) {
-    const savedMenus = JSON.parse(localStorage.getItem('savedMenus') || '[]');
+    const savedMenus = getSavedMenus();
     const menu = savedMenus[index];
     
     if (menu && confirm(`確定要刪除菜單「${menu.name || '未命名菜單'}」嗎？此操作無法復原。`)) {
@@ -2117,6 +2320,16 @@ function formatDate(date) {
         hour: '2-digit',
         minute: '2-digit'
     });
+}
+
+function deepClone(value) {
+    if (value === null || value === undefined) return value;
+    try {
+        return JSON.parse(JSON.stringify(value));
+    } catch (error) {
+        console.warn('深拷貝失敗：', error);
+        return value;
+    }
 }
 
 function debounce(func, wait) {
