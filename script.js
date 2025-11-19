@@ -21,6 +21,7 @@ let supabaseClient = null;
 let supabaseSyncQueue = Promise.resolve();
 let supabaseInitialized = false;
 let syncStatusTimer = null;
+let changeLogCache = null;
 
 let menuData = {
     categories: [
@@ -529,6 +530,7 @@ let menuData = {
 const elements = {
     toggleMode: document.getElementById('toggleMode'),
     syncCloud: document.getElementById('syncCloud'),
+    viewChangeLog: document.getElementById('viewChangeLog'),
     addCategory: document.getElementById('addCategory'),
     importMenu: document.getElementById('importMenu'),
     exportCartExcel: document.getElementById('exportCartExcel'),
@@ -776,6 +778,9 @@ async function persistStateToSupabase(statePayload) {
 function bindEvents() {
     // 模式切換
     elements.toggleMode.addEventListener('click', toggleMode);
+    if (elements.viewChangeLog) {
+        elements.viewChangeLog.addEventListener('click', showChangeLogModal);
+    }
     if (elements.syncCloud) {
         elements.syncCloud.addEventListener('click', manualCloudSave);
     }
@@ -1664,6 +1669,35 @@ function saveToStorage() {
     const currentData = getCurrentStatePayload();
     localStorage.setItem('currentMenu', JSON.stringify(currentData));
     syncStateToSupabase(currentData);
+}
+
+async function showChangeLogModal() {
+    const modal = document.getElementById('changeLogModal');
+    const content = document.getElementById('changeLogContent');
+    if (!modal || !content) return;
+    content.textContent = '載入中...';
+    modal.style.display = 'block';
+    const text = await loadChangeLogText();
+    content.textContent = text.trim();
+}
+
+async function loadChangeLogText() {
+    if (changeLogCache) {
+        return changeLogCache;
+    }
+    const sources = ['/CHANGELOG.md', 'CHANGELOG.md', '/public/CHANGELOG.md'];
+    for (const source of sources) {
+        try {
+            const response = await fetch(source, { cache: 'no-cache' });
+            if (!response.ok) continue;
+            changeLogCache = await response.text();
+            return changeLogCache;
+        } catch (error) {
+            console.warn(`載入修改紀錄失敗 (${source})：`, error);
+        }
+    }
+    changeLogCache = '目前沒有可顯示的修改紀錄。';
+    return changeLogCache;
 }
 
 async function manualCloudSave() {

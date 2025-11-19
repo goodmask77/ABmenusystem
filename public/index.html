@@ -31,6 +31,9 @@
                     <button id="loadMenu" class="btn btn-secondary">
                         <i class="fas fa-folder-open"></i> 載入菜單
                     </button>
+                    <button id="viewChangeLog" class="btn btn-secondary">
+                        <i class="fas fa-history"></i> 修改紀錄
+                    </button>
                 </div>
             </div>
         </header>
@@ -256,6 +259,19 @@
             </div>
 
             <div id="historyList"></div>
+        </div>
+    </div>
+
+    <!-- 修改紀錄對話框 -->
+    <div id="changeLogModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3>修改紀錄</h3>
+                <button class="close">&times;</button>
+            </div>
+            <div class="modal-body change-log-content">
+                <pre id="changeLogContent">載入中...</pre>
+            </div>
         </div>
     </div>
 

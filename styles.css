@@ -1472,6 +1472,29 @@ body {
         width: 98%;
         max-width: 98%;
         margin: 1% auto;
+
+    .modal-content.large {
+        width: 85%;
+        max-width: 720px;
+    }
+
+    .change-log-content {
+        max-height: 60vh;
+        overflow-y: auto;
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        border: 1px solid #e0e0e0;
+    }
+
+    .change-log-content pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        margin: 0;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        color: #343a40;
+    }
     }
     
     .history-table {
