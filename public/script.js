@@ -16,6 +16,12 @@ let historySort = {
     direction: 'desc'
 };
 
+const MENU_STATE_KEY = 'MENU_STATE';
+let supabaseClient = null;
+let supabaseSyncQueue = Promise.resolve();
+let supabaseInitialized = false;
+let syncStatusTimer = null;
+
 let menuData = {
     categories: [
         {
@@ -522,6 +528,7 @@ let menuData = {
 // DOM 元素
 const elements = {
     toggleMode: document.getElementById('toggleMode'),
+    syncCloud: document.getElementById('syncCloud'),
     addCategory: document.getElementById('addCategory'),
     importMenu: document.getElementById('importMenu'),
     exportCartExcel: document.getElementById('exportCartExcel'),
@@ -545,15 +552,13 @@ const elements = {
     totalItems: document.getElementById('totalItems')
 };
 // 初始化應用程式
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    await prepareInitialState();
     initializeApp();
     bindEvents();
 });
 
 function initializeApp() {
-    // 載入儲存的資料
-    loadFromStorage();
-    
     // 渲染介面
     renderMenu();
     renderCart();
@@ -596,9 +601,184 @@ function initializeApp() {
     }, 100);
 }
 
+async function prepareInitialState() {
+    const localRestored = restoreFromLocalStorage();
+    await initSupabaseClient();
+    const remoteRestored = await loadStateFromSupabase();
+    if (!remoteRestored && !localRestored) {
+        // 將預設資料同步到本機與遠端，確保後續操作有一致基準
+        saveToStorage();
+    }
+}
+
+async function fetchSupabaseConfig() {
+    const sources = ['/api/env', 'env.json', '/env.json'];
+    for (const source of sources) {
+        try {
+            const response = await fetch(source);
+            if (!response.ok) continue;
+            const data = await response.json();
+            if (data?.supabaseUrl && data?.supabaseAnonKey) {
+                return data;
+            }
+        } catch (error) {
+            console.warn(`讀取 Supabase 設定失敗 (${source})：`, error);
+        }
+    }
+    return null;
+}
+
+async function initSupabaseClient() {
+    if (supabaseInitialized) {
+        return supabaseClient;
+    }
+    if (typeof window === 'undefined' || !window.supabase) {
+        console.error('Supabase SDK 未載入');
+        return null;
+    }
+    try {
+        const config = await fetchSupabaseConfig();
+        if (!config) {
+            throw new Error('無法取得 Supabase 設定');
+        }
+        const { supabaseUrl, supabaseAnonKey } = config;
+        supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+        supabaseInitialized = true;
+        return supabaseClient;
+    } catch (error) {
+        console.error('初始化 Supabase 失敗：', error);
+        return null;
+    }
+}
+
+async function loadStateFromSupabase() {
+    if (!supabaseClient) return false;
+    try {
+        const { data, error } = await supabaseClient
+            .from('menu_state')
+            .select('payload')
+            .eq('name', MENU_STATE_KEY)
+            .maybeSingle();
+        if (error) {
+            if (error.code !== 'PGRST116') {
+                console.error('讀取 Supabase 狀態失敗：', error);
+            }
+            return false;
+        }
+        if (!data || !data.payload) {
+            return false;
+        }
+        applyStatePayload(data.payload);
+        localStorage.setItem('currentMenu', JSON.stringify(data.payload));
+        return true;
+    } catch (error) {
+        console.error('處理 Supabase 狀態時發生錯誤：', error);
+        return false;
+    }
+}
+
+function applyStatePayload(payload) {
+    if (payload?.menu?.categories) {
+        menuData = {
+            ...menuData,
+            ...payload.menu,
+            categories: payload.menu.categories
+        };
+    }
+    cart = Array.isArray(payload?.cart) ? payload.cart : [];
+    peopleCount = Number(payload?.peopleCount) > 0 ? payload.peopleCount : 1;
+    tableCount = Number(payload?.tableCount) > 0 ? payload.tableCount : 1;
+}
+
+function restoreFromLocalStorage() {
+    try {
+        const raw = localStorage.getItem('currentMenu');
+        if (!raw) return false;
+        const payload = JSON.parse(raw);
+        applyStatePayload(payload);
+        return true;
+    } catch (error) {
+        console.warn('載入本機儲存資料失敗：', error);
+        return false;
+    }
+}
+
+function getCurrentStatePayload() {
+    return {
+        menu: menuData,
+        cart: cart,
+        peopleCount: peopleCount,
+        tableCount: tableCount,
+        updatedAt: new Date().toISOString()
+    };
+}
+
+function showSyncStatus(message, status = 'pending') {
+    if (typeof document === 'undefined') return;
+    let toast = document.getElementById('syncStatusToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'syncStatusToast';
+        toast.className = 'sync-status-toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.remove('status-pending', 'status-success', 'status-error');
+    toast.classList.add(`status-${status}`);
+    toast.classList.add('visible');
+    if (status === 'pending') {
+        if (syncStatusTimer) {
+            clearTimeout(syncStatusTimer);
+            syncStatusTimer = null;
+        }
+        return;
+    }
+    if (syncStatusTimer) {
+        clearTimeout(syncStatusTimer);
+    }
+    syncStatusTimer = setTimeout(() => {
+        toast.classList.remove('visible');
+        syncStatusTimer = null;
+    }, 2000);
+}
+
+function syncStateToSupabase(statePayload) {
+    supabaseSyncQueue = supabaseSyncQueue
+        .then(async () => {
+            const client = supabaseClient || await initSupabaseClient();
+            if (!client) {
+                throw new Error('Supabase 客戶端尚未就緒');
+            }
+            showSyncStatus('儲存中…', 'pending');
+            await persistStateToSupabase(statePayload);
+            showSyncStatus('儲存完成', 'success');
+        })
+        .catch(error => {
+            console.error('Supabase 同步排程錯誤：', error);
+            showSyncStatus('儲存失敗，請稍後再試', 'error');
+        });
+}
+
+async function persistStateToSupabase(statePayload) {
+    try {
+        const { error } = await supabaseClient
+            .from('menu_state')
+            .upsert({ name: MENU_STATE_KEY, payload: statePayload, updated_at: new Date().toISOString() }, { onConflict: 'name' });
+        if (error) {
+            throw error;
+        }
+    } catch (error) {
+        console.error('同步 Supabase 失敗：', error);
+        throw error;
+    }
+}
+
 function bindEvents() {
     // 模式切換
     elements.toggleMode.addEventListener('click', toggleMode);
+    if (elements.syncCloud) {
+        elements.syncCloud.addEventListener('click', manualCloudSave);
+    }
     
     // 類別管理
     elements.addCategory.addEventListener('click', showCategoryModal);
@@ -1480,31 +1660,19 @@ function confirmSaveMenu() {
     alert(`菜單「${menuName}」已成功儲存！`);
 }
 
-function loadFromStorage() {
-    // 清除舊的儲存資料，使用新的菜單資料
-    localStorage.removeItem('currentMenu');
-    // 初始化人數和桌數
-    peopleCount = 1;
-    tableCount = 1;
-    if (elements.peopleCountInput) {
-        elements.peopleCountInput.value = peopleCount;
-    }
-    if (elements.tableCountInput) {
-        elements.tableCountInput.value = tableCount;
-    }
-    // 儲存新的菜單資料
-    saveToStorage();
+function saveToStorage() {
+    const currentData = getCurrentStatePayload();
+    localStorage.setItem('currentMenu', JSON.stringify(currentData));
+    syncStateToSupabase(currentData);
 }
 
-function saveToStorage() {
-    const currentData = {
-        ...menuData,
-        cart: cart,
-        peopleCount: peopleCount,
-        tableCount: tableCount,
-        updatedAt: new Date().toISOString()
-    };
-    localStorage.setItem('currentMenu', JSON.stringify(currentData));
+async function manualCloudSave() {
+    const client = supabaseClient || await initSupabaseClient();
+    if (!client) {
+        showSyncStatus('無法連線至雲端，請稍後再試', 'error');
+        return;
+    }
+    saveToStorage();
 }
 
 function showHistoryModal() {

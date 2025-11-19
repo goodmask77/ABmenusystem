@@ -9,6 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
     <div class="app">
@@ -20,6 +21,9 @@
                     <button id="toggleMode" class="btn btn-mode">
                         <i class="fas fa-toggle-off"></i>
                         <span>切換至後台</span>
+                    </button>
+                    <button id="syncCloud" class="btn btn-primary">
+                        <i class="fas fa-cloud-upload-alt"></i> 儲存至雲端
                     </button>
                     <button id="saveMenu" class="btn btn-primary">
                         <i class="fas fa-save"></i> 儲存菜單
