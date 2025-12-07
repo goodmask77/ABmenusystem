@@ -3243,22 +3243,56 @@ async function addVenueContentOption() {
         
         const maxOrder = venueContentOptions.reduce((max, opt) => Math.max(max, opt.sort_order || 0), 0);
         
+        // 檢查表結構是否存在
+        const { data: tableCheck, error: checkError } = await client
+            .from('venue_content_options')
+            .select('id, name, sort_order')
+            .limit(1);
+        
+        if (checkError && checkError.message.includes('Could not find')) {
+            console.error('venue_content_options 表結構問題：', checkError);
+            alert('資料庫表結構尚未建立，請先在 Supabase 執行 migration：\n\n' +
+                  'CREATE TABLE IF NOT EXISTS public.venue_content_options (\n' +
+                  '    id serial PRIMARY KEY,\n' +
+                  '    name text NOT NULL UNIQUE,\n' +
+                  '    sort_order integer DEFAULT 0,\n' +
+                  '    created_at timestamptz NOT NULL DEFAULT now()\n' +
+                  ');\n\n' +
+                  '請查看 migration 檔案：supabase/migrations/202512090005_add_venue_content_field.sql');
+            return;
+        }
+        
+        // 插入新選項
         const { data, error } = await client
             .from('venue_content_options')
-            .insert({ name, sort_order: maxOrder + 1 })
-            .select()
+            .insert({ 
+                name: name,  // 明確指定欄位名稱
+                sort_order: maxOrder + 1 
+            })
+            .select('id, name, sort_order, created_at')
             .single();
         
-        if (error) throw error;
+        if (error) {
+            console.error('插入錯誤詳情：', error);
+            throw error;
+        }
         
-        venueContentOptions.push(data);
-        renderVenueContentSelect();
-        renderVenueContentList();
-        input.value = '';
-        showSyncStatus('包場內容選項已新增', 'success');
+        if (data) {
+            venueContentOptions.push(data);
+            renderVenueContentSelect();
+            renderVenueContentList();
+            input.value = '';
+            showSyncStatus('包場內容選項已新增', 'success');
+        }
     } catch (error) {
         console.error('新增包場內容選項失敗：', error);
-        alert('新增失敗：' + error.message);
+        console.error('錯誤詳情：', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+        });
+        alert('新增失敗：' + error.message + '\n\n請檢查 Console 查看詳細錯誤');
     }
 }
 
