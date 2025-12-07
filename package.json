@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "deploy": "node auto-deploy.js",
-    "deploy:auto": "node auto-deploy.js \"自動部署: $(date '+%Y-%m-%d %H:%M:%S')\""
+    "deploy:auto": "node auto-deploy.js \"自動部署: $(date '+%Y-%m-%d %H:%M:%S')\"",
+    "push": "git add -A && git commit -m \"自動提交: $(date '+%Y-%m-%d %H:%M:%S')\" && git push origin main",
+    "save": "git add -A && git commit -m \"自動保存: $(date '+%Y-%m-%d %H:%M:%S')\" && git push origin main"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.86.2",

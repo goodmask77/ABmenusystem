@@ -71,7 +71,7 @@ async function main() {
     // 推送到 GitHub
     log('📤 推送到 GitHub...', 'blue');
     try {
-        exec('git push origin main');
+        exec('git push origin main', { stdio: 'pipe' });
         log('\n✅ 部署完成！', 'green');
         log('📦 變更已推送到 GitHub', 'green');
         log('🔄 Vercel 將自動觸發部署（如果已連接）\n', 'green');
@@ -79,8 +79,30 @@ async function main() {
         log('\n⚠️  Push 失敗', 'yellow');
         log('💡 提示: 請檢查 GitHub 認證設定', 'yellow');
         log('   - 使用 SSH key: git remote set-url origin git@github.com:username/repo.git', 'yellow');
-        log('   - 或使用 GitHub Personal Access Token\n', 'yellow');
-        process.exit(1);
+        log('   - 或使用 GitHub Personal Access Token', 'yellow');
+        log('   - 或手動執行: git push origin main\n', 'yellow');
+        
+        // 詢問是否要重試
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+        
+        return new Promise((resolve) => {
+            rl.question('是否要重試推送？(y/n): ', (answer) => {
+                rl.close();
+                if (answer.toLowerCase() === 'y') {
+                    log('🔄 重試推送...', 'blue');
+                    try {
+                        exec('git push origin main');
+                        log('✅ 推送成功！\n', 'green');
+                    } catch {
+                        log('❌ 推送仍然失敗，請手動處理\n', 'red');
+                    }
+                }
+                resolve();
+            });
+        });
     }
 }
 
