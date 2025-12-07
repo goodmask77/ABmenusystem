@@ -1229,7 +1229,7 @@ function setOrderInfo(info) {
     }
     if (info.venueContent) {
         // 包場內容需要從 venueContentOptions 取得預設選項
-        const defaultVenueContents = venueContentOptions.map(opt => opt.name);
+        const defaultVenueContents = venueContentOptions.map(opt => opt.name ?? opt.label ?? '');
         setCustomizableSelectValue('venueContentSelect', 'venueContentSelectCustom', defaultVenueContents, info.venueContent);
     }
     if (info.venueScope) {
@@ -3145,12 +3145,12 @@ async function loadVenueContentOptions() {
         renderVenueContentSelect();
     } catch (error) {
         console.error('載入包場內容選項失敗：', error);
-        // 使用預設選項
+        // 使用預設選項（同時設置 name 和 label）
         venueContentOptions = [
-            { id: 1, name: '產品發表', sort_order: 1 },
-            { id: 2, name: '婚禮派對', sort_order: 2 },
-            { id: 3, name: '春酒尾牙', sort_order: 3 },
-            { id: 4, name: '公司聚餐', sort_order: 4 }
+            { id: 1, name: '產品發表', label: '產品發表', sort_order: 1 },
+            { id: 2, name: '婚禮派對', label: '婚禮派對', sort_order: 2 },
+            { id: 3, name: '春酒尾牙', label: '春酒尾牙', sort_order: 3 },
+            { id: 4, name: '公司聚餐', label: '公司聚餐', sort_order: 4 }
         ];
         renderVenueContentSelect();
     }
