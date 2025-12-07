@@ -2058,24 +2058,6 @@ body {
   margin-left: var(--space-xxs);
 }
 
-/* 來源欄位樣式 */
-.history-modal .source-cell {
-  text-align: center;
-  width: 50px;
-}
-
-.history-modal .source-cell i {
-  font-size: 1rem;
-}
-
-.history-modal .source-cell .fa-cloud {
-  color: #3b82f6;
-}
-
-.history-modal .source-cell .fa-laptop {
-  color: #6b7280;
-}
-
 /* 載入中樣式 */
 .loading-history {
   text-align: center;

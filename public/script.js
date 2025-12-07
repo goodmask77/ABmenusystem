@@ -3396,7 +3396,6 @@ function renderHistoryList() {
                     <th class="sortable ${historySort.field === 'people' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('people')">人數</th>
                     <th class="sortable ${historySort.field === 'total' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('total')">總金額</th>
                     <th class="sortable ${historySort.field === 'price' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('price')">人均</th>
-                    <th>來源</th>
                     <th>操作</th>
                 </tr>
             </thead>
@@ -3411,10 +3410,6 @@ function renderHistoryList() {
                     const contactName = orderInfo.contactName || menu.customerName || '';
                     const industry = orderInfo.industry || '';
                     
-                    // 判斷來源
-                    const isFromSupabase = menu.fromSupabase === true;
-                    const sourceIcon = isFromSupabase ? '<i class="fas fa-cloud" title="雲端"></i>' : '<i class="fas fa-laptop" title="本機"></i>';
-                    
                     // 優先使用用餐日期時間，如果沒有則使用儲存時間
                     const displayDate = menu.diningDateTime ? formatDate(new Date(menu.diningDateTime)) : formatDate(new Date(menu.savedAt));
                     
@@ -3423,7 +3418,7 @@ function renderHistoryList() {
                     const menuIdx = idx;
                     
                     return `
-                        <tr class="history-row" data-menu-id="${menuId}" data-from-supabase="${isFromSupabase}" data-idx="${menuIdx}" onclick="loadHistoryMenuByData(this)" style="cursor: pointer;">
+                        <tr class="history-row" data-menu-id="${menuId}" data-idx="${menuIdx}" onclick="loadHistoryMenuByData(this)" style="cursor: pointer;">
                             <td class="menu-name-cell" title="${menu.name || '未命名'}">${menu.name || '未命名'}</td>
                             <td class="contact-cell">${contactName}</td>
                             <td class="industry-cell">${industry}</td>
@@ -3431,7 +3426,6 @@ function renderHistoryList() {
                             <td class="people-cell">${menu.peopleCount || 1}人/${menu.tableCount || 1}桌</td>
                             <td class="total-cell">${typeof total === 'number' ? '$' + total.toLocaleString() : '--'}</td>
                             <td class="perperson-cell">${typeof perPerson === 'number' ? '$' + perPerson.toLocaleString() : '--'}</td>
-                            <td class="source-cell">${sourceIcon}</td>
                             <td class="actions-cell" onclick="event.stopPropagation();">
                                 <button class="btn-small btn-delete" onclick="deleteHistoryMenuByData(this.closest('tr'))" title="刪除">
                                     <i class="fas fa-trash"></i>
@@ -3644,10 +3638,9 @@ function loadHistoryMenuByData(row) {
     showSyncStatus(`已載入訂單「${menu.name || '未命名'}」`, 'success');
 }
 
-// 根據 data 屬性刪除歷史訂單
+// 根據 data 屬性刪除歷史訂單（同時刪除本機和雲端）
 async function deleteHistoryMenuByData(row) {
     const idx = parseInt(row.dataset.idx);
-    const isFromSupabase = row.dataset.fromSupabase === 'true';
     const menuId = row.dataset.menuId;
     const menus = window._currentFilteredMenus || getMergedOrders();
     const menu = menus[idx];
@@ -3661,25 +3654,29 @@ async function deleteHistoryMenuByData(row) {
         return;
     }
     
-    if (isFromSupabase && menuId) {
-        // 刪除 Supabase 訂單
-        const deleted = await deleteOrderFromSupabase(menuId);
-        if (deleted) {
-            showSyncStatus('雲端訂單已刪除', 'success');
-        } else {
-            showSyncStatus('刪除雲端訂單失敗', 'error');
-        }
+    let deletedFromCloud = false;
+    let deletedFromLocal = false;
+    
+    // 1. 刪除 Supabase 訂單（如果有 ID）
+    if (menuId) {
+        deletedFromCloud = await deleteOrderFromSupabase(menuId);
+    }
+    
+    // 2. 同時刪除本地訂單（用名稱和時間匹配）
+    const savedMenus = getSavedMenus();
+    const localIndex = savedMenus.findIndex(m => 
+        m.name === menu.name && m.savedAt === menu.savedAt
+    );
+    if (localIndex >= 0) {
+        savedMenus.splice(localIndex, 1);
+        localStorage.setItem('savedMenus', JSON.stringify(savedMenus));
+        deletedFromLocal = true;
+    }
+    
+    if (deletedFromCloud || deletedFromLocal) {
+        showSyncStatus('訂單已刪除', 'success');
     } else {
-        // 刪除本地訂單
-        const savedMenus = getSavedMenus();
-        const localIndex = savedMenus.findIndex(m => 
-            m.name === menu.name && m.savedAt === menu.savedAt
-        );
-        if (localIndex >= 0) {
-            savedMenus.splice(localIndex, 1);
-            localStorage.setItem('savedMenus', JSON.stringify(savedMenus));
-            showSyncStatus('本機訂單已刪除', 'success');
-        }
+        showSyncStatus('刪除失敗', 'error');
     }
     
     renderHistoryList();
