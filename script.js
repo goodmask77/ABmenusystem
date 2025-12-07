@@ -3106,6 +3106,7 @@ async function loadOrdersFromSupabase() {
         const { data, error } = await client
             .from('menu_orders')
             .select('*')
+            .order('is_pinned', { ascending: false })
             .order('created_at', { ascending: false })
             .limit(100);
         
@@ -3505,8 +3506,8 @@ async function confirmSaveMenu() {
     const createdBy = currentUser?.username || '未知';
     
     // 計算購物車中的餐點數量和金額
-    const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const cartItemCount = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+    const subtotal = cart.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
     const serviceFee = Math.round(subtotal * 0.1);
     const estimatedTotal = subtotal + serviceFee;
     const estimatedPerPerson = Math.round(estimatedTotal / (peopleCount || 1));
