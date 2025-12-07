@@ -6852,7 +6852,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 包場內容需要動態載入後再綁定
         if (venueContentOptions && venueContentOptions.length > 0) {
-            const defaultVenueContents = venueContentOptions.map(opt => opt.name);
+            const defaultVenueContents = venueContentOptions.map(opt => opt.name ?? opt.label ?? '');
             attachCustomizableSelect('venueContentSelect', 'venueContentSelectCustom', defaultVenueContents);
         }
         
