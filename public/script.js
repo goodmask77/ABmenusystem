@@ -2917,9 +2917,10 @@ async function deleteIndustryOption(id, name) {
 // ========== 訂單儲存到 Supabase ==========
 async function saveOrderToSupabase(orderData) {
     try {
+        console.log('開始儲存訂單到 Supabase...', orderData);
         const client = supabaseClient || await initSupabaseClient();
         if (!client) {
-            console.warn('無法儲存訂單：Supabase 未連線');
+            console.error('無法儲存訂單：Supabase 未連線');
             return null;
         }
         
@@ -2929,11 +2930,18 @@ async function saveOrderToSupabase(orderData) {
             .select()
             .single();
         
-        if (error) throw error;
-        console.log('訂單已儲存到 Supabase:', data);
+        if (error) {
+            console.error('Supabase 插入錯誤：', error);
+            console.error('錯誤詳情:', error.message, error.details, error.hint);
+            throw error;
+        }
+        
+        console.log('✅ 訂單已成功儲存到 Supabase:', data);
+        console.log('訂單 ID:', data.id);
         return data;
     } catch (error) {
-        console.error('儲存訂單到 Supabase 失敗：', error);
+        console.error('❌ 儲存訂單到 Supabase 失敗：', error);
+        console.error('錯誤詳情:', error.message, error.details);
         return null;
     }
 }
