@@ -1225,17 +1225,28 @@ function initializeApp() {
 }
 
 async function prepareInitialState() {
-    const localRestored = restoreFromLocalStorage();
+    // 清理舊的菜單 localStorage 資料，確保完全從 Supabase 載入
+    localStorage.removeItem('currentMenu');
+    
     await initSupabaseClient();
+    
+    // 優先從 Supabase 載入菜單
     const remoteRestored = await loadStateFromSupabase();
+    
+    // 如果 Supabase 載入失敗，才使用預設資料並同步到 Supabase
+    if (!remoteRestored) {
+        console.warn('無法從 Supabase 載入菜單，使用預設資料');
+        saveToStorage({ skipChangeLog: true, reason: 'bootstrap' });
+    }
+    
+    // 恢復購物車（購物車仍可保留在 localStorage）
     const cartRestored = restoreCartState();
     if (!cartRestored) {
         persistCartState();
     }
-    if (!remoteRestored && !localRestored) {
-        // 將預設資料同步到本機與遠端，確保後續操作有一致基準
-        saveToStorage({ skipChangeLog: true, reason: 'bootstrap' });
-    }
+    
+    // 設定 Supabase Realtime 監聽，實現協作同步
+    setupRealtimeSync();
 }
 
 async function fetchSupabaseConfig() {
@@ -1276,6 +1287,70 @@ async function initSupabaseClient() {
         console.error('初始化 Supabase 失敗：', error);
         return null;
     }
+}
+
+// 設定 Supabase Realtime 同步，實現協作功能
+function setupRealtimeSync() {
+    if (!supabaseClient) {
+        console.warn('Supabase 客戶端未就緒，無法設定 Realtime 同步');
+        return;
+    }
+    
+    // 清理舊的 channel（如果存在）
+    if (window._realtimeChannels) {
+        window._realtimeChannels.forEach(channel => {
+            supabaseClient.removeChannel(channel);
+        });
+    }
+    
+    // 監聽 menu_state 變更
+    const menuStateChannel = supabaseClient
+        .channel('menu_state_changes')
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'menu_state',
+                filter: `name=eq.${MENU_STATE_KEY}`
+            },
+            async (payload) => {
+                console.log('收到 menu_state 變更:', payload);
+                // 如果是其他使用者更新的，重新載入
+                if (payload.new && payload.new.payload?.updatedBy !== currentUser?.username) {
+                    console.log('偵測到其他協作者的變更，重新載入菜單');
+                    await loadStateFromSupabase();
+                    renderMenu();
+                    showSyncStatus('已同步其他協作者的變更', 'success');
+                }
+            }
+        )
+        .subscribe();
+    
+    // 監聽 menu_items 變更
+    const menuItemsChannel = supabaseClient
+        .channel('menu_items_changes')
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'menu_items'
+            },
+            async (payload) => {
+                console.log('收到 menu_items 變更:', payload);
+                // 重新載入菜單狀態以確保同步
+                await loadStateFromSupabase();
+                renderMenu();
+                showSyncStatus('已同步菜單變更', 'success');
+            }
+        )
+        .subscribe();
+    
+    // 儲存 channel 以便清理
+    window._realtimeChannels = [menuStateChannel, menuItemsChannel];
+    
+    console.log('✅ Supabase Realtime 同步已啟動');
 }
 
 // 同步菜單項目到 menu_items 表
@@ -1381,14 +1456,8 @@ async function loadStateFromSupabase() {
             return false;
         }
         applyStatePayload(data.payload);
-        upsertAutoHistoryEntry(data.payload);
-        const latestHistory = sanitizeHistoryEntries(getSavedMenus());
-        const enrichedPayload = {
-            ...data.payload,
-            historyEntries: latestHistory,
-            savedMenus: latestHistory
-        };
-        localStorage.setItem('currentMenu', JSON.stringify(enrichedPayload));
+        // 不再寫入 localStorage，確保完全依賴 Supabase
+        // 歷史訂單應該從 menu_orders 表載入，而不是從 menu_state
         return true;
     } catch (error) {
         console.error('處理 Supabase 狀態時發生錯誤：', error);
@@ -1432,27 +1501,14 @@ function applyStatePayload(payload) {
     }
     peopleCount = Number(payload?.peopleCount) > 0 ? payload.peopleCount : 1;
     tableCount = Number(payload?.tableCount) > 0 ? payload.tableCount : 1;
-    const remoteHistory = Array.isArray(payload?.historyEntries)
-        ? payload.historyEntries
-        : Array.isArray(payload?.savedMenus)
-            ? payload.savedMenus
-            : null;
-    if (remoteHistory) {
-        localStorage.setItem('savedMenus', JSON.stringify(remoteHistory.slice(0, 50)));
-    }
+    // 不再從 localStorage 讀取歷史，歷史完全從 Supabase 的 menu_orders 載入
+    // 歷史訂單應該從 menu_orders 表載入，而不是從 menu_state 或 localStorage
 }
 
 function restoreFromLocalStorage() {
-    try {
-        const raw = localStorage.getItem('currentMenu');
-        if (!raw) return false;
-        const payload = JSON.parse(raw);
-        applyStatePayload(payload);
-        return true;
-    } catch (error) {
-        console.warn('載入本機儲存資料失敗：', error);
-        return false;
-    }
+    // 不再從 localStorage 恢復菜單資料
+    // 菜單完全從 Supabase 載入，確保與雲端和其他協作者同步
+    return false;
 }
 
 function getCurrentStateSnapshot() {
@@ -1680,9 +1736,20 @@ function syncStateToSupabase(statePayload) {
 
 async function persistStateToSupabase(statePayload) {
     try {
+        // 加入更新者資訊，方便追蹤誰做了變更
+        const payloadWithMetadata = {
+            ...statePayload,
+            updatedBy: currentUser?.username || '未知',
+            updatedAt: new Date().toISOString()
+        };
+        
         const { error } = await supabaseClient
             .from('menu_state')
-            .upsert({ name: MENU_STATE_KEY, payload: statePayload, updated_at: new Date().toISOString() }, { onConflict: 'name' });
+            .upsert({ 
+                name: MENU_STATE_KEY, 
+                payload: payloadWithMetadata, 
+                updated_at: new Date().toISOString() 
+            }, { onConflict: 'name' });
         if (error) {
             throw error;
         }
@@ -1989,15 +2056,26 @@ function updateCategory() {
     }
 }
 
-function deleteCategory(categoryId) {
+async function deleteCategory(categoryId) {
     if (!ensureAdminAccess()) return;
     if (confirm('確定要刪除此類別？此操作無法復原。')) {
+        const category = menuData.categories.find(c => c.id === categoryId);
+        if (!category) return;
+        
+        // 先刪除該類別下的所有品項
+        for (const item of category.items || []) {
+            await syncItemToMenuItems(item, category.name, 'delete');
+        }
+        
         menuData.categories = menuData.categories.filter(c => c.id !== categoryId);
         removeInvalidCartItems();
+        
+        // 立即同步到 Supabase
+        await saveToStorage({ reason: 'delete-category', summary: `刪除類別「${category.name}」` });
+        
         renderMenu();
         renderCart();
         updateCartSummary();
-        saveToStorage();
     }
 }
 
@@ -2090,7 +2168,7 @@ function saveItem() {
     saveToStorage();
 }
 
-function deleteItem(categoryId, itemId) {
+async function deleteItem(categoryId, itemId) {
     if (!ensureEditorAccess()) return;
     if (confirm('確定要刪除此品項？')) {
         const category = menuData.categories.find(c => c.id === categoryId);
@@ -2100,16 +2178,18 @@ function deleteItem(categoryId, itemId) {
             // 從購物車移除
             cart = cart.filter(item => item.id !== itemId);
             
-            // 同步刪除到 menu_items 表
+            // 立即同步刪除到 Supabase（menu_items 和 menu_state）
             if (itemToDelete) {
-                syncItemToMenuItems(itemToDelete, category.name, 'delete');
+                // 1. 從 menu_items 刪除
+                await syncItemToMenuItems(itemToDelete, category.name, 'delete');
+                // 2. 更新 menu_state
+                await saveToStorage({ reason: 'delete-item', summary: `刪除品項「${itemToDelete.name}」` });
             }
             
             renderMenu();
             renderCart();
             updateCartSummary();
             persistCartState();
-            saveToStorage();
         }
     }
 }
@@ -3217,8 +3297,13 @@ function saveToStorage(options = {}) {
     const snapshot = getCurrentStateSnapshot();
     upsertAutoHistoryEntry(snapshot);
     const currentData = getCurrentStatePayload(snapshot);
-    localStorage.setItem('currentMenu', JSON.stringify(currentData));
+    
+    // 不再儲存到 localStorage，只同步到 Supabase
+    // localStorage.setItem('currentMenu', JSON.stringify(currentData));
+    
+    // 只同步到 Supabase，確保與雲端和其他協作者同步
     syncStateToSupabase(currentData);
+    
     if (!options.skipChangeLog) {
         recordMenuChange(options.reason || 'auto-sync', snapshot, {
             summary: options.summary,
