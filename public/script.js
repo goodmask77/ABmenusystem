@@ -3748,7 +3748,6 @@ async function confirmSaveMenu() {
         line_name: orderInfo.lineName || null,
         industry: orderInfo.industry || null,
         venue_content: orderInfo.venueContent || null,
-        venue_content: orderInfo.venueContent || null,
         venue_scope: orderInfo.venueScope || null,
         dining_style: orderInfo.diningStyle || null,
         payment_method: orderInfo.paymentMethod || null,
@@ -5837,9 +5836,14 @@ function renderAnalysisContent(container, stats) {
         </div>
     `;
     
-    // 渲染圖表
+    // 渲染圖表（確保使用最新的自訂區間設定）
     setTimeout(() => {
-        renderCharts(industryLabels, industryCounts, industryTotals, amountLabels, amountCounts);
+        // 重新取得自訂區間（確保與表格一致）
+        const currentCustomRanges = getCustomAmountRanges();
+        const currentAmountLabels = currentCustomRanges.map(r => r.label);
+        const currentAmountCounts = currentCustomRanges.map(r => stats.amountRanges[r.label] || 0);
+        
+        renderCharts(industryLabels, industryCounts, industryTotals, currentAmountLabels, currentAmountCounts);
     }, 100);
 }
 
@@ -5968,7 +5972,12 @@ function renderCharts(industryLabels, industryCounts, industryTotals, amountLabe
     // 產業別圓餅圖（按訂單數）
     const industryCtx = document.getElementById('industryChart');
     if (industryCtx) {
-        new Chart(industryCtx, {
+        // 清除舊的圖表實例（如果存在）
+        if (window._industryChartInstance) {
+            window._industryChartInstance.destroy();
+        }
+        
+        window._industryChartInstance = new Chart(industryCtx, {
             type: 'pie',
             data: {
                 labels: industryLabels,
@@ -5999,7 +6008,12 @@ function renderCharts(industryLabels, industryCounts, industryTotals, amountLabe
     // 消費金額分布直條圖
     const amountCtx = document.getElementById('amountChart');
     if (amountCtx) {
-        new Chart(amountCtx, {
+        // 清除舊的圖表實例（如果存在）
+        if (window._amountChartInstance) {
+            window._amountChartInstance.destroy();
+        }
+        
+        window._amountChartInstance = new Chart(amountCtx, {
             type: 'bar',
             data: {
                 labels: amountLabels,
