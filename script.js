@@ -1422,6 +1422,25 @@ function getCurrentStatePayload(snapshot = null) {
 function sanitizeHistoryEntries(entries) {
     return entries.map(entry => {
         const sanitized = { ...entry };
+        
+        // 如果有購物車資料且 meta 中沒有金額，先計算金額
+        if (Array.isArray(entry.cart) && entry.cart.length > 0) {
+            const subtotal = entry.cart.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
+            const serviceFee = Math.round(subtotal * 0.1);
+            const estimatedTotal = subtotal + serviceFee;
+            const estimatedPerPerson = Math.round(estimatedTotal / (entry.peopleCount || 1));
+            const cartItemCount = entry.cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+            const cartPreview = entry.cart.slice(0, 3).map(item => item.name).join(', ') + (entry.cart.length > 3 ? '...' : '');
+            
+            sanitized.meta = {
+                ...sanitized.meta,
+                estimatedTotal: sanitized.meta?.estimatedTotal || estimatedTotal,
+                estimatedPerPerson: sanitized.meta?.estimatedPerPerson || estimatedPerPerson,
+                itemCount: sanitized.meta?.itemCount || cartItemCount,
+                preview: sanitized.meta?.preview || cartPreview
+            };
+        }
+        
         const metadata = createHistoryMetadata(entry);
         sanitized.meta = {
             ...metadata,
@@ -2847,8 +2866,39 @@ function sortHistoryBy(field) {
 function getHistoryMetrics(menu) {
     const meta = menu.meta || {};
     const legacy = menu.cart ? getLegacyCartSummary(menu) : null;
-    const total = Number.isFinite(meta.estimatedTotal) ? meta.estimatedTotal : legacy?.total ?? null;
-    const perPerson = Number.isFinite(meta.estimatedPerPerson) ? meta.estimatedPerPerson : legacy?.perPerson ?? null;
+    
+    // 嘗試從不同來源獲取總金額
+    let total = null;
+    let perPerson = null;
+    
+    // 優先使用 meta 中的值
+    if (Number.isFinite(meta.estimatedTotal)) {
+        total = meta.estimatedTotal;
+    } else if (legacy?.total) {
+        total = legacy.total;
+    }
+    
+    if (Number.isFinite(meta.estimatedPerPerson)) {
+        perPerson = meta.estimatedPerPerson;
+    } else if (legacy?.perPerson) {
+        perPerson = legacy.perPerson;
+    }
+    
+    // 如果還是沒有，嘗試從 categories 計算
+    if (total === null && Array.isArray(menu.categories)) {
+        let subtotal = 0;
+        menu.categories.forEach(cat => {
+            (cat.items || []).forEach(item => {
+                subtotal += (item.price || 0);
+            });
+        });
+        if (subtotal > 0) {
+            const serviceFee = Math.round(subtotal * 0.1);
+            total = subtotal + serviceFee;
+            perPerson = Math.round(total / (menu.peopleCount || 1));
+        }
+    }
+    
     const itemCount = Number.isFinite(meta.itemCount) ? meta.itemCount : legacy?.itemCount ?? 0;
     const preview = meta.preview || legacy?.preview || '無品項預覽';
     return { total, perPerson, itemCount, preview };
