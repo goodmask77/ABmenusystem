@@ -90,6 +90,22 @@
                 </div>
 
                 <div class="cart-summary">
+                    <!-- 客戶資訊區域 -->
+                    <div class="customer-info">
+                        <div class="customer-info-row">
+                            <label for="customerName">客戶名稱:</label>
+                            <input type="text" id="customerName" class="input-field customer-input" placeholder="請輸入客戶名稱">
+                        </div>
+                        <div class="customer-info-row">
+                            <label for="customerTaxId">客戶統編:</label>
+                            <input type="text" id="customerTaxId" class="input-field customer-input" placeholder="請輸入統一編號（選填）">
+                        </div>
+                        <div class="customer-info-row">
+                            <label for="diningDateTime">用餐日期時間:</label>
+                            <input type="datetime-local" id="diningDateTime" class="input-field customer-input">
+                        </div>
+                    </div>
+
                     <div class="summary-row">
                         <span>小計:</span>
                         <span id="subtotal">$0</span>
@@ -226,8 +242,12 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="menuName">菜單名稱:</label>
-                    <input type="text" id="menuName" class="input-field" placeholder="請輸入菜單名稱">
+                    <label>客戶名稱:</label>
+                    <div id="saveMenuCustomerName" style="color: #212529; font-weight: 600;">未填寫</div>
+                </div>
+                <div class="form-group">
+                    <label>用餐日期時間:</label>
+                    <div id="saveMenuDiningDateTime" style="color: #212529;">未設定</div>
                 </div>
                 <div class="form-group">
                     <label>目前狀態:</label>

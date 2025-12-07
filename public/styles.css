@@ -375,6 +375,51 @@ body {
     font-size: 0.9rem;
 }
 
+/* 客戶資訊區域 */
+.customer-info {
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.customer-info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-bottom: 0.8rem;
+}
+
+.customer-info-row:last-child {
+    margin-bottom: 0;
+}
+
+.customer-info-row label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #495057;
+}
+
+.customer-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: #212529;
+    background: #ffffff;
+    transition: border-color 0.2s;
+}
+
+.customer-input:focus {
+    outline: none;
+    border-color: #495057;
+    box-shadow: 0 0 0 2px rgba(73, 80, 87, 0.1);
+}
+
+.customer-input::placeholder {
+    color: #adb5bd;
+}
+
 /* 購物車控制區域 */
 .cart-controls {
     margin-top: 1rem;

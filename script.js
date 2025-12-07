@@ -1062,7 +1062,11 @@ const elements = {
     accountList: document.getElementById('accountList'),
     newAccountName: document.getElementById('newAccountName'),
     newAccountRole: document.getElementById('newAccountRole'),
-    addAccountButton: document.getElementById('addAccountButton')
+    addAccountButton: document.getElementById('addAccountButton'),
+    // 客戶資訊欄位
+    customerName: document.getElementById('customerName'),
+    customerTaxId: document.getElementById('customerTaxId'),
+    diningDateTime: document.getElementById('diningDateTime')
 };
 // 初始化應用程式
 document.addEventListener('DOMContentLoaded', async function() {
@@ -1338,6 +1342,9 @@ function persistCartState() {
             cart,
             peopleCount,
             tableCount,
+            customerName: elements.customerName?.value || '',
+            customerTaxId: elements.customerTaxId?.value || '',
+            diningDateTime: elements.diningDateTime?.value || '',
             updatedAt: new Date().toISOString()
         };
         localStorage.setItem(CART_STATE_KEY, JSON.stringify(payload));
@@ -1363,6 +1370,16 @@ function restoreCartState() {
             if (elements.tableCountInput) {
                 elements.tableCountInput.value = tableCount;
             }
+        }
+        // 恢復客戶資訊
+        if (payload?.customerName && elements.customerName) {
+            elements.customerName.value = payload.customerName;
+        }
+        if (payload?.customerTaxId && elements.customerTaxId) {
+            elements.customerTaxId.value = payload.customerTaxId;
+        }
+        if (payload?.diningDateTime && elements.diningDateTime) {
+            elements.diningDateTime.value = payload.diningDateTime;
         }
         return true;
     } catch (error) {
@@ -1514,6 +1531,17 @@ function bindEvents() {
     
     if (elements.tableCountInput) {
         elements.tableCountInput.addEventListener('change', updateTableCount);
+    }
+    
+    // 客戶資訊欄位自動保存
+    if (elements.customerName) {
+        elements.customerName.addEventListener('change', persistCartState);
+    }
+    if (elements.customerTaxId) {
+        elements.customerTaxId.addEventListener('change', persistCartState);
+    }
+    if (elements.diningDateTime) {
+        elements.diningDateTime.addEventListener('change', persistCartState);
     }
     
     // 清除購物車
@@ -1950,6 +1978,18 @@ function clearCart() {
     }
     
     cart = [];
+    
+    // 清除客戶資訊
+    if (elements.customerName) {
+        elements.customerName.value = '';
+    }
+    if (elements.customerTaxId) {
+        elements.customerTaxId.value = '';
+    }
+    if (elements.diningDateTime) {
+        elements.diningDateTime.value = '';
+    }
+    
     renderCart();
     renderMenu(); // 重新渲染菜單以移除選中狀態
     updateCartSummary();
@@ -2353,20 +2393,30 @@ function saveMenuToStorage() {
     document.getElementById('saveMenuTotal').textContent = Math.round(total);
     document.getElementById('saveMenuPeople').textContent = peopleCount;
     
-    // 設定預設菜單名稱
-    const defaultName = `A Beach 菜單_${formatDate(new Date())}`;
-    document.getElementById('menuName').value = defaultName;
+    // 顯示客戶資訊
+    const customerName = elements.customerName?.value?.trim() || '未填寫';
+    const diningDateTime = elements.diningDateTime?.value;
+    document.getElementById('saveMenuCustomerName').textContent = customerName;
+    document.getElementById('saveMenuDiningDateTime').textContent = diningDateTime ? formatDate(new Date(diningDateTime)) : '未設定';
     
     // 顯示儲存模態框
     document.getElementById('saveMenuModal').style.display = 'block';
 }
 
 function confirmSaveMenu() {
-    const menuName = document.getElementById('menuName').value.trim();
-    if (!menuName) {
-        alert('請輸入菜單名稱');
+    const customerName = elements.customerName?.value?.trim();
+    if (!customerName) {
+        alert('請輸入客戶名稱');
+        elements.customerName?.focus();
+        document.getElementById('saveMenuModal').style.display = 'none';
         return;
     }
+    
+    const customerTaxId = elements.customerTaxId?.value?.trim() || '';
+    const diningDateTime = elements.diningDateTime?.value || '';
+    
+    // 使用客戶名稱作為菜單名稱
+    const menuName = customerName;
     
     const menuSnapshot = deepClone(menuData);
     const createdBy = currentUser?.username || '未知';
@@ -2374,6 +2424,9 @@ function confirmSaveMenu() {
         ...menuSnapshot,
         peopleCount: peopleCount,
         tableCount: tableCount,
+        customerName: customerName,
+        customerTaxId: customerTaxId,
+        diningDateTime: diningDateTime,
         savedAt: new Date().toISOString(),
         name: menuName,
         meta: createHistoryMetadata(menuSnapshot, { createdBy })
@@ -2565,13 +2618,12 @@ function renderHistoryList() {
             <thead>
                 <tr>
                     <th class="sortable ${historySort.field === 'name' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('name')">菜單名稱</th>
-                    <th class="sortable ${historySort.field === 'date' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('date')">日期時間</th>
+                    <th class="sortable ${historySort.field === 'date' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('date')">用餐日期</th>
                     <th class="sortable ${historySort.field === 'items' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('items')">餐點數</th>
                     <th class="sortable ${historySort.field === 'people' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('people')">人數</th>
                     <th class="sortable ${historySort.field === 'tables' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('tables')">桌數</th>
                     <th class="sortable ${historySort.field === 'total' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('total')">總金額</th>
                     <th class="sortable ${historySort.field === 'price' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('price')">人均</th>
-                    <th>建立者</th>
                     <th>餐點內容</th>
                     <th>操作</th>
                 </tr>
@@ -2585,16 +2637,18 @@ function renderHistoryList() {
                     
                     const cartPreview = metrics.preview;
                     
+                    // 優先使用用餐日期時間，如果沒有則使用儲存時間
+                    const displayDate = menu.diningDateTime ? formatDate(new Date(menu.diningDateTime)) : formatDate(new Date(menu.savedAt));
+                    
                     return `
                         <tr class="history-row" onclick="loadHistoryMenu(${originalMenuIndex})" style="cursor: pointer;">
                             <td class="menu-name-cell" title="${menu.name || '未命名菜單'}">${menu.name || '未命名菜單'}</td>
-                            <td class="date-cell">${formatDate(new Date(menu.savedAt))}</td>
+                            <td class="date-cell">${displayDate}</td>
                             <td class="count-cell">${metrics.itemCount}</td>
                             <td class="people-cell">${menu.peopleCount || 1}</td>
                             <td class="table-cell">${menu.tableCount || 1}</td>
                             <td class="total-cell">${typeof total === 'number' ? '$' + total : '--'}</td>
                             <td class="perperson-cell">${typeof perPerson === 'number' ? '$' + perPerson : '--'}</td>
-                            <td class="creator-cell">${menu.meta?.createdBy || '未知'}</td>
                             <td class="preview-cell" title="${cartPreview}">${cartPreview}</td>
                             <td class="actions-cell" onclick="event.stopPropagation();">
                                 <button class="btn-small btn-edit" onclick="editHistoryMenu(${originalMenuIndex})" title="編輯">
@@ -2682,6 +2736,17 @@ function loadHistoryMenu(index) {
             if (elements.tableCountInput) {
                 elements.tableCountInput.value = tableCount;
             }
+        }
+        
+        // 恢復客戶資訊
+        if (elements.customerName) {
+            elements.customerName.value = menu.customerName || menu.name || '';
+        }
+        if (elements.customerTaxId) {
+            elements.customerTaxId.value = menu.customerTaxId || '';
+        }
+        if (elements.diningDateTime) {
+            elements.diningDateTime.value = menu.diningDateTime || '';
         }
         
         renderMenu();
