@@ -3795,30 +3795,9 @@ async function deleteHistoryMenuByData(row) {
     }
     
     // 3. 刪除本地訂單（多重匹配條件）
-    const savedMenus = getSavedMenus();
-    
-    // 嘗試多種匹配方式
-    let localIndex = savedMenus.findIndex(m => {
-        // 精確匹配 name + savedAt
-        if (m.name === menuName && m.savedAt === menuSavedAt) return true;
-        // 匹配名稱 + 用餐日期時間
-        if (m.name === menuName && m.diningDateTime && m.diningDateTime === menu.diningDateTime) return true;
-        // 只匹配名稱和相近時間（1分鐘內）
-        if (m.name === menuName && m.savedAt && menuSavedAt) {
-            const timeDiff = Math.abs(new Date(m.savedAt) - new Date(menuSavedAt));
-            if (timeDiff < 60000) return true; // 1分鐘內
-        }
-        return false;
-    });
-    
-    if (localIndex >= 0) {
-        const removed = savedMenus.splice(localIndex, 1);
-        localStorage.setItem('savedMenus', JSON.stringify(savedMenus));
-        deletedFromLocal = true;
-        console.log('已刪除本地訂單:', removed[0]?.name);
-    } else {
-        console.log('本地找不到匹配的訂單:', menuName, menuSavedAt);
-    }
+    // 不再使用 localStorage 儲存訂單
+    // 所有訂單都從 Supabase 的 menu_orders 表載入和刪除
+    deletedFromLocal = false; // 不再有本地訂單
     
     if (deletedFromCloud || deletedFromLocal) {
         showSyncStatus('訂單已刪除', 'success');
