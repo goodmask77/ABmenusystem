@@ -1030,7 +1030,6 @@ let menuData = {
 // DOM 元素
 const elements = {
     toggleMode: document.getElementById('toggleMode'),
-    syncCloud: document.getElementById('syncCloud'),
     viewChangeLog: document.getElementById('viewChangeLog'),
     loginButton: document.getElementById('loginButton'),
     manageAccounts: document.getElementById('manageAccounts'),
@@ -1463,15 +1462,6 @@ function bindEvents() {
     });
     if (elements.viewChangeLog) {
         elements.viewChangeLog.addEventListener('click', showChangeLogModal);
-    }
-    if (elements.syncCloud) {
-        elements.syncCloud.addEventListener('click', () => {
-            if (!currentUser) {
-                requireLogin(manualCloudSave);
-                return;
-            }
-            manualCloudSave();
-        });
     }
     
     // 類別管理
@@ -2420,6 +2410,17 @@ function confirmSaveMenu() {
     
     const menuSnapshot = deepClone(menuData);
     const createdBy = currentUser?.username || '未知';
+    
+    // 計算購物車中的餐點數量和金額
+    const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const serviceFee = Math.round(subtotal * 0.1);
+    const estimatedTotal = subtotal + serviceFee;
+    const estimatedPerPerson = Math.round(estimatedTotal / (peopleCount || 1));
+    
+    // 建立購物車預覽
+    const cartPreview = cart.slice(0, 3).map(item => item.name).join(', ') + (cart.length > 3 ? '...' : '');
+    
     const menuVersion = {
         ...menuSnapshot,
         peopleCount: peopleCount,
@@ -2429,7 +2430,14 @@ function confirmSaveMenu() {
         diningDateTime: diningDateTime,
         savedAt: new Date().toISOString(),
         name: menuName,
-        meta: createHistoryMetadata(menuSnapshot, { createdBy })
+        cart: deepClone(cart), // 保存購物車內容
+        meta: {
+            ...createHistoryMetadata(menuSnapshot, { createdBy }),
+            itemCount: cartItemCount,
+            estimatedTotal: estimatedTotal,
+            estimatedPerPerson: estimatedPerPerson,
+            preview: cartPreview || '無品項'
+        }
     };
     
     const savedMenus = JSON.parse(localStorage.getItem('savedMenus') || '[]');
@@ -2738,6 +2746,11 @@ function loadHistoryMenu(index) {
             }
         }
         
+        // 恢復購物車內容
+        if (Array.isArray(menu.cart)) {
+            cart = deepClone(menu.cart);
+        }
+        
         // 恢復客戶資訊
         if (elements.customerName) {
             elements.customerName.value = menu.customerName || menu.name || '';
@@ -2753,29 +2766,14 @@ function loadHistoryMenu(index) {
         renderCart();
         updateCartSummary();
         document.getElementById('historyModal').style.display = 'none';
-        saveToStorage({ skipChangeLog: true, reason: 'history-load' });
         persistCartState();
-        alert('菜單已載入');
+        alert('菜單已載入，可繼續編輯');
     }
 }
 
 function editHistoryMenu(index) {
-    const savedMenus = getSavedMenus();
-    const menu = savedMenus[index];
-    
-    if (menu) {
-        const newName = prompt('請輸入新的菜單名稱:', menu.name || '');
-        if (newName !== null && newName.trim()) {
-            menu.name = newName.trim();
-            menu.updatedAt = new Date().toISOString();
-            
-            savedMenus[index] = menu;
-            localStorage.setItem('savedMenus', JSON.stringify(savedMenus));
-            
-            renderHistoryList();
-            alert('菜單名稱已更新');
-        }
-    }
+    // 直接載入該菜單進行編輯
+    loadHistoryMenu(index);
 }
 
 function deleteHistoryMenu(index) {
