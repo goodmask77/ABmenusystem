@@ -5622,11 +5622,24 @@ function getCustomAmountRanges() {
             const parsed = JSON.parse(saved);
             // 驗證並清理讀取的資料
             if (Array.isArray(parsed) && parsed.length > 0) {
-                return parsed.map(range => ({
-                    label: range.label || '',
-                    min: range.min !== undefined && range.min !== null ? parseInt(range.min) : 0,
-                    max: range.max !== undefined && range.max !== null && range.max !== '' ? parseInt(range.max) : null
-                })).filter(r => !isNaN(r.min) && (r.max === null || (!isNaN(r.max) && r.max > r.min)));
+                return parsed.map(range => {
+                    const min = range.min !== undefined && range.min !== null ? parseInt(range.min) : 0;
+                    const max = range.max !== undefined && range.max !== null && range.max !== '' ? parseInt(range.max) : null;
+                    
+                    // 自動生成標籤
+                    let label = '';
+                    if (max === null) {
+                        label = `${min.toLocaleString()}+`;
+                    } else {
+                        label = `${min.toLocaleString()}-${max.toLocaleString()}`;
+                    }
+                    
+                    return {
+                        label: label,
+                        min: min,
+                        max: max
+                    };
+                }).filter(r => !isNaN(r.min) && (r.max === null || (!isNaN(r.max) && r.max > r.min)));
             }
         }
     } catch (e) {
@@ -5639,7 +5652,7 @@ function getCustomAmountRanges() {
         }
     }
     
-    // 預設區間
+    // 預設區間（標籤會自動生成）
     return [
         { label: '0-5,000', min: 0, max: 5000 },
         { label: '5,001-10,000', min: 5001, max: 10000 },
@@ -5910,36 +5923,55 @@ function renderAmountRangesList(ranges) {
         ranges = getCustomAmountRanges();
     }
     
-    list.innerHTML = ranges.map((range, idx) => {
+    // 如果 window._currentAmountRanges 已存在，使用它（保留用戶的修改）
+    if (!window._currentAmountRanges || window._currentAmountRanges.length !== ranges.length) {
+        // 深拷貝 ranges 以避免引用問題
+        window._currentAmountRanges = ranges.map(r => ({
+            min: r.min !== undefined && r.min !== null ? parseInt(r.min) : 0,
+            max: r.max !== undefined && r.max !== null ? (r.max === '' ? null : parseInt(r.max)) : null
+        }));
+    }
+    
+    list.innerHTML = window._currentAmountRanges.map((range, idx) => {
         // 確保 min 和 max 是正確的數值
         const min = range.min !== undefined && range.min !== null ? parseInt(range.min) : 0;
         const max = range.max !== undefined && range.max !== null ? parseInt(range.max) : '';
-        const label = range.label || `區間 ${idx + 1}`;
+        
+        // 自動生成標籤
+        let label = '';
+        if (max === '' || max === null || max === undefined) {
+            label = `${min.toLocaleString()}+`;
+        } else {
+            label = `${min.toLocaleString()}-${parseInt(max).toLocaleString()}`;
+        }
         
         return `
         <div style="display: flex; gap: 0.5rem; align-items: center; padding: 0.5rem; border-bottom: 1px solid #eee; margin-bottom: 0.5rem;">
-            <input type="text" value="${label}" placeholder="區間標籤" class="input-field" style="flex: 1;" onchange="updateAmountRangeLabel(${idx}, this.value)">
-            <input type="number" value="${min}" placeholder="最小值" class="input-field" style="width: 100px;" onchange="updateAmountRangeMin(${idx}, this.value)">
-            <span>~</span>
-            <input type="number" value="${max}" placeholder="最大值（留空為無上限）" class="input-field" style="width: 150px;" onchange="updateAmountRangeMax(${idx}, this.value)">
+            <div style="flex: 1; font-weight: 500; color: #495057;">${label}</div>
+            <input type="number" value="${min}" placeholder="最小值" class="input-field" style="width: 120px;" oninput="updateAmountRangeMin(${idx}, this.value)" min="0">
+            <span style="color: #6c757d;">~</span>
+            <input type="number" value="${max}" placeholder="最大值（留空為無上限）" class="input-field" style="width: 150px;" oninput="updateAmountRangeMax(${idx}, this.value)" min="0">
             <button onclick="removeAmountRange(${idx})" class="btn btn-danger" style="padding: 0.25rem 0.5rem;">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
         `;
     }).join('');
-    
-    // 深拷貝 ranges 以避免引用問題
-    window._currentAmountRanges = ranges.map(r => ({
-        label: r.label || '',
-        min: r.min !== undefined && r.min !== null ? parseInt(r.min) : 0,
-        max: r.max !== undefined && r.max !== null ? (r.max === '' ? null : parseInt(r.max)) : null
-    }));
 }
 
 function addAmountRange() {
-    if (!window._currentAmountRanges) return;
-    window._currentAmountRanges.push({ label: '新區間', min: 0, max: null });
+    if (!window._currentAmountRanges) {
+        window._currentAmountRanges = getCustomAmountRanges().map(r => ({
+            min: r.min,
+            max: r.max
+        }));
+    }
+    
+    // 找到最後一個區間的 max 值，新區間從那裡開始
+    const lastRange = window._currentAmountRanges[window._currentAmountRanges.length - 1];
+    const newMin = lastRange && lastRange.max ? lastRange.max + 1 : 0;
+    
+    window._currentAmountRanges.push({ min: newMin, max: null });
     renderAmountRangesList(window._currentAmountRanges);
 }
 
@@ -5949,36 +5981,32 @@ function removeAmountRange(idx) {
     renderAmountRangesList(window._currentAmountRanges);
 }
 
-function updateAmountRangeLabel(idx, label) {
-    if (window._currentAmountRanges && window._currentAmountRanges[idx]) {
-        window._currentAmountRanges[idx].label = label;
-    }
-}
-
 function updateAmountRangeMin(idx, min) {
-    if (window._currentAmountRanges && window._currentAmountRanges[idx]) {
-        const minValue = parseInt(min);
-        if (!isNaN(minValue) && minValue >= 0) {
-            window._currentAmountRanges[idx].min = minValue;
-        } else {
-            window._currentAmountRanges[idx].min = 0;
-        }
+    if (!window._currentAmountRanges || !window._currentAmountRanges[idx]) return;
+    
+    const minValue = parseInt(min);
+    if (!isNaN(minValue) && minValue >= 0) {
+        window._currentAmountRanges[idx].min = minValue;
+        // 即時更新顯示的標籤
+        renderAmountRangesList(window._currentAmountRanges);
     }
 }
 
 function updateAmountRangeMax(idx, max) {
-    if (window._currentAmountRanges && window._currentAmountRanges[idx]) {
-        if (max === '' || max === null || max === undefined) {
-            window._currentAmountRanges[idx].max = null;
+    if (!window._currentAmountRanges || !window._currentAmountRanges[idx]) return;
+    
+    if (max === '' || max === null || max === undefined) {
+        window._currentAmountRanges[idx].max = null;
+    } else {
+        const maxValue = parseInt(max);
+        if (!isNaN(maxValue) && maxValue > 0) {
+            window._currentAmountRanges[idx].max = maxValue;
         } else {
-            const maxValue = parseInt(max);
-            if (!isNaN(maxValue) && maxValue > 0) {
-                window._currentAmountRanges[idx].max = maxValue;
-            } else {
-                window._currentAmountRanges[idx].max = null;
-            }
+            window._currentAmountRanges[idx].max = null;
         }
     }
+    // 即時更新顯示的標籤
+    renderAmountRangesList(window._currentAmountRanges);
 }
 
 function saveCustomAmountRanges() {
@@ -6004,8 +6032,16 @@ function saveCustomAmountRanges() {
             return null;
         }
         
+        // 自動生成標籤
+        let label = '';
+        if (max === null) {
+            label = `${min.toLocaleString()}+`;
+        } else {
+            label = `${min.toLocaleString()}-${max.toLocaleString()}`;
+        }
+        
         return {
-            label: range.label || `區間 ${idx + 1}`,
+            label: label,
             min: min,
             max: max
         };
