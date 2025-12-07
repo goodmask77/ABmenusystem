@@ -3120,10 +3120,10 @@ async function loadVenueContentOptions() {
             return;
         }
         
-        // 明確指定要查詢的欄位
+        // 明確指定要查詢的欄位（不包含 created_at）
         const { data, error } = await client
             .from('venue_content_options')
-            .select('id, name, sort_order, created_at')
+            .select('id, name, label, sort_order, value, is_active')
             .order('sort_order', { ascending: true });
         
         if (error) {
@@ -3131,10 +3131,10 @@ async function loadVenueContentOptions() {
             if (error.message.includes('Could not find') || error.message.includes('relation') || error.message.includes('column')) {
                 console.warn('venue_content_options 表結構問題，使用預設選項：', error.message);
                 venueContentOptions = [
-                    { id: 1, name: '產品發表', sort_order: 1 },
-                    { id: 2, name: '婚禮派對', sort_order: 2 },
-                    { id: 3, name: '春酒尾牙', sort_order: 3 },
-                    { id: 4, name: '公司聚餐', sort_order: 4 }
+                    { id: 1, name: '產品發表', label: '產品發表', sort_order: 1 },
+                    { id: 2, name: '婚禮派對', label: '婚禮派對', sort_order: 2 },
+                    { id: 3, name: '春酒尾牙', label: '春酒尾牙', sort_order: 3 },
+                    { id: 4, name: '公司聚餐', label: '公司聚餐', sort_order: 4 }
                 ];
                 renderVenueContentSelect();
                 return;
@@ -3165,8 +3165,10 @@ function renderVenueContentSelect() {
     
     venueContentOptions.forEach(opt => {
         const option = document.createElement('option');
-        option.value = opt.name;
-        option.textContent = opt.name;
+        // 使用 name ?? label 作為顯示文字和值
+        const displayText = opt.name ?? opt.label ?? '';
+        option.value = displayText;
+        option.textContent = displayText;
         select.appendChild(option);
     });
     
@@ -3234,14 +3236,19 @@ function renderVenueContentList() {
         return;
     }
     
-    list.innerHTML = venueContentOptions.map(opt => `
+    list.innerHTML = venueContentOptions.map(opt => {
+        // 使用 name ?? label 作為顯示文字
+        const displayText = opt.name ?? opt.label ?? '';
+        const safeDisplayText = displayText.replace(/'/g, "\\'"); // 轉義單引號，避免 onclick 中的字串問題
+        return `
         <div style="display: flex; align-items: center; padding: 0.5rem; border-bottom: 1px solid #eee;">
-            <span style="flex: 1;">${opt.name}</span>
-            <button onclick="deleteVenueContentOption(${opt.id}, '${opt.name}')" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+            <span style="flex: 1;">${displayText}</span>
+            <button onclick="deleteVenueContentOption(${opt.id}, '${safeDisplayText}')" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
 
 async function addVenueContentOption() {
@@ -3261,30 +3268,29 @@ async function addVenueContentOption() {
         // 檢查表結構是否存在
         const { data: tableCheck, error: checkError } = await client
             .from('venue_content_options')
-            .select('id, name, sort_order')
+            .select('id, name, label, sort_order')
             .limit(1);
         
         if (checkError && checkError.message.includes('Could not find')) {
             console.error('venue_content_options 表結構問題：', checkError);
-            alert('資料庫表結構尚未建立，請先在 Supabase 執行 migration：\n\n' +
-                  'CREATE TABLE IF NOT EXISTS public.venue_content_options (\n' +
-                  '    id serial PRIMARY KEY,\n' +
-                  '    name text NOT NULL UNIQUE,\n' +
-                  '    sort_order integer DEFAULT 0,\n' +
-                  '    created_at timestamptz NOT NULL DEFAULT now()\n' +
-                  ');\n\n' +
-                  '請查看 migration 檔案：supabase/migrations/202512090005_add_venue_content_field.sql');
+            alert('資料庫表結構尚未建立，請先在 Supabase 執行 migration。');
             return;
         }
         
-        // 插入新選項
+        // 插入新選項：同時設置 name 和 label 為用戶輸入的值
+        const text = name; // 用戶輸入的文字
         const { data, error } = await client
             .from('venue_content_options')
             .insert({ 
-                name: name,  // 明確指定欄位名稱
-                sort_order: maxOrder + 1 
+                name: text,      // 設置 name
+                label: text,     // 設置 label（與 name 相同）
+                sort_order: maxOrder + 1,
+                value: text      // 也設置 value（如果需要的話）
+                // 不包含 id（讓資料庫自動生成）
+                // 不包含 created_at（欄位不存在）
+                // 不包含 is_active（使用預設值 true）
             })
-            .select('id, name, sort_order, created_at')
+            .select('id, name, label, sort_order, value, is_active')
             .single();
         
         if (error) {
