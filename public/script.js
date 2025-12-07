@@ -1251,6 +1251,16 @@ async function prepareInitialState() {
 }
 
 async function fetchSupabaseConfig() {
+    // 優先使用 HTML 中嵌入的配置（最可靠）
+    if (typeof window !== 'undefined' && window.SUPABASE_CONFIG) {
+        const config = window.SUPABASE_CONFIG;
+        if (config?.supabaseUrl && config?.supabaseAnonKey) {
+            console.log('✅ 從 HTML 嵌入配置載入 Supabase 設定');
+            return config;
+        }
+    }
+    
+    // 備用：從檔案載入
     const sources = [
         '/env.json',           // Vercel 靜態文件路徑
         'env.json',            // 相對路徑

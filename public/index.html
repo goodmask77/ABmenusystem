@@ -10,6 +10,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script>
+        // Supabase 配置（直接嵌入，確保在 Vercel 上可用）
+        window.SUPABASE_CONFIG = {
+            supabaseUrl: "https://rpbnexbvxgbjzslrunya.supabase.co",
+            supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwYm5leGJ2eGdianpzbHJ1bnlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2NzM3NTUsImV4cCI6MjA3ODI0OTc1NX0.tYWUb6ZmEPGCUYeHnQwE0PHlFBEzu-Mkcqm3kF_tKOg"
+        };
+    </script>
 </head>
 <body>
     <div class="app">
@@ -84,100 +91,56 @@
                 </div>
 
                 <div class="cart-summary">
-                    <!-- 客戶資訊區域 - 緊湊版 -->
-                    <div class="order-info-section">
-                        <!-- 第一行：公司/姓名/手機 -->
-                        <div class="info-row">
-                            <div class="info-field flex-2">
-                                <label>公司:</label>
-                                <input type="text" id="companyName" class="input-sm" placeholder="公司名稱">
-                            </div>
-                            <div class="info-field">
-                                <label>統編:</label>
-                                <input type="text" id="customerTaxId" class="input-sm" placeholder="選填">
-                            </div>
+                    <!-- 客戶資訊區域 - 單行版 -->
+                    <div class="customer-info-inline">
+                        <div class="customer-field">
+                            <label>客戶:</label>
+                            <input type="text" id="customerName" class="input-field" placeholder="名稱">
                         </div>
-                        <div class="info-row">
-                            <div class="info-field">
-                                <label>姓名:</label>
-                                <input type="text" id="customerName" class="input-sm" placeholder="聯絡人">
-                            </div>
-                            <div class="info-field">
-                                <label>手機:</label>
-                                <input type="tel" id="customerPhone" class="input-sm" placeholder="手機號碼">
-                            </div>
-                            <div class="info-field industry-field">
-                                <label>產業:</label>
-                                <select id="industrySelect" class="input-sm">
-                                    <option value="">選擇產業</option>
-                                </select>
-                                <button type="button" id="manageIndustry" class="btn-icon-sm" title="管理產業選項">
-                                    <i class="fas fa-cog"></i>
-                                </button>
-                            </div>
+                        <div class="customer-field">
+                            <label>統編:</label>
+                            <input type="text" id="customerTaxId" class="input-field" placeholder="選填">
                         </div>
-                        <!-- 第二行：用餐日期時間 -->
-                        <div class="info-row">
-                            <div class="info-field">
-                                <label>用餐:</label>
-                                <input type="date" id="diningDate" class="input-sm">
-                            </div>
-                            <div class="info-field time-field">
-                                <select id="diningHour" class="input-sm time-select">
-                                    <option value="">時</option>
-                                    <option value="11">11</option>
-                                    <option value="12">12</option>
-                                    <option value="13">13</option>
-                                    <option value="14">14</option>
-                                    <option value="15">15</option>
-                                    <option value="16">16</option>
-                                    <option value="17">17</option>
-                                    <option value="18">18</option>
-                                    <option value="19">19</option>
-                                    <option value="20">20</option>
-                                    <option value="21">21</option>
-                                    <option value="22">22</option>
-                                </select>
-                                <span>:</span>
-                                <select id="diningMinute" class="input-sm time-select">
-                                    <option value="">分</option>
-                                    <option value="00">00</option>
-                                    <option value="30">30</option>
-                                </select>
-                            </div>
-                            <div class="info-field">
-                                <label>包場:</label>
-                                <select id="venueScope" class="input-sm">
-                                    <option value="">選擇</option>
-                                    <option value="全包">全包</option>
-                                    <option value="叢林區">叢林區</option>
-                                    <option value="蘆葦區">蘆葦區</option>
-                                </select>
-                            </div>
-                        </div>
-                        <!-- 第三行：用餐方式/付款/訂金 -->
-                        <div class="info-row">
-                            <div class="info-field">
-                                <label>方式:</label>
-                                <select id="diningStyle" class="input-sm">
-                                    <option value="">選擇</option>
-                                    <option value="自助">自助</option>
-                                    <option value="桌菜">桌菜</option>
-                                </select>
-                            </div>
-                            <div class="info-field">
-                                <label>付款:</label>
-                                <select id="paymentMethod" class="input-sm">
-                                    <option value="">選擇</option>
-                                    <option value="匯款">匯款</option>
-                                    <option value="刷卡">刷卡</option>
-                                    <option value="當天結帳">當天結帳</option>
-                                </select>
-                            </div>
-                            <div class="info-field">
-                                <label>訂金:</label>
-                                <input type="number" id="depositPaid" class="input-sm" placeholder="0" min="0">
-                            </div>
+                        <div class="customer-field datetime-field">
+                            <label>用餐:</label>
+                            <input type="date" id="diningDate" class="input-field date-input">
+                            <select id="diningHour" class="input-field time-select">
+                                <option value="">時</option>
+                                <option value="00">00</option>
+                                <option value="01">01</option>
+                                <option value="02">02</option>
+                                <option value="03">03</option>
+                                <option value="04">04</option>
+                                <option value="05">05</option>
+                                <option value="06">06</option>
+                                <option value="07">07</option>
+                                <option value="08">08</option>
+                                <option value="09">09</option>
+                                <option value="10">10</option>
+                                <option value="11">11</option>
+                                <option value="12">12</option>
+                                <option value="13">13</option>
+                                <option value="14">14</option>
+                                <option value="15">15</option>
+                                <option value="16">16</option>
+                                <option value="17">17</option>
+                                <option value="18">18</option>
+                                <option value="19">19</option>
+                                <option value="20">20</option>
+                                <option value="21">21</option>
+                                <option value="22">22</option>
+                                <option value="23">23</option>
+                            </select>
+                            <span class="time-separator">:</span>
+                            <select id="diningMinute" class="input-field time-select">
+                                <option value="">分</option>
+                                <option value="00">00</option>
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                                <option value="30">30</option>
+                                <option value="40">40</option>
+                                <option value="50">50</option>
+                            </select>
                         </div>
                     </div>
 
@@ -354,10 +317,7 @@
             <h2>菜單歷史紀錄</h2>
 
             <div class="history-controls">
-                <input type="text" id="historySearch" placeholder="搜尋公司、聯絡人、餐點..." oninput="renderHistoryList()">
-                <select id="historyIndustryFilter" onchange="renderHistoryList()">
-                    <option value="">全部產業</option>
-                </select>
+                <input type="text" id="historySearch" placeholder="搜索歷史紀錄..." oninput="renderHistoryList()">
                 <select id="historySortBy" onchange="renderHistoryList()">
                     <option value="newest">最新建立</option>
                     <option value="oldest">最舊建立</option>
@@ -367,9 +327,6 @@
                     <option value="tables">桌數排序</option>
                     <option value="total">總價排序</option>
                 </select>
-                <button type="button" class="btn-sync-cloud" onclick="syncLocalOrdersToSupabase()" title="將本地訂單同步到雲端">
-                    <i class="fas fa-cloud-upload-alt"></i> 同步到雲端
-                </button>
             </div>
 
             <div id="historyList"></div>
