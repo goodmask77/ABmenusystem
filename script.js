@@ -5534,22 +5534,38 @@ function calculateOrderStatistics(orders) {
     orders.forEach((order, orderIdx) => {
         // 統一取得每張訂單的總金額（使用 order.total 欄位）
         // 這是每張訂單的總金額，包含服務費
-        const orderTotal = parseFloat(order.total) || 0;
+        // 如果 order.total 不存在或為 0，嘗試從 subtotal + service_fee 計算
+        let orderTotal = parseFloat(order.total) || 0;
+        let calculatedFrom = 'order.total';
         
-        // Debug: 只記錄第一筆訂單的資料，確認欄位正確
-        if (orderIdx === 0) {
-            console.log('📊 分析功能 - 第一筆訂單範例：', {
+        // 如果 total 為 0 或不存在，嘗試從 subtotal + service_fee 計算
+        if (orderTotal === 0 && (order.subtotal || order.service_fee)) {
+            const subtotal = parseFloat(order.subtotal) || 0;
+            const serviceFee = parseFloat(order.service_fee) || 0;
+            orderTotal = subtotal + serviceFee;
+            calculatedFrom = 'subtotal+service_fee';
+        }
+        
+        // 如果還是 0，嘗試從 cart_items 計算
+        if (orderTotal === 0 && Array.isArray(order.cart_items) && order.cart_items.length > 0) {
+            const subtotal = order.cart_items.reduce((sum, item) => {
+                return sum + ((parseFloat(item.price) || 0) * (parseInt(item.quantity) || 1));
+            }, 0);
+            const serviceFee = Math.round(subtotal * 0.1);
+            orderTotal = subtotal + serviceFee;
+            calculatedFrom = 'cart_items';
+        }
+        
+        // Debug: 只記錄前 3 筆訂單的資料，確認欄位正確
+        if (orderIdx < 3) {
+            console.log(`📊 分析功能 - 訂單 #${orderIdx + 1}：`, {
                 orderId: order.id,
                 orderTotal: orderTotal,
                 orderTotalRaw: order.total,
-                orderKeys: Object.keys(order),
-                orderSample: {
-                    total: order.total,
-                    subtotal: order.subtotal,
-                    service_fee: order.service_fee,
-                    per_person: order.per_person,
-                    people_count: order.people_count
-                }
+                subtotal: order.subtotal,
+                service_fee: order.service_fee,
+                calculatedFrom: calculatedFrom,
+                cartItemsCount: Array.isArray(order.cart_items) ? order.cart_items.length : 0
             });
         }
         
