@@ -1225,8 +1225,9 @@ function initializeApp() {
 }
 
 async function prepareInitialState() {
-    // 清理舊的菜單 localStorage 資料，確保完全從 Supabase 載入
+    // 清理所有舊的菜單 localStorage 資料，確保完全從 Supabase 載入
     localStorage.removeItem('currentMenu');
+    localStorage.removeItem('savedMenus'); // 也清理歷史訂單，完全依賴 Supabase
     
     await initSupabaseClient();
     
@@ -3247,16 +3248,8 @@ function confirmSaveMenu() {
         }
     };
     
-    const savedMenus = JSON.parse(localStorage.getItem('savedMenus') || '[]');
-    savedMenus.unshift(menuVersion);
-    
-    // 保持最多 50 個版本
-    if (savedMenus.length > 50) {
-        savedMenus.splice(50);
-    }
-    
-    localStorage.setItem('savedMenus', JSON.stringify(savedMenus));
-    localStorage.setItem('currentMenu', JSON.stringify(menuVersion));
+    // 不再使用 localStorage 儲存菜單，完全依賴 Supabase
+    // 歷史訂單應該從 menu_orders 表載入，而不是從 localStorage
     
     // 儲存訂單到 Supabase
     const supabaseOrder = {
@@ -3337,20 +3330,12 @@ async function manualCloudSave() {
 }
 
 function upsertAutoHistoryEntry(statePayload) {
+    // 不再使用 localStorage 儲存歷史記錄
+    // 歷史訂單應該從 Supabase 的 menu_orders 表載入
+    // 此函數保留以維持相容性，但不再執行任何操作
     try {
-        if (!statePayload || !statePayload.menu) return;
-        const savedMenus = getSavedMenus();
-        const autoEntry = createAutoHistoryEntry(statePayload);
-        const existingIndex = savedMenus.findIndex(menu => menu.flag === AUTO_HISTORY_FLAG);
-        if (existingIndex >= 0) {
-            savedMenus[existingIndex] = autoEntry;
-        } else {
-            savedMenus.unshift(autoEntry);
-        }
-        if (savedMenus.length > 50) {
-            savedMenus.splice(50);
-        }
-        localStorage.setItem('savedMenus', JSON.stringify(savedMenus));
+        // 歷史記錄現在完全依賴 Supabase
+        // 如果需要自動歷史記錄，應該儲存到 Supabase 的 menu_orders 表
     } catch (error) {
         console.warn('更新修改紀錄失敗：', error);
     }
@@ -3703,13 +3688,17 @@ function editHistoryMenu(index) {
     loadHistoryMenu(index);
 }
 
-function deleteHistoryMenu(index) {
-    const savedMenus = getSavedMenus();
-    const menu = savedMenus[index];
+async function deleteHistoryMenu(index) {
+    // 歷史訂單現在完全從 Supabase 載入，不再使用 localStorage
+    // 此函數已棄用，請使用 deleteHistoryMenuByData
+    const menus = window._currentFilteredMenus || getMergedOrders();
+    const menu = menus[index];
     
     if (menu && confirm(`確定要刪除菜單「${menu.name || '未命名菜單'}」嗎？此操作無法復原。`)) {
-        savedMenus.splice(index, 1);
-        localStorage.setItem('savedMenus', JSON.stringify(savedMenus));
+        // 從 Supabase 刪除
+        if (menu.id) {
+            await deleteOrderFromSupabase(menu.id);
+        }
         
         renderHistoryList();
         alert('菜單已刪除');
