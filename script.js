@@ -4252,7 +4252,7 @@ function renderHistoryList() {
     historyList.innerHTML = `
         <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <button id="batchDeleteBtn" class="btn btn-danger" style="display: none; padding: 0.5rem 1rem;" onclick="batchDeleteOrders()">
+                <button id="batchDeleteBtn" class="btn btn-danger" style="display: none; padding: 0.5rem 1rem;">
                     <i class="fas fa-trash"></i> 批量刪除 (<span id="selectedCount">0</span>)
                 </button>
             </div>
@@ -4262,7 +4262,7 @@ function renderHistoryList() {
             <thead>
                 <tr>
                     <th class="checkbox-col" onclick="event.stopPropagation();">
-                        <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" title="全選/取消全選">
+                        <input type="checkbox" id="selectAllCheckbox" title="全選/取消全選">
                     </th>
                     <th class="sortable pin-col ${historySort.field === 'pinned' ? 'sort-' + historySort.direction : ''}" onclick="event.stopPropagation(); sortHistoryBy('pinned')">釘選</th>
                     <th class="sortable ${historySort.field === 'date' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('date')">用餐日期</th>
@@ -4317,7 +4317,7 @@ function renderHistoryList() {
                     return `
                             <tr class="history-row ${isPinned ? 'pinned-row' : ''}" data-menu-id="${menuId}" data-idx="${menuIdx}" data-pinned="${isPinned}" onclick="loadHistoryMenuByData(this)" style="cursor: pointer;">
                                 <td class="checkbox-col" onclick="event.stopPropagation();">
-                                    <input type="checkbox" class="order-checkbox" data-menu-id="${menuId}" onchange="updateBatchDeleteButton()">
+                                    <input type="checkbox" class="order-checkbox" data-menu-id="${menuId}">
                                 </td>
                                 <td class="pin-col" onclick="event.stopPropagation();">
                                     <button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="toggleOrderPin('${menuId}', event)" title="${isPinned ? '取消釘選' : '釘選'}">
@@ -6533,8 +6533,9 @@ function generateTestOrders() {
     const now = new Date();
     
     // 金額範圍：3-40萬（300000-400000）
-    const amountMean = (300000 + 400000) / 2; // 平均值：35萬
-    const amountStdDev = (400000 - 300000) / 6; // 標準差：約16.7萬（3個標準差覆蓋範圍）
+    // 調整平均值到20萬，讓多數訂單落在十幾二十萬的範圍
+    const amountMean = 200000; // 平均值：20萬（偏向左側）
+    const amountStdDev = 80000; // 標準差：8萬（讓分布更集中在十幾二十萬）
     
     // 人數範圍：20-180人
     const peopleMean = (20 + 180) / 2; // 平均值：100人
