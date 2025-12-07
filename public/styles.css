@@ -2088,6 +2088,37 @@ body {
   margin-right: 0.5rem;
 }
 
+/* 同步到雲端按鈕 */
+.btn-sync-cloud {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-sync-cloud:hover {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-sync-cloud:active {
+  transform: translateY(0);
+}
+
+.btn-sync-cloud i {
+  font-size: 1rem;
+}
+
 /* 手機／窄螢幕調整：略縮內距，但保留邊匡感 */
 @media (max-width: 768px) {
   .history-modal .modal-content { 
