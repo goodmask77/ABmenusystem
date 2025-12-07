@@ -1213,6 +1213,44 @@ async function initSupabaseClient() {
     }
 }
 
+// 同步菜單項目到 menu_items 表
+async function syncItemToMenuItems(item, categoryName, action = 'upsert') {
+    const client = supabaseClient || await initSupabaseClient();
+    if (!client) {
+        console.warn('Supabase 未連線，無法同步到 menu_items');
+        return false;
+    }
+    
+    try {
+        if (action === 'delete') {
+            const { error } = await client
+                .from('menu_items')
+                .delete()
+                .eq('id', item.id);
+            if (error) throw error;
+            console.log('已從 menu_items 刪除:', item.name);
+        } else {
+            // upsert (新增或更新)
+            const { error } = await client
+                .from('menu_items')
+                .upsert({
+                    id: item.id,
+                    name: item.name,
+                    name_en: item.nameEn || item.enName || '',
+                    price: item.price,
+                    category: categoryName,
+                    inserted_at: new Date().toISOString()
+                }, { onConflict: 'id' });
+            if (error) throw error;
+            console.log('已同步到 menu_items:', item.name);
+        }
+        return true;
+    } catch (error) {
+        console.error('同步 menu_items 失敗:', error);
+        return false;
+    }
+}
+
 async function loadStateFromSupabase() {
     if (!supabaseClient) return false;
     try {
@@ -1808,6 +1846,8 @@ function saveItem() {
     const category = menuData.categories.find(c => c.id === editingItem.categoryId);
     if (!category) return;
     
+    let itemToSync = null;
+    
     if (editingItem.itemId) {
         // 編輯現有品項
         const item = category.items.find(i => i.id === editingItem.itemId);
@@ -1816,6 +1856,7 @@ function saveItem() {
             item.nameEn = nameEn;
             item.description = description;
             item.price = price;
+            itemToSync = item;
             
             // 更新購物車中的品項資訊
             cart.forEach(cartItem => {
@@ -1836,6 +1877,12 @@ function saveItem() {
             price
         };
         category.items.push(newItem);
+        itemToSync = newItem;
+    }
+    
+    // 同步到 menu_items 表
+    if (itemToSync) {
+        syncItemToMenuItems(itemToSync, category.name, 'upsert');
     }
     
     renderMenu();
@@ -1851,9 +1898,16 @@ function deleteItem(categoryId, itemId) {
     if (confirm('確定要刪除此品項？')) {
         const category = menuData.categories.find(c => c.id === categoryId);
         if (category) {
+            const itemToDelete = category.items.find(i => i.id === itemId);
             category.items = category.items.filter(i => i.id !== itemId);
             // 從購物車移除
             cart = cart.filter(item => item.id !== itemId);
+            
+            // 同步刪除到 menu_items 表
+            if (itemToDelete) {
+                syncItemToMenuItems(itemToDelete, category.name, 'delete');
+            }
+            
             renderMenu();
             renderCart();
             updateCartSummary();
