@@ -2999,32 +2999,16 @@ async function loadOrdersFromSupabase() {
 
 // 合併本地和 Supabase 訂單（去重）
 function getMergedOrders() {
-    const localMenus = getSavedMenus();
-    
-    // 用 savedAt + name 作為簡單去重依據
-    const seen = new Set();
-    const merged = [];
-    
-    // 先加入本地訂單
-    localMenus.forEach(menu => {
-        const key = `${menu.name}-${menu.savedAt}`;
-        if (!seen.has(key)) {
-            seen.add(key);
-            merged.push(menu);
-        }
-    });
-    
-    // 再加入 Supabase 訂單（避免重複）
-    supabaseOrders.forEach(order => {
-        const key = `${order.name}-${order.savedAt}`;
-        if (!seen.has(key)) {
-            seen.add(key);
-            merged.push(order);
-        }
-    });
+    // 不再使用 localStorage，完全依賴 Supabase
+    // 只返回 Supabase 訂單
+    const merged = [...supabaseOrders];
     
     // 按時間排序（最新在前）
-    merged.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+    merged.sort((a, b) => {
+        const dateA = new Date(a.savedAt || a.created_at || 0);
+        const dateB = new Date(b.savedAt || b.created_at || 0);
+        return dateB - dateA;
+    });
     
     return merged;
 }
@@ -3198,7 +3182,7 @@ function saveMenuToStorage() {
     document.getElementById('saveMenuModal').style.display = 'block';
 }
 
-function confirmSaveMenu() {
+async function confirmSaveMenu() {
     // 驗證公司名稱
     const companyName = elements.companyName?.value?.trim();
     if (!companyName) {
@@ -3273,11 +3257,51 @@ function confirmSaveMenu() {
         created_by: createdBy
     };
     
-    saveOrderToSupabase(supabaseOrder).then(savedOrder => {
-        if (savedOrder) {
-            console.log('訂單已成功儲存到 Supabase，ID:', savedOrder.id);
+    // 儲存訂單到 Supabase 並更新快取
+    const savedOrder = await saveOrderToSupabase(supabaseOrder);
+    if (savedOrder) {
+        console.log('訂單已成功儲存到 Supabase，ID:', savedOrder.id);
+        
+        // 立即將新訂單加入快取，避免需要重新載入
+        const newOrder = {
+            id: savedOrder.id,
+            name: savedOrder.company_name || menuName,
+            customerName: savedOrder.company_name,
+            customerTaxId: savedOrder.tax_id,
+            diningDateTime: savedOrder.dining_datetime,
+            savedAt: savedOrder.created_at,
+            peopleCount: savedOrder.people_count || peopleCount,
+            tableCount: savedOrder.table_count || tableCount,
+            cart: savedOrder.cart_items || cart,
+            orderInfo: {
+                companyName: savedOrder.company_name,
+                taxId: savedOrder.tax_id,
+                contactName: savedOrder.contact_name,
+                contactPhone: savedOrder.contact_phone,
+                industry: savedOrder.industry,
+                venueScope: savedOrder.venue_scope,
+                diningStyle: savedOrder.dining_style,
+                paymentMethod: savedOrder.payment_method,
+                depositPaid: savedOrder.deposit_paid
+            },
+            meta: {
+                itemCount: cartItemCount,
+                estimatedTotal: estimatedTotal,
+                estimatedPerPerson: estimatedPerPerson,
+                preview: cartPreview || '無品項',
+                createdBy: savedOrder.created_by || createdBy
+            },
+            fromSupabase: true
+        };
+        
+        // 加入快取（放在最前面，因為是最新的）
+        supabaseOrders.unshift(newOrder);
+        
+        // 限制快取數量
+        if (supabaseOrders.length > 100) {
+            supabaseOrders = supabaseOrders.slice(0, 100);
         }
-    });
+    }
     
     // 關閉模態框
     document.getElementById('saveMenuModal').style.display = 'none';
