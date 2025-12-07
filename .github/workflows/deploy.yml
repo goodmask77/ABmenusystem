@@ -1,0 +1,41 @@
+name: 自動部署到 Vercel
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # 允許手動觸發
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 檢出程式碼
+        uses: actions/checkout@v4
+
+      - name: 📦 設置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📥 安裝依賴
+        run: |
+          if [ -f "package.json" ]; then
+            npm ci
+          fi
+          if [ -f "abmenusystem-app/package.json" ]; then
+            cd abmenusystem-app && npm ci && cd ..
+          fi
+
+      - name: 🔍 檢查變更
+        run: |
+          echo "檢查變更的檔案:"
+          git diff --name-only HEAD~1 HEAD || true
+
+      - name: ✅ 部署成功通知
+        run: |
+          echo "✅ 部署流程完成"
+          echo "Vercel 會自動從 GitHub 拉取最新程式碼並部署"
+

@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "deploy": "./deploy.sh",
+    "deploy:auto": "git add -A && git commit -m \"自動部署: $(date '+%Y-%m-%d %H:%M:%S')\" && git push origin main"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.86.2",
