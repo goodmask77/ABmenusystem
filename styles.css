@@ -139,6 +139,9 @@ body {
     overflow: hidden;
     border: 1px solid #dee2e6;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 120px);
 }
 
 .cart-section {
@@ -218,7 +221,7 @@ body {
 /* 菜單類別 */
 .menu-categories {
     padding: 0.4rem;
-    max-height: calc(100vh - 200px);
+    flex: 1;
     overflow-y: auto;
     min-height: 0;
 }
@@ -426,57 +429,55 @@ body {
 /* 客戶資訊區域 - 單行版 */
 .customer-info-inline {
     display: flex;
-    gap: 0.5rem;
-    padding-bottom: 0.8rem;
-    margin-bottom: 0.8rem;
+    gap: 0.4rem;
+    padding-bottom: 0.6rem;
+    margin-bottom: 0.6rem;
     border-bottom: 1px solid #dee2e6;
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .customer-field {
     display: flex;
     align-items: center;
-    gap: 0.3rem;
-    flex: 1;
-    min-width: 100px;
+    gap: 0.2rem;
+    flex-shrink: 0;
 }
 
 .customer-field label {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 500;
     color: #495057;
     white-space: nowrap;
 }
 
 .customer-field .input-field {
-    flex: 1;
-    padding: 0.35rem 0.5rem;
-    font-size: 0.8rem;
-    min-width: 60px;
+    padding: 0.3rem 0.4rem;
+    font-size: 0.75rem;
+    width: 70px;
 }
 
-/* 用餐日期時間選擇區域 */
-.customer-datetime-row {
+.customer-field.datetime-field {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    padding-bottom: 0.8rem;
-    margin-bottom: 0.8rem;
-    border-bottom: 1px solid #dee2e6;
-    flex-wrap: wrap;
+    gap: 0.2rem;
 }
 
-.customer-datetime-row label {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #495057;
-    white-space: nowrap;
+.customer-field .date-input {
+    width: 110px;
 }
 
-.customer-datetime-row .input-field {
-    padding: 0.35rem 0.5rem;
+.customer-field .time-select {
+    width: 45px;
+    padding: 0.3rem 0.2rem;
+}
+
+.time-separator {
     font-size: 0.8rem;
+    color: #495057;
 }
+
+/* 移除舊的 datetime-row 樣式，不再使用 */
 
 .customer-datetime-row input[type="date"] {
     flex: 1;
