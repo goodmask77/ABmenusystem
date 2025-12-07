@@ -3683,20 +3683,49 @@ async function deleteHistoryMenuByData(row) {
     let deletedFromCloud = false;
     let deletedFromLocal = false;
     
-    // 1. 刪除 Supabase 訂單（如果有 ID）
-    if (menuId) {
-        deletedFromCloud = await deleteOrderFromSupabase(menuId);
+    const menuName = menu.name || '';
+    const menuSavedAt = menu.savedAt || '';
+    
+    console.log('準備刪除訂單:', { menuName, menuSavedAt, menuId, fromSupabase: menu.fromSupabase, orderId: menu.id });
+    
+    // 1. 刪除 Supabase 訂單（優先使用 menu.id，其次使用 menuId）
+    const supabaseId = menu.id || menuId;
+    if (supabaseId) {
+        deletedFromCloud = await deleteOrderFromSupabase(supabaseId);
+        console.log('Supabase 刪除結果:', deletedFromCloud);
     }
     
-    // 2. 同時刪除本地訂單（用名稱和時間匹配）
+    // 2. 從 supabaseOrders 快取中移除（不論刪除是否成功）
+    if (supabaseId) {
+        const prevLength = supabaseOrders.length;
+        supabaseOrders = supabaseOrders.filter(o => o.id !== supabaseId);
+        console.log(`從快取移除: ${prevLength} -> ${supabaseOrders.length}`);
+    }
+    
+    // 3. 刪除本地訂單（多重匹配條件）
     const savedMenus = getSavedMenus();
-    const localIndex = savedMenus.findIndex(m => 
-        m.name === menu.name && m.savedAt === menu.savedAt
-    );
+    
+    // 嘗試多種匹配方式
+    let localIndex = savedMenus.findIndex(m => {
+        // 精確匹配 name + savedAt
+        if (m.name === menuName && m.savedAt === menuSavedAt) return true;
+        // 匹配名稱 + 用餐日期時間
+        if (m.name === menuName && m.diningDateTime && m.diningDateTime === menu.diningDateTime) return true;
+        // 只匹配名稱和相近時間（1分鐘內）
+        if (m.name === menuName && m.savedAt && menuSavedAt) {
+            const timeDiff = Math.abs(new Date(m.savedAt) - new Date(menuSavedAt));
+            if (timeDiff < 60000) return true; // 1分鐘內
+        }
+        return false;
+    });
+    
     if (localIndex >= 0) {
-        savedMenus.splice(localIndex, 1);
+        const removed = savedMenus.splice(localIndex, 1);
         localStorage.setItem('savedMenus', JSON.stringify(savedMenus));
         deletedFromLocal = true;
+        console.log('已刪除本地訂單:', removed[0]?.name);
+    } else {
+        console.log('本地找不到匹配的訂單:', menuName, menuSavedAt);
     }
     
     if (deletedFromCloud || deletedFromLocal) {
@@ -3705,6 +3734,12 @@ async function deleteHistoryMenuByData(row) {
         showSyncStatus('刪除失敗', 'error');
     }
     
+    // 重新渲染（不重新載入 Supabase，避免刪除後又載回來）
+    // 只有在確認雲端刪除成功後才重新載入
+    if (!deletedFromCloud && menu.fromSupabase) {
+        // 如果是來自 Supabase 但刪除失敗，重新載入確認狀態
+        await loadOrdersFromSupabase();
+    }
     renderHistoryList();
 }
 
