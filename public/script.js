@@ -5519,52 +5519,92 @@ function calculateOrderStatistics(orders) {
             stats.perPersonStats.push(parseFloat(order.per_person));
         }
         
-        // 產業別統計
-        if (order.industry) {
-            if (!stats.industryStats[order.industry]) {
-                stats.industryStats[order.industry] = {
+        // 產業別統計（處理空值和未分類）
+        const industry = order.industry?.trim() || null;
+        if (industry) {
+            if (!stats.industryStats[industry]) {
+                stats.industryStats[industry] = {
                     count: 0,
                     total: 0
                 };
             }
-            stats.industryStats[order.industry].count++;
+            stats.industryStats[industry].count++;
             if (order.total) {
-                stats.industryStats[order.industry].total += parseFloat(order.total);
+                stats.industryStats[industry].total += parseFloat(order.total);
+            }
+        } else {
+            // 統計未填寫的訂單
+            if (!stats.industryStats['未分類']) {
+                stats.industryStats['未分類'] = {
+                    count: 0,
+                    total: 0
+                };
+            }
+            stats.industryStats['未分類'].count++;
+            if (order.total) {
+                stats.industryStats['未分類'].total += parseFloat(order.total);
             }
         }
         
-        // 包場內容統計
-        if (order.venue_content) {
-            if (!stats.venueContentStats[order.venue_content]) {
-                stats.venueContentStats[order.venue_content] = {
+        // 包場內容統計（處理空值和未分類）
+        const venueContent = order.venue_content?.trim() || null;
+        if (venueContent) {
+            if (!stats.venueContentStats[venueContent]) {
+                stats.venueContentStats[venueContent] = {
                     count: 0,
                     total: 0
                 };
             }
-            stats.venueContentStats[order.venue_content].count++;
+            stats.venueContentStats[venueContent].count++;
             if (order.total) {
-                stats.venueContentStats[order.venue_content].total += parseFloat(order.total);
+                stats.venueContentStats[venueContent].total += parseFloat(order.total);
+            }
+        } else {
+            // 統計未填寫的訂單
+            if (!stats.venueContentStats['未分類']) {
+                stats.venueContentStats['未分類'] = {
+                    count: 0,
+                    total: 0
+                };
+            }
+            stats.venueContentStats['未分類'].count++;
+            if (order.total) {
+                stats.venueContentStats['未分類'].total += parseFloat(order.total);
             }
         }
         
         // 金額分布（使用自訂區間）
         const total = parseFloat(order.total) || 0;
+        let rangeMatched = false;
         customRanges.forEach(range => {
             if (total >= range.min && (range.max === null || total <= range.max)) {
                 stats.amountRanges[range.label]++;
+                rangeMatched = true;
             }
         });
+        // 如果沒有匹配任何區間，記錄到最後一個區間（通常是無上限區間）
+        if (!rangeMatched && customRanges.length > 0) {
+            const lastRange = customRanges[customRanges.length - 1];
+            if (lastRange.max === null) {
+                stats.amountRanges[lastRange.label]++;
+            }
+        }
     });
     
     // 計算平均人數
     if (validPeopleCount > 0) {
         stats.totalPeople = totalPeopleCount;
-        stats.averagePeople = totalPeopleCount / validPeopleCount;
+        stats.averagePeople = Math.round((totalPeopleCount / validPeopleCount) * 10) / 10; // 保留一位小數
+    } else {
+        stats.totalPeople = 0;
+        stats.averagePeople = 0;
     }
     
     // 計算平均人均
     if (validPerPersonCount > 0) {
         stats.averagePerPerson = totalPerPerson / validPerPersonCount;
+    } else {
+        stats.averagePerPerson = 0;
     }
     
     // 排序人均統計
@@ -5663,11 +5703,13 @@ function renderAnalysisContent(container, stats) {
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">總人數</div>
-                        <div class="stat-value">${stats.totalPeople.toLocaleString()}</div>
+                        <div class="stat-value">${stats.totalPeople > 0 ? stats.totalPeople.toLocaleString() : '--'}</div>
+                        <div class="stat-note" style="font-size: 0.75rem; color: #6c757d; margin-top: 0.25rem;">${stats.totalOrders} 筆訂單</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">平均人數</div>
-                        <div class="stat-value">${Math.round(stats.averagePeople)}</div>
+                        <div class="stat-value">${stats.averagePeople > 0 ? stats.averagePeople.toFixed(1) : '--'}</div>
+                        <div class="stat-note" style="font-size: 0.75rem; color: #6c757d; margin-top: 0.25rem;">每筆訂單平均</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">平均人均</div>
@@ -5678,27 +5720,29 @@ function renderAnalysisContent(container, stats) {
             
             <div class="analysis-section">
                 <h3><i class="fas fa-industry"></i> 產業別分布</h3>
-                <div class="chart-container">
-                    <canvas id="industryChart"></canvas>
-                </div>
-                <table class="analysis-table">
-                    <thead>
-                        <tr>
-                            <th>產業別</th>
-                            <th>訂單數</th>
-                            <th>總金額</th>
-                            <th>平均金額</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${industryRows || '<tr><td colspan="4">無資料</td></tr>'}
-                    </tbody>
-                </table>
+                ${industryRows && industryRows.length > 0 ? `
+                    <div class="chart-container">
+                        <canvas id="industryChart"></canvas>
+                    </div>
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th>產業別</th>
+                                <th>訂單數</th>
+                                <th>總金額</th>
+                                <th>平均金額</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${industryRows}
+                        </tbody>
+                    </table>
+                ` : '<p style="color: #6c757d;">目前沒有產業別資料</p>'}
             </div>
             
             <div class="analysis-section">
                 <h3><i class="fas fa-calendar-alt"></i> 包場內容分布</h3>
-                ${venueContentRows ? `
+                ${venueContentRows && venueContentRows.length > 0 ? `
                     <table class="analysis-table">
                         <thead>
                             <tr>
@@ -5709,10 +5753,13 @@ function renderAnalysisContent(container, stats) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${venueContentRows || '<tr><td colspan="4">無資料</td></tr>'}
+                            ${venueContentRows}
                         </tbody>
                     </table>
-                ` : '<p>目前沒有包場內容資料</p>'}
+                    <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #6c757d;">
+                        <i class="fas fa-info-circle"></i> 提示：未填寫包場內容的訂單會歸類為「未分類」
+                    </p>
+                ` : '<p style="color: #6c757d;"><i class="fas fa-info-circle"></i> 目前沒有包場內容資料，請在訂單中填寫「包場內容」欄位</p>'}
             </div>
             
             <div class="analysis-section">
@@ -5729,28 +5776,62 @@ function renderAnalysisContent(container, stats) {
                         <tr>
                             <th>金額區間</th>
                             <th>訂單數</th>
+                            <th>占比</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${customRanges.map(range => `
-                            <tr>
-                                <td>$${range.label}</td>
-                                <td>${stats.amountRanges[range.label] || 0}</td>
-                            </tr>
-                        `).join('')}
+                        ${customRanges.map(range => {
+                            const count = stats.amountRanges[range.label] || 0;
+                            const percentage = stats.totalOrders > 0 ? ((count / stats.totalOrders) * 100).toFixed(1) : '0.0';
+                            return `
+                                <tr>
+                                    <td>$${range.label}</td>
+                                    <td>${count}</td>
+                                    <td>${percentage}%</td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
+                <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #6c757d;">
+                    <i class="fas fa-info-circle"></i> 總計 ${stats.totalOrders} 筆訂單，總金額 $${Math.round(stats.totalRevenue).toLocaleString()}
+                </p>
             </div>
             
             <div class="analysis-section">
                 <h3><i class="fas fa-users"></i> 人均消費分析</h3>
                 <div class="per-person-analysis">
-                    <p>平均人均：<strong>$${Math.round(stats.averagePerPerson).toLocaleString()}</strong></p>
                     ${stats.perPersonStats.length > 0 ? `
-                        <p>最低人均：$${Math.round(stats.perPersonStats[0]).toLocaleString()}</p>
-                        <p>最高人均：$${Math.round(stats.perPersonStats[stats.perPersonStats.length - 1]).toLocaleString()}</p>
-                        <p>中位數人均：$${Math.round(stats.perPersonStats[Math.floor(stats.perPersonStats.length / 2)]).toLocaleString()}</p>
-                    ` : '<p>無有效人均資料</p>'}
+                        <table class="analysis-table" style="margin-top: 0.5rem;">
+                            <thead>
+                                <tr>
+                                    <th>統計項目</th>
+                                    <th>金額</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>平均人均</td>
+                                    <td><strong>$${Math.round(stats.averagePerPerson).toLocaleString()}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td>最低人均</td>
+                                    <td>$${Math.round(stats.perPersonStats[0]).toLocaleString()}</td>
+                                </tr>
+                                <tr>
+                                    <td>最高人均</td>
+                                    <td>$${Math.round(stats.perPersonStats[stats.perPersonStats.length - 1]).toLocaleString()}</td>
+                                </tr>
+                                <tr>
+                                    <td>中位數人均</td>
+                                    <td>$${Math.round(stats.perPersonStats[Math.floor(stats.perPersonStats.length / 2)]).toLocaleString()}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #6c757d;">
+                            <i class="fas fa-info-circle"></i> 基於 ${stats.perPersonStats.length} 筆有效人均資料
+                        </p>
+                    ` : '<p style="color: #6c757d;">無有效人均資料（訂單中未計算人均金額）</p>'}
                 </div>
             </div>
         </div>
