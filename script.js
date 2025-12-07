@@ -3268,24 +3268,24 @@ async function confirmSaveMenu() {
     
     // 儲存訂單到 Supabase
     const supabaseOrder = {
-        company_name: orderInfo.companyName,
-        tax_id: orderInfo.taxId,
-        contact_name: orderInfo.contactName,
-        contact_phone: orderInfo.contactPhone,
-        industry: orderInfo.industry,
-        venue_scope: orderInfo.venueScope,
-        dining_style: orderInfo.diningStyle,
-        payment_method: orderInfo.paymentMethod,
-        deposit_paid: orderInfo.depositPaid,
+        company_name: orderInfo.companyName || null,
+        tax_id: orderInfo.taxId || null,
+        contact_name: orderInfo.contactName || null,
+        contact_phone: orderInfo.contactPhone || null,
+        industry: orderInfo.industry || null,
+        venue_scope: orderInfo.venueScope || null,
+        dining_style: orderInfo.diningStyle || null,
+        payment_method: orderInfo.paymentMethod || null,
+        deposit_paid: orderInfo.depositPaid || 0,
         dining_datetime: diningDateTime || null,
-        table_count: tableCount,
-        people_count: peopleCount,
-        subtotal: subtotal,
-        service_fee: serviceFee,
-        total: estimatedTotal,
-        per_person: estimatedPerPerson,
-        cart_items: cart,
-        created_by: createdBy
+        table_count: tableCount || 1,
+        people_count: peopleCount || 1,
+        subtotal: subtotal || 0,
+        service_fee: serviceFee || 0,
+        total: estimatedTotal || 0,
+        per_person: estimatedPerPerson || 0,
+        cart_items: Array.isArray(cart) ? cart : [],
+        created_by: createdBy || '未知'
     };
     
     // 儲存訂單到 Supabase 並更新快取
