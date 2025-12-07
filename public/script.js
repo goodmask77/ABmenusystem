@@ -4357,6 +4357,30 @@ function renderHistoryList() {
     // 自動調整欄位寬度（像試算表）
     setTimeout(() => {
         autoResizeTableColumns('historyTable');
+        
+        // 綁定批量刪除按鈕事件（在DOM渲染後）
+        const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+        if (batchDeleteBtn) {
+            // 移除舊的事件監聽器（如果有的話）
+            const newBtn = batchDeleteBtn.cloneNode(true);
+            batchDeleteBtn.parentNode.replaceChild(newBtn, batchDeleteBtn);
+            // 綁定新的事件監聽器
+            newBtn.addEventListener('click', batchDeleteOrders);
+        }
+        
+        // 綁定所有checkbox的change事件
+        const checkboxes = document.querySelectorAll('.order-checkbox');
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', updateBatchDeleteButton);
+        });
+        
+        // 綁定全選checkbox
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                toggleSelectAll(this);
+            });
+        }
     }, 100);
     
     // 儲存當前過濾後的訂單列表供後續使用
