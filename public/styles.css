@@ -2049,13 +2049,43 @@ body {
 
 /* 操作欄位固定寬度＋合理間距 */
 .history-modal .actions-cell {
-  width: 112px;
+  width: 60px;
   white-space: nowrap;
 }
 
 .history-modal .actions-cell .btn-small {
   padding: 6px 10px;
   margin-left: var(--space-xxs);
+}
+
+/* 來源欄位樣式 */
+.history-modal .source-cell {
+  text-align: center;
+  width: 50px;
+}
+
+.history-modal .source-cell i {
+  font-size: 1rem;
+}
+
+.history-modal .source-cell .fa-cloud {
+  color: #3b82f6;
+}
+
+.history-modal .source-cell .fa-laptop {
+  color: #6b7280;
+}
+
+/* 載入中樣式 */
+.loading-history {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+  font-size: 1.1rem;
+}
+
+.loading-history i {
+  margin-right: 0.5rem;
 }
 
 /* 手機／窄螢幕調整：略縮內距，但保留邊匡感 */

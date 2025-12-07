@@ -2857,6 +2857,120 @@ async function saveOrderToSupabase(orderData) {
     }
 }
 
+// ========== 從 Supabase 載入訂單歷史 ==========
+let supabaseOrders = []; // 快取 Supabase 訂單
+
+async function loadOrdersFromSupabase() {
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) {
+            console.warn('無法載入訂單：Supabase 未連線');
+            return [];
+        }
+        
+        const { data, error } = await client
+            .from('menu_orders')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(100);
+        
+        if (error) throw error;
+        
+        // 轉換為歷史菜單格式
+        supabaseOrders = (data || []).map(order => ({
+            id: order.id,
+            name: order.company_name || '未命名',
+            customerName: order.company_name,
+            customerTaxId: order.tax_id,
+            diningDateTime: order.dining_datetime,
+            savedAt: order.created_at,
+            peopleCount: order.people_count || 1,
+            tableCount: order.table_count || 1,
+            cart: order.cart_items || [],
+            orderInfo: {
+                companyName: order.company_name,
+                taxId: order.tax_id,
+                contactName: order.contact_name,
+                contactPhone: order.contact_phone,
+                industry: order.industry,
+                venueScope: order.venue_scope,
+                diningStyle: order.dining_style,
+                paymentMethod: order.payment_method,
+                depositPaid: order.deposit_paid
+            },
+            meta: {
+                itemCount: order.cart_items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 0,
+                estimatedTotal: order.total,
+                estimatedPerPerson: order.per_person,
+                preview: order.cart_items?.slice(0, 3).map(i => i.name).join(', ') || '無品項',
+                createdBy: order.created_by
+            },
+            fromSupabase: true // 標記來源
+        }));
+        
+        console.log(`已從 Supabase 載入 ${supabaseOrders.length} 筆訂單`);
+        return supabaseOrders;
+    } catch (error) {
+        console.error('從 Supabase 載入訂單失敗：', error);
+        return [];
+    }
+}
+
+// 合併本地和 Supabase 訂單（去重）
+function getMergedOrders() {
+    const localMenus = getSavedMenus();
+    
+    // 用 savedAt + name 作為簡單去重依據
+    const seen = new Set();
+    const merged = [];
+    
+    // 先加入本地訂單
+    localMenus.forEach(menu => {
+        const key = `${menu.name}-${menu.savedAt}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            merged.push(menu);
+        }
+    });
+    
+    // 再加入 Supabase 訂單（避免重複）
+    supabaseOrders.forEach(order => {
+        const key = `${order.name}-${order.savedAt}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            merged.push(order);
+        }
+    });
+    
+    // 按時間排序（最新在前）
+    merged.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+    
+    return merged;
+}
+
+// 刪除 Supabase 訂單
+async function deleteOrderFromSupabase(orderId) {
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) return false;
+        
+        const { error } = await client
+            .from('menu_orders')
+            .delete()
+            .eq('id', orderId);
+        
+        if (error) throw error;
+        
+        // 從快取中移除
+        supabaseOrders = supabaseOrders.filter(o => o.id !== orderId);
+        console.log('訂單已從 Supabase 刪除:', orderId);
+        return true;
+    } catch (error) {
+        console.error('刪除 Supabase 訂單失敗：', error);
+        return false;
+    }
+}
+
 // 儲存與載入
 function saveMenuToStorage() {
     // 更新儲存模態框的資訊
@@ -3049,8 +3163,14 @@ function createAutoHistoryEntry(statePayload) {
     };
 }
 
-function showHistoryModal() {
+async function showHistoryModal() {
     document.getElementById('historyModal').style.display = 'block';
+    
+    // 顯示載入中
+    const historyList = document.getElementById('historyList');
+    if (historyList) {
+        historyList.innerHTML = '<div class="loading-history"><i class="fas fa-spinner fa-spin"></i> 載入中...</div>';
+    }
     
     // 填充產業篩選器選項
     const industryFilter = document.getElementById('historyIndustryFilter');
@@ -3064,6 +3184,9 @@ function showHistoryModal() {
         });
     }
     
+    // 從 Supabase 載入訂單
+    await loadOrdersFromSupabase();
+    
     renderHistoryList();
     
     // 確保Modal事件正確綁定
@@ -3071,13 +3194,14 @@ function showHistoryModal() {
 }
 
 function renderHistoryList() {
-    const savedMenus = getSavedMenus();
+    // 使用合併的訂單（本地 + Supabase）
+    const allOrders = getMergedOrders();
     const historyList = document.getElementById('historyList');
     const searchTerm = document.getElementById('historySearch')?.value?.toLowerCase() || '';
     const industryFilter = document.getElementById('historyIndustryFilter')?.value || '';
     const sortBy = historySort.field;
     
-    let filteredMenus = savedMenus.filter(menu => {
+    let filteredMenus = allOrders.filter(menu => {
         // 產業篩選
         if (industryFilter) {
             const menuIndustry = menu.orderInfo?.industry || '';
@@ -3192,26 +3316,34 @@ function renderHistoryList() {
                     <th class="sortable ${historySort.field === 'people' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('people')">人數</th>
                     <th class="sortable ${historySort.field === 'total' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('total')">總金額</th>
                     <th class="sortable ${historySort.field === 'price' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('price')">人均</th>
+                    <th>來源</th>
                     <th>操作</th>
                 </tr>
             </thead>
             <tbody>
-                ${filteredMenus.map((menu, originalIndex) => {
+                ${filteredMenus.map((menu, idx) => {
                     const metrics = getHistoryMetrics(menu);
                     const total = metrics.total;
                     const perPerson = metrics.perPerson;
-                    const originalMenuIndex = savedMenus.indexOf(menu);
                     
                     // 取得訂單資訊
                     const orderInfo = menu.orderInfo || {};
                     const contactName = orderInfo.contactName || menu.customerName || '';
                     const industry = orderInfo.industry || '';
                     
+                    // 判斷來源
+                    const isFromSupabase = menu.fromSupabase === true;
+                    const sourceIcon = isFromSupabase ? '<i class="fas fa-cloud" title="雲端"></i>' : '<i class="fas fa-laptop" title="本機"></i>';
+                    
                     // 優先使用用餐日期時間，如果沒有則使用儲存時間
                     const displayDate = menu.diningDateTime ? formatDate(new Date(menu.diningDateTime)) : formatDate(new Date(menu.savedAt));
                     
+                    // 使用 data 屬性傳遞訂單資訊
+                    const menuId = menu.id || '';
+                    const menuIdx = idx;
+                    
                     return `
-                        <tr class="history-row" onclick="loadHistoryMenu(${originalMenuIndex})" style="cursor: pointer;">
+                        <tr class="history-row" data-menu-id="${menuId}" data-from-supabase="${isFromSupabase}" data-idx="${menuIdx}" onclick="loadHistoryMenuByData(this)" style="cursor: pointer;">
                             <td class="menu-name-cell" title="${menu.name || '未命名'}">${menu.name || '未命名'}</td>
                             <td class="contact-cell">${contactName}</td>
                             <td class="industry-cell">${industry}</td>
@@ -3219,11 +3351,9 @@ function renderHistoryList() {
                             <td class="people-cell">${menu.peopleCount || 1}人/${menu.tableCount || 1}桌</td>
                             <td class="total-cell">${typeof total === 'number' ? '$' + total.toLocaleString() : '--'}</td>
                             <td class="perperson-cell">${typeof perPerson === 'number' ? '$' + perPerson.toLocaleString() : '--'}</td>
+                            <td class="source-cell">${sourceIcon}</td>
                             <td class="actions-cell" onclick="event.stopPropagation();">
-                                <button class="btn-small btn-edit" onclick="editHistoryMenu(${originalMenuIndex})" title="編輯">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn-small btn-delete" onclick="deleteHistoryMenu(${originalMenuIndex})" title="刪除">
+                                <button class="btn-small btn-delete" onclick="deleteHistoryMenuByData(this.closest('tr'))" title="刪除">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </td>
@@ -3233,6 +3363,9 @@ function renderHistoryList() {
             </tbody>
         </table>
     `;
+    
+    // 儲存當前過濾後的訂單列表供後續使用
+    window._currentFilteredMenus = filteredMenus;
 }
 
 // 歷史紀錄排序函數
@@ -3378,6 +3511,98 @@ function deleteHistoryMenu(index) {
         renderHistoryList();
         alert('菜單已刪除');
     }
+}
+
+// 根據 data 屬性載入歷史訂單
+function loadHistoryMenuByData(row) {
+    const idx = parseInt(row.dataset.idx);
+    const menus = window._currentFilteredMenus || getMergedOrders();
+    const menu = menus[idx];
+    
+    if (!menu) {
+        alert('找不到該訂單');
+        return;
+    }
+    
+    // 載入購物車
+    if (menu.cart && menu.cart.length > 0) {
+        cart = deepClone(menu.cart);
+    }
+    
+    // 載入人數和桌數
+    if (menu.peopleCount) {
+        peopleCount = menu.peopleCount;
+        if (elements.peopleCountInput) elements.peopleCountInput.value = peopleCount;
+    }
+    if (menu.tableCount) {
+        tableCount = menu.tableCount;
+        if (elements.tableCountInput) elements.tableCountInput.value = tableCount;
+    }
+    
+    // 載入訂單資訊
+    if (menu.orderInfo) {
+        setOrderInfo(menu.orderInfo);
+    } else {
+        // 兼容舊格式
+        if (menu.customerName && elements.companyName) elements.companyName.value = menu.customerName;
+        if (menu.customerTaxId && elements.customerTaxId) elements.customerTaxId.value = menu.customerTaxId;
+    }
+    
+    // 設定用餐日期時間
+    if (menu.diningDateTime) {
+        setDiningDateTime(menu.diningDateTime);
+    }
+    
+    // 更新介面
+    renderCart();
+    updateCartSummary();
+    persistCartState();
+    
+    // 關閉模態框
+    closeModal('historyModal');
+    
+    showSyncStatus(`已載入訂單「${menu.name || '未命名'}」`, 'success');
+}
+
+// 根據 data 屬性刪除歷史訂單
+async function deleteHistoryMenuByData(row) {
+    const idx = parseInt(row.dataset.idx);
+    const isFromSupabase = row.dataset.fromSupabase === 'true';
+    const menuId = row.dataset.menuId;
+    const menus = window._currentFilteredMenus || getMergedOrders();
+    const menu = menus[idx];
+    
+    if (!menu) {
+        alert('找不到該訂單');
+        return;
+    }
+    
+    if (!confirm(`確定要刪除訂單「${menu.name || '未命名'}」嗎？此操作無法復原。`)) {
+        return;
+    }
+    
+    if (isFromSupabase && menuId) {
+        // 刪除 Supabase 訂單
+        const deleted = await deleteOrderFromSupabase(menuId);
+        if (deleted) {
+            showSyncStatus('雲端訂單已刪除', 'success');
+        } else {
+            showSyncStatus('刪除雲端訂單失敗', 'error');
+        }
+    } else {
+        // 刪除本地訂單
+        const savedMenus = getSavedMenus();
+        const localIndex = savedMenus.findIndex(m => 
+            m.name === menu.name && m.savedAt === menu.savedAt
+        );
+        if (localIndex >= 0) {
+            savedMenus.splice(localIndex, 1);
+            localStorage.setItem('savedMenus', JSON.stringify(savedMenus));
+            showSyncStatus('本機訂單已刪除', 'success');
+        }
+    }
+    
+    renderHistoryList();
 }
 
 // 渲染功能
