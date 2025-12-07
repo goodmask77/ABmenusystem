@@ -6477,32 +6477,64 @@ async function createTestOrders() {
         console.log('生成的測試訂單數量:', testOrders.length);
         console.log('第一筆測試訂單範例:', testOrders[0]);
         
-        // 批次插入（Supabase 一次最多插入 1000 筆，20 筆沒問題）
-        console.log('準備插入測試訂單到 Supabase...');
-        const { data, error } = await client
-            .from('menu_orders')
-            .insert(testOrders)
-            .select();
+        // 依序插入 Supabase（使用 async/await 控制）
+        console.log('開始依序插入測試訂單到 Supabase...');
+        let successCount = 0;
+        let failCount = 0;
+        const errors = [];
+        const insertedIds = [];
         
-        if (error) {
-            console.error('建立測試訂單失敗：', error);
-            console.error('錯誤詳情:', error.message, error.details, error.hint);
-            alert('建立失敗：' + error.message + '\n\n請查看 Console 查看詳細錯誤');
-            return;
+        for (let i = 0; i < testOrders.length; i++) {
+            const order = testOrders[i];
+            try {
+                console.log(`正在插入第 ${i + 1}/${testOrders.length} 筆訂單...`);
+                const { data, error } = await client
+                    .from('menu_orders')
+                    .insert(order)
+                    .select();
+                
+                if (error) {
+                    console.error(`❌ 插入第 ${i + 1} 筆訂單失敗：`, error);
+                    errors.push(`第 ${i + 1} 筆：${error.message}`);
+                    failCount++;
+                } else {
+                    const insertedId = data?.[0]?.id;
+                    console.log(`✅ 成功插入第 ${i + 1} 筆訂單，ID: ${insertedId}`);
+                    if (insertedId) insertedIds.push(insertedId);
+                    successCount++;
+                }
+            } catch (err) {
+                console.error(`❌ 插入第 ${i + 1} 筆訂單時發生異常：`, err);
+                errors.push(`第 ${i + 1} 筆：${err.message}`);
+                failCount++;
+            }
         }
         
-        console.log('✅ 已成功建立', data?.length || 0, '筆測試訂單');
-        console.log('建立的訂單 ID:', data?.map(o => o.id));
-        
-        // 更新快取
-        await loadOrdersFromSupabase();
-        
-        alert(`✅ 已成功建立 ${data?.length || 0} 筆測試訂單！\n\n請重新開啟「載入菜單」查看結果。`);
-        
-        // 如果歷史訂單視窗已開啟，重新載入
-        if (document.getElementById('historyModal')?.style.display === 'block') {
-            console.log('重新載入歷史訂單列表...');
-            await showHistoryModal();
+        // 顯示結果
+        if (successCount > 0) {
+            const message = `✅ 成功建立 ${successCount} 筆測試訂單${failCount > 0 ? `，${failCount} 筆失敗` : ''}`;
+            console.log(message);
+            console.log('建立的訂單 ID:', insertedIds);
+            
+            if (failCount > 0) {
+                console.warn('失敗的訂單詳情：', errors);
+                alert(`${message}\n\n失敗詳情請查看 Console。`);
+            } else {
+                alert(`${message}\n\n請重新開啟「載入菜單」查看結果。`);
+            }
+            
+            // 更新快取
+            await loadOrdersFromSupabase();
+            
+            // 如果歷史訂單視窗已開啟，重新載入
+            if (document.getElementById('historyModal')?.style.display === 'block') {
+                console.log('重新載入歷史訂單列表...');
+                renderHistoryList();
+            }
+        } else {
+            console.error('❌ 所有訂單建立失敗');
+            console.error('失敗詳情：', errors);
+            alert('❌ 所有訂單建立失敗，請查看 Console 了解詳情');
         }
     } catch (error) {
         console.error('建立測試訂單失敗（例外）：', error);
