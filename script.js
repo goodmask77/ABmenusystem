@@ -6513,8 +6513,8 @@ async function createTestOrders() {
 
 /**
  * 生成常態分布的隨機數（Box-Muller 轉換）
- * @param {number} mean - 平均值
- * @param {number} stdDev - 標準差
+ * @param {number} mean - 平均值 (μ)
+ * @param {number} stdDev - 標準差 (σ)
  * @returns {number} 常態分布的隨機數
  */
 function normalRandom(mean, stdDev) {
@@ -6526,13 +6526,13 @@ function normalRandom(mean, stdDev) {
 }
 
 /**
- * 將常態分布值限制在指定範圍內
+ * 將數值限制在指定範圍內
  * @param {number} value - 原始值
  * @param {number} min - 最小值
  * @param {number} max - 最大值
- * @returns {number} 限制後的值
+ * @returns {number} 限制後的值（四捨五入）
  */
-function clampNormal(value, min, max) {
+function clamp(value, min, max) {
     return Math.max(min, Math.min(max, Math.round(value)));
 }
 
@@ -6541,82 +6541,124 @@ function clampNormal(value, min, max) {
  * @returns {Array} 測試訂單陣列
  */
 function generateTestOrders() {
+    // 產業別選項
     const industries = ['科技業', '金融業', '製造業', '服務業', '餐飲業', '零售業', '醫療業', '教育業', '建築業', '其他'];
+    
+    // 方案類型
     const planTypes = ['大訂', '包場'];
+    
+    // 包場範圍
     const venueScopes = ['全包', '叢林區', '蘆葦區', 'VIP區'];
+    
+    // 用餐方式
     const diningStyles = ['自助', '桌菜'];
+    
+    // 付款方式
     const paymentMethods = ['匯款', '刷卡', '當天結帳'];
+    
+    // LINE 群組名稱
     const lineNames = ['包場群組A', '春酒群組B', '尾牙群組C', '聚餐群組D', '會議群組E'];
+    
     // 包場內容選項（與 venue_content_options 表一致）
     const venueContents = ['產品發表', '婚禮派對', '春酒尾牙', '公司聚餐'];
     
-    const names = ['王小明', '李美麗', '張三', '陳四', '林五', '黃六', '吳七', '周八', '鄭九', '劉十'];
-    const companies = ['科技公司', '行銷公司', '設計公司', '貿易公司', '建設公司', '餐飲集團', '零售連鎖', '醫療機構', '教育機構', '金融機構'];
+    // 聯絡人姓名
+    const names = ['王小明', '李美麗', '張三', '陳四', '林五', '黃六', '吳七', '周八', '鄭九', '劉十', '陳雅文', '林志強', '黃文傑', '吳淑芬', '周志偉'];
+    
+    // 公司名稱
+    const companies = ['科技公司', '行銷公司', '設計公司', '貿易公司', '建設公司', '餐飲集團', '零售連鎖', '醫療機構', '教育機構', '金融機構', '製造企業', '物流公司', '顧問公司', '廣告公司', '投資公司'];
     
     const orders = [];
     const now = new Date();
     
-    // 金額範圍：3-40萬（300000-400000）
-    // 使用混合分布：70% 使用均勻分布，30% 使用常態分布，增加隨機性
-    const amountMin = 300000;
-    const amountMax = 400000;
-    const amountMean = 200000; // 常態分布平均值：20萬
-    const amountStdDev = 80000; // 常態分布標準差：8萬
+    // 人數分布參數：20-150人，常態分布 μ=70, σ=20
+    const peopleMean = 70;      // 平均值
+    const peopleStdDev = 20;    // 標準差
+    const peopleMin = 20;       // 最小值
+    const peopleMax = 150;      // 最大值
     
-    // 人數範圍：20-180人
-    // 使用混合分布：60% 使用均勻分布，40% 使用常態分布
-    const peopleMin = 20;
-    const peopleMax = 180;
-    const peopleMean = 100; // 常態分布平均值：100人
-    const peopleStdDev = 30; // 常態分布標準差：30人
+    // 金額分布參數：30,000-300,000，常態分布 μ=180,000, σ=40,000
+    const amountMean = 180000;   // 平均值
+    const amountStdDev = 40000;  // 標準差
+    const amountMin = 30000;     // 最小值
+    const amountMax = 300000;    // 最大值
     
     for (let i = 0; i < 20; i++) {
-        // 混合分布生成人數（20-180人）
-        let peopleCount;
-        if (Math.random() < 0.6) {
-            // 60% 使用均勻分布
-            peopleCount = Math.floor(Math.random() * (peopleMax - peopleMin + 1)) + peopleMin;
-        } else {
-            // 40% 使用常態分布
-            peopleCount = clampNormal(normalRandom(peopleMean, peopleStdDev), peopleMin, peopleMax);
-        }
+        // 生成人數：使用常態分布，然後限制在 20-150 範圍內
+        const peopleCount = clamp(normalRandom(peopleMean, peopleStdDev), peopleMin, peopleMax);
         const tableCount = Math.ceil(peopleCount / 6);
         
-        // 混合分布生成總金額（3-40萬）
-        let total;
-        if (Math.random() < 0.7) {
-            // 70% 使用均勻分布，讓金額更分散
-            total = Math.floor(Math.random() * (amountMax - amountMin + 1)) + amountMin;
-        } else {
-            // 30% 使用常態分布
-            total = clampNormal(normalRandom(amountMean, amountStdDev), amountMin, amountMax);
-        }
+        // 生成總金額：使用常態分布，然後限制在 30,000-300,000 範圍內
+        let total = clamp(normalRandom(amountMean, amountStdDev), amountMin, amountMax);
         
-        // 加入一些隨機波動（±5%），讓金額更自然
-        const randomVariation = 1 + (Math.random() * 0.1 - 0.05); // -5% 到 +5%
+        // 加入輕微隨機波動（±2%），讓數據更自然
+        const randomVariation = 1 + (Math.random() * 0.04 - 0.02); // -2% 到 +2%
         total = Math.round(total * randomVariation);
-        total = Math.max(amountMin, Math.min(amountMax, total)); // 確保在範圍內
+        total = clamp(total, amountMin, amountMax); // 確保仍在範圍內
         
-        const subtotal = Math.round(total / 1.1); // 扣除服務費
-        const serviceFee = total - subtotal;
+        // 計算小計和服務費
+        const subtotal = Math.round(total * 0.9);  // 90%
+        const serviceFee = total - subtotal;        // 10%
         const perPerson = Math.round(total / peopleCount);
         
+        // 生成隨機日期（過去 30 天內）
         const diningDate = new Date(now);
-        diningDate.setDate(diningDate.getDate() - Math.floor(Math.random() * 30)); // 過去 30 天內
+        diningDate.setDate(diningDate.getDate() - Math.floor(Math.random() * 30));
+        diningDate.setHours(Math.floor(Math.random() * 12) + 12, Math.floor(Math.random() * 6) * 10, 0, 0); // 12:00-23:50
         
+        // 隨機選擇各項資料
+        const companyIndex = Math.floor(Math.random() * companies.length);
+        const nameIndex = Math.floor(Math.random() * names.length);
+        const industryIndex = Math.floor(Math.random() * industries.length);
+        const planTypeIndex = Math.floor(Math.random() * planTypes.length);
+        const venueScopeIndex = Math.floor(Math.random() * venueScopes.length);
+        const diningStyleIndex = Math.floor(Math.random() * diningStyles.length);
+        const paymentMethodIndex = Math.floor(Math.random() * paymentMethods.length);
+        const lineNameIndex = Math.floor(Math.random() * lineNames.length);
+        const venueContentIndex = Math.floor(Math.random() * venueContents.length);
+        
+        // 隨機決定是否付訂金（30% 機率）
+        const hasDeposit = Math.random() < 0.3;
+        const depositPaid = hasDeposit ? Math.round(total * (0.2 + Math.random() * 0.2)) : 0; // 20%-40% 的訂金
+        
+        // 生成購物車項目（模擬餐點）
+        const cartItems = [];
+        const itemCount = 3 + Math.floor(Math.random() * 4); // 3-6 個項目
+        const remainingSubtotal = subtotal;
+        
+        for (let j = 0; j < itemCount; j++) {
+            const isLast = j === itemCount - 1;
+            let itemPrice;
+            if (isLast) {
+                // 最後一個項目使用剩餘金額
+                itemPrice = remainingSubtotal;
+            } else {
+                // 其他項目隨機分配
+                itemPrice = Math.floor(remainingSubtotal / (itemCount - j) * (0.3 + Math.random() * 0.4));
+            }
+            
+            const quantity = 1 + Math.floor(Math.random() * 3); // 1-3 份
+            cartItems.push({
+                name: `測試餐點${String.fromCharCode(65 + j)}`, // A, B, C, ...
+                price: Math.round(itemPrice / quantity),
+                quantity: quantity
+            });
+        }
+        
+        // 建立訂單物件
         const order = {
-            company_name: `【測試】${companies[i % 10]}`,
-            tax_id: String(10000000 + i).padStart(8, '0'),
-            contact_name: names[i % 10],
+            company_name: `【測試】${companies[companyIndex]}`,
+            tax_id: String(10000000 + i + Math.floor(Math.random() * 1000)).padStart(8, '0'),
+            contact_name: names[nameIndex],
             contact_phone: `09${String(Math.floor(Math.random() * 100000000)).padStart(8, '0')}`,
-            plan_type: planTypes[i % 2],
-            line_name: lineNames[i % 5],
-            industry: industries[i % industries.length],
-            venue_content: venueContents[i % venueContents.length], // 加入包場內容
-            venue_scope: venueScopes[i % venueScopes.length],
-            dining_style: diningStyles[i % 2],
-            payment_method: paymentMethods[i % 3],
-            deposit_paid: i % 3 === 0 ? Math.round(total * 0.3) : 0,
+            plan_type: planTypes[planTypeIndex],
+            line_name: lineNames[lineNameIndex],
+            industry: industries[industryIndex],
+            venue_content: venueContents[venueContentIndex],
+            venue_scope: venueScopes[venueScopeIndex],
+            dining_style: diningStyles[diningStyleIndex],
+            payment_method: paymentMethods[paymentMethodIndex],
+            deposit_paid: depositPaid,
             dining_datetime: diningDate.toISOString(),
             table_count: tableCount,
             people_count: peopleCount,
@@ -6624,11 +6666,7 @@ function generateTestOrders() {
             service_fee: serviceFee,
             total: total,
             per_person: perPerson,
-            cart_items: [
-                { name: '測試餐點A', price: Math.floor(subtotal / 3), quantity: 1 },
-                { name: '測試餐點B', price: Math.floor(subtotal / 3), quantity: 1 },
-                { name: '測試餐點C', price: Math.floor(subtotal / 3), quantity: 1 }
-            ],
+            cart_items: cartItems,
             created_by: '測試系統',
             is_pinned: i < 5 // 前 5 筆設為釘選
         };
