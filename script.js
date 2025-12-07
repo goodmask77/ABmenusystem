@@ -1251,19 +1251,34 @@ async function prepareInitialState() {
 }
 
 async function fetchSupabaseConfig() {
-    const sources = ['/api/env', 'env.json', '/env.json'];
+    const sources = [
+        '/env.json',           // Vercel 靜態文件路徑
+        'env.json',            // 相對路徑
+        '/public/env.json',    // 備用路徑
+        '/api/env'             // Next.js API 路由（如果存在）
+    ];
+    
     for (const source of sources) {
         try {
+            console.log(`嘗試從 ${source} 載入 Supabase 配置...`);
             const response = await fetch(source);
-            if (!response.ok) continue;
+            if (!response.ok) {
+                console.warn(`${source} 回應狀態: ${response.status}`);
+                continue;
+            }
             const data = await response.json();
             if (data?.supabaseUrl && data?.supabaseAnonKey) {
+                console.log(`✅ 成功從 ${source} 載入 Supabase 配置`);
                 return data;
+            } else {
+                console.warn(`${source} 返回的資料缺少必要欄位`);
             }
         } catch (error) {
-            console.warn(`讀取 Supabase 設定失敗 (${source})：`, error);
+            console.warn(`讀取 Supabase 設定失敗 (${source})：`, error.message);
         }
     }
+    
+    console.error('❌ 無法從任何來源載入 Supabase 配置');
     return null;
 }
 
@@ -3223,6 +3238,21 @@ async function confirmSaveMenu() {
         return;
     }
     
+    // 確保 Supabase 已初始化
+    console.log('檢查 Supabase 連線狀態...');
+    const client = supabaseClient || await initSupabaseClient();
+    if (!client) {
+        console.error('Supabase 連線失敗，嘗試重新初始化...');
+        // 重置初始化狀態，強制重新初始化
+        supabaseInitialized = false;
+        supabaseClient = null;
+        const retryClient = await initSupabaseClient();
+        if (!retryClient) {
+            alert('無法連線到 Supabase 雲端資料庫\n\n請檢查：\n1. 網路連線是否正常\n2. 瀏覽器 Console 是否有錯誤訊息\n3. 稍後再試');
+            return;
+        }
+    }
+    
     // 取得所有訂單資訊
     const orderInfo = getOrderInfo();
     const diningDateTime = getDiningDateTime();
@@ -3288,10 +3318,13 @@ async function confirmSaveMenu() {
         created_by: createdBy || '未知'
     };
     
+    console.log('準備儲存訂單到 Supabase...', supabaseOrder);
+    
     // 儲存訂單到 Supabase 並更新快取
     const savedOrder = await saveOrderToSupabase(supabaseOrder);
     if (!savedOrder) {
-        alert('儲存失敗，請檢查 Supabase 連線');
+        console.error('儲存訂單失敗');
+        alert('儲存失敗，請檢查 Supabase 連線\n\n請開啟瀏覽器 Console (F12) 查看詳細錯誤訊息');
         return;
     }
     
