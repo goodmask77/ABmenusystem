@@ -6557,21 +6557,46 @@ function generateTestOrders() {
     const now = new Date();
     
     // 金額範圍：3-40萬（300000-400000）
-    // 調整平均值到20萬，讓多數訂單落在十幾二十萬的範圍
-    const amountMean = 200000; // 平均值：20萬（偏向左側）
-    const amountStdDev = 80000; // 標準差：8萬（讓分布更集中在十幾二十萬）
+    // 使用混合分布：70% 使用均勻分布，30% 使用常態分布，增加隨機性
+    const amountMin = 300000;
+    const amountMax = 400000;
+    const amountMean = 200000; // 常態分布平均值：20萬
+    const amountStdDev = 80000; // 常態分布標準差：8萬
     
     // 人數範圍：20-180人
-    const peopleMean = (20 + 180) / 2; // 平均值：100人
-    const peopleStdDev = (180 - 20) / 6; // 標準差：約26.7人（3個標準差覆蓋範圍）
+    // 使用混合分布：60% 使用均勻分布，40% 使用常態分布
+    const peopleMin = 20;
+    const peopleMax = 180;
+    const peopleMean = 100; // 常態分布平均值：100人
+    const peopleStdDev = 30; // 常態分布標準差：30人
     
     for (let i = 0; i < 20; i++) {
-        // 使用常態分布生成人數（20-180人）
-        const peopleCount = clampNormal(normalRandom(peopleMean, peopleStdDev), 20, 180);
+        // 混合分布生成人數（20-180人）
+        let peopleCount;
+        if (Math.random() < 0.6) {
+            // 60% 使用均勻分布
+            peopleCount = Math.floor(Math.random() * (peopleMax - peopleMin + 1)) + peopleMin;
+        } else {
+            // 40% 使用常態分布
+            peopleCount = clampNormal(normalRandom(peopleMean, peopleStdDev), peopleMin, peopleMax);
+        }
         const tableCount = Math.ceil(peopleCount / 6);
         
-        // 使用常態分布生成總金額（3-40萬）
-        const total = clampNormal(normalRandom(amountMean, amountStdDev), 300000, 400000);
+        // 混合分布生成總金額（3-40萬）
+        let total;
+        if (Math.random() < 0.7) {
+            // 70% 使用均勻分布，讓金額更分散
+            total = Math.floor(Math.random() * (amountMax - amountMin + 1)) + amountMin;
+        } else {
+            // 30% 使用常態分布
+            total = clampNormal(normalRandom(amountMean, amountStdDev), amountMin, amountMax);
+        }
+        
+        // 加入一些隨機波動（±5%），讓金額更自然
+        const randomVariation = 1 + (Math.random() * 0.1 - 0.05); // -5% 到 +5%
+        total = Math.round(total * randomVariation);
+        total = Math.max(amountMin, Math.min(amountMax, total)); // 確保在範圍內
+        
         const subtotal = Math.round(total / 1.1); // 扣除服務費
         const serviceFee = total - subtotal;
         const perPerson = Math.round(total / peopleCount);
