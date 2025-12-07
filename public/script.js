@@ -1067,8 +1067,72 @@ const elements = {
     customerTaxId: document.getElementById('customerTaxId'),
     diningDate: document.getElementById('diningDate'),
     diningHour: document.getElementById('diningHour'),
-    diningMinute: document.getElementById('diningMinute')
+    diningMinute: document.getElementById('diningMinute'),
+    // 訂單資訊欄位
+    companyName: document.getElementById('companyName'),
+    contactName: document.getElementById('customerName'), // 聯絡人欄位
+    contactPhone: document.getElementById('customerPhone'),
+    industrySelect: document.getElementById('industrySelect'),
+    manageIndustry: document.getElementById('manageIndustry'),
+    venueScope: document.getElementById('venueScope'),
+    diningStyle: document.getElementById('diningStyle'),
+    paymentMethod: document.getElementById('paymentMethod'),
+    depositPaid: document.getElementById('depositPaid')
 };
+
+// 取得 radio 選項值
+function getRadioValue(name) {
+    const radio = document.querySelector(`input[name="${name}"]:checked`);
+    return radio ? radio.value : '';
+}
+
+// 設定 radio 選項值
+function setRadioValue(name, value) {
+    if (!value) return;
+    const radio = document.querySelector(`input[name="${name}"][value="${value}"]`);
+    if (radio) radio.checked = true;
+}
+
+// 取得完整訂單資訊
+function getOrderInfo() {
+    return {
+        companyName: elements.companyName?.value?.trim() || '',
+        taxId: elements.customerTaxId?.value?.trim() || '',
+        contactName: elements.contactName?.value?.trim() || '',
+        contactPhone: elements.contactPhone?.value?.trim() || '',
+        industry: elements.industrySelect?.value || '',
+        venueScope: elements.venueScope?.value || '',
+        diningStyle: elements.diningStyle?.value || '',
+        paymentMethod: elements.paymentMethod?.value || '',
+        depositPaid: parseFloat(elements.depositPaid?.value) || 0,
+        diningDateTime: getDiningDateTime(),
+        tableCount: tableCount,
+        peopleCount: peopleCount
+    };
+}
+
+// 設定訂單資訊
+function setOrderInfo(info) {
+    if (!info) return;
+    if (info.companyName && elements.companyName) elements.companyName.value = info.companyName;
+    if (info.taxId && elements.customerTaxId) elements.customerTaxId.value = info.taxId;
+    if (info.contactName && elements.contactName) elements.contactName.value = info.contactName;
+    if (info.contactPhone && elements.contactPhone) elements.contactPhone.value = info.contactPhone;
+    if (info.industry && elements.industrySelect) elements.industrySelect.value = info.industry;
+    if (info.venueScope && elements.venueScope) elements.venueScope.value = info.venueScope;
+    if (info.diningStyle && elements.diningStyle) elements.diningStyle.value = info.diningStyle;
+    if (info.paymentMethod && elements.paymentMethod) elements.paymentMethod.value = info.paymentMethod;
+    if (info.depositPaid && elements.depositPaid) elements.depositPaid.value = info.depositPaid;
+    if (info.diningDateTime) setDiningDateTime(info.diningDateTime);
+    if (info.tableCount) {
+        tableCount = info.tableCount;
+        if (elements.tableCountInput) elements.tableCountInput.value = tableCount;
+    }
+    if (info.peopleCount) {
+        peopleCount = info.peopleCount;
+        if (elements.peopleCountInput) elements.peopleCountInput.value = peopleCount;
+    }
+}
 
 // 取得組合的用餐日期時間
 function getDiningDateTime() {
@@ -1112,6 +1176,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     bindEvents();
     await initAccounts();
     await initChangeLog();
+    await loadIndustryOptions(); // 載入產業選項
     restoreCurrentUser();
     updateAuthUI();
 });
@@ -1483,9 +1548,18 @@ function persistCartState() {
             cart,
             peopleCount,
             tableCount,
-            customerName: elements.customerName?.value || '',
+            customerName: elements.contactName?.value || '',
             customerTaxId: elements.customerTaxId?.value || '',
             diningDateTime: getDiningDateTime(),
+            // 新增訂單欄位
+            companyName: elements.companyName?.value || '',
+            contactName: elements.contactName?.value || '',
+            contactPhone: elements.contactPhone?.value || '',
+            industry: elements.industrySelect?.value || '',
+            venueScope: elements.venueScope?.value || '',
+            diningStyle: elements.diningStyle?.value || '',
+            paymentMethod: elements.paymentMethod?.value || '',
+            depositPaid: elements.depositPaid?.value || '',
             updatedAt: new Date().toISOString()
         };
         localStorage.setItem(CART_STATE_KEY, JSON.stringify(payload));
@@ -1521,6 +1595,31 @@ function restoreCartState() {
         }
         if (payload?.diningDateTime) {
             setDiningDateTime(payload.diningDateTime);
+        }
+        // 恢復訂單欄位
+        if (payload?.companyName && elements.companyName) {
+            elements.companyName.value = payload.companyName;
+        }
+        if (payload?.contactName && elements.contactName) {
+            elements.contactName.value = payload.contactName;
+        }
+        if (payload?.contactPhone && elements.contactPhone) {
+            elements.contactPhone.value = payload.contactPhone;
+        }
+        if (payload?.industry && elements.industrySelect) {
+            elements.industrySelect.value = payload.industry;
+        }
+        if (payload?.venueScope && elements.venueScope) {
+            elements.venueScope.value = payload.venueScope;
+        }
+        if (payload?.diningStyle && elements.diningStyle) {
+            elements.diningStyle.value = payload.diningStyle;
+        }
+        if (payload?.paymentMethod && elements.paymentMethod) {
+            elements.paymentMethod.value = payload.paymentMethod;
+        }
+        if (payload?.depositPaid && elements.depositPaid) {
+            elements.depositPaid.value = payload.depositPaid;
         }
         return true;
     } catch (error) {
@@ -1681,6 +1780,38 @@ function bindEvents() {
     }
     if (elements.diningMinute) {
         elements.diningMinute.addEventListener('change', persistCartState);
+    }
+    
+    // 新增訂單欄位自動保存
+    if (elements.companyName) {
+        elements.companyName.addEventListener('change', persistCartState);
+    }
+    if (elements.contactName) {
+        elements.contactName.addEventListener('change', persistCartState);
+    }
+    if (elements.contactPhone) {
+        elements.contactPhone.addEventListener('change', persistCartState);
+    }
+    if (elements.industrySelect) {
+        elements.industrySelect.addEventListener('change', persistCartState);
+    }
+    if (elements.depositPaid) {
+        elements.depositPaid.addEventListener('change', persistCartState);
+    }
+    // Select 選項變更時保存
+    if (elements.venueScope) {
+        elements.venueScope.addEventListener('change', persistCartState);
+    }
+    if (elements.diningStyle) {
+        elements.diningStyle.addEventListener('change', persistCartState);
+    }
+    if (elements.paymentMethod) {
+        elements.paymentMethod.addEventListener('change', persistCartState);
+    }
+    
+    // 產業管理按鈕
+    if (elements.manageIndustry) {
+        elements.manageIndustry.addEventListener('click', showIndustryManager);
     }
     
     // 清除購物車
@@ -2541,6 +2672,191 @@ function generateCartImageContent() {
     return html;
 }
 
+// ========== 產業選項管理 ==========
+let industryOptions = [];
+
+async function loadIndustryOptions() {
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) {
+            console.warn('無法載入產業選項：Supabase 未連線');
+            return;
+        }
+        
+        const { data, error } = await client
+            .from('industry_options')
+            .select('*')
+            .order('sort_order', { ascending: true });
+        
+        if (error) throw error;
+        industryOptions = data || [];
+        renderIndustrySelect();
+    } catch (error) {
+        console.error('載入產業選項失敗：', error);
+        // 使用預設選項
+        industryOptions = [
+            { id: 1, name: '科技業', sort_order: 1 },
+            { id: 2, name: '金融業', sort_order: 2 },
+            { id: 3, name: '製造業', sort_order: 3 },
+            { id: 4, name: '服務業', sort_order: 4 },
+            { id: 5, name: '其他', sort_order: 5 }
+        ];
+        renderIndustrySelect();
+    }
+}
+
+function renderIndustrySelect() {
+    const select = elements.industrySelect;
+    if (!select) return;
+    
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">請選擇</option>';
+    
+    industryOptions.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.name;
+        option.textContent = opt.name;
+        select.appendChild(option);
+    });
+    
+    if (currentValue) select.value = currentValue;
+}
+
+async function showIndustryManager() {
+    let modal = document.getElementById('industryModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'industryModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h3><i class="fas fa-industry"></i> 產業別管理</h3>
+                    <button class="close-modal" onclick="closeIndustryModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="industryList" style="margin-bottom: 1rem;"></div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="newIndustryName" placeholder="新增產業名稱" style="flex: 1; padding: 0.5rem; border: 1px solid #dee2e6; border-radius: 4px;">
+                        <button onclick="addIndustryOption()" class="btn btn-primary" style="padding: 0.5rem 1rem;">
+                            <i class="fas fa-plus"></i> 新增
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    modal.style.display = 'block';
+    renderIndustryList();
+}
+
+function closeIndustryModal() {
+    const modal = document.getElementById('industryModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function renderIndustryList() {
+    const list = document.getElementById('industryList');
+    if (!list) return;
+    
+    if (industryOptions.length === 0) {
+        list.innerHTML = '<div style="color: #999; text-align: center; padding: 1rem;">目前沒有產業選項</div>';
+        return;
+    }
+    
+    list.innerHTML = industryOptions.map(opt => `
+        <div style="display: flex; align-items: center; padding: 0.5rem; border-bottom: 1px solid #eee;">
+            <span style="flex: 1;">${opt.name}</span>
+            <button onclick="deleteIndustryOption(${opt.id}, '${opt.name}')" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+async function addIndustryOption() {
+    const input = document.getElementById('newIndustryName');
+    const name = input?.value?.trim();
+    if (!name) {
+        alert('請輸入產業名稱');
+        return;
+    }
+    
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) throw new Error('Supabase 未連線');
+        
+        const maxOrder = industryOptions.reduce((max, opt) => Math.max(max, opt.sort_order || 0), 0);
+        
+        const { data, error } = await client
+            .from('industry_options')
+            .insert({ name, sort_order: maxOrder + 1 })
+            .select()
+            .single();
+        
+        if (error) throw error;
+        
+        industryOptions.push(data);
+        renderIndustrySelect();
+        renderIndustryList();
+        input.value = '';
+        showSyncStatus('產業選項已新增', 'success');
+    } catch (error) {
+        console.error('新增產業選項失敗：', error);
+        alert('新增失敗：' + error.message);
+    }
+}
+
+async function deleteIndustryOption(id, name) {
+    if (!confirm(`確定要刪除「${name}」嗎？`)) return;
+    
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) throw new Error('Supabase 未連線');
+        
+        const { error } = await client
+            .from('industry_options')
+            .delete()
+            .eq('id', id);
+        
+        if (error) throw error;
+        
+        industryOptions = industryOptions.filter(opt => opt.id !== id);
+        renderIndustrySelect();
+        renderIndustryList();
+        showSyncStatus('產業選項已刪除', 'success');
+    } catch (error) {
+        console.error('刪除產業選項失敗：', error);
+        alert('刪除失敗：' + error.message);
+    }
+}
+
+// ========== 訂單儲存到 Supabase ==========
+async function saveOrderToSupabase(orderData) {
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) {
+            console.warn('無法儲存訂單：Supabase 未連線');
+            return null;
+        }
+        
+        const { data, error } = await client
+            .from('menu_orders')
+            .insert(orderData)
+            .select()
+            .single();
+        
+        if (error) throw error;
+        console.log('訂單已儲存到 Supabase:', data);
+        return data;
+    } catch (error) {
+        console.error('儲存訂單到 Supabase 失敗：', error);
+        return null;
+    }
+}
+
 // 儲存與載入
 function saveMenuToStorage() {
     // 更新儲存模態框的資訊
@@ -2562,19 +2878,21 @@ function saveMenuToStorage() {
 }
 
 function confirmSaveMenu() {
-    const customerName = elements.customerName?.value?.trim();
-    if (!customerName) {
-        alert('請輸入客戶名稱');
-        elements.customerName?.focus();
+    // 驗證公司名稱
+    const companyName = elements.companyName?.value?.trim();
+    if (!companyName) {
+        alert('請輸入公司名稱');
+        elements.companyName?.focus();
         document.getElementById('saveMenuModal').style.display = 'none';
         return;
     }
     
-    const customerTaxId = elements.customerTaxId?.value?.trim() || '';
+    // 取得所有訂單資訊
+    const orderInfo = getOrderInfo();
     const diningDateTime = getDiningDateTime();
     
-    // 使用客戶名稱作為菜單名稱
-    const menuName = customerName;
+    // 使用公司名稱作為菜單名稱
+    const menuName = companyName;
     
     const menuSnapshot = deepClone(menuData);
     const createdBy = currentUser?.username || '未知';
@@ -2593,9 +2911,10 @@ function confirmSaveMenu() {
         ...menuSnapshot,
         peopleCount: peopleCount,
         tableCount: tableCount,
-        customerName: customerName,
-        customerTaxId: customerTaxId,
+        customerName: companyName, // 兼容舊欄位
+        customerTaxId: orderInfo.taxId,
         diningDateTime: diningDateTime,
+        orderInfo: orderInfo, // 完整訂單資訊
         savedAt: new Date().toISOString(),
         name: menuName,
         cart: deepClone(cart), // 保存購物車內容
@@ -2619,11 +2938,39 @@ function confirmSaveMenu() {
     localStorage.setItem('savedMenus', JSON.stringify(savedMenus));
     localStorage.setItem('currentMenu', JSON.stringify(menuVersion));
     
+    // 儲存訂單到 Supabase
+    const supabaseOrder = {
+        company_name: orderInfo.companyName,
+        tax_id: orderInfo.taxId,
+        contact_name: orderInfo.contactName,
+        contact_phone: orderInfo.contactPhone,
+        industry: orderInfo.industry,
+        venue_scope: orderInfo.venueScope,
+        dining_style: orderInfo.diningStyle,
+        payment_method: orderInfo.paymentMethod,
+        deposit_paid: orderInfo.depositPaid,
+        dining_datetime: diningDateTime || null,
+        table_count: tableCount,
+        people_count: peopleCount,
+        subtotal: subtotal,
+        service_fee: serviceFee,
+        total: estimatedTotal,
+        per_person: estimatedPerPerson,
+        cart_items: cart,
+        created_by: createdBy
+    };
+    
+    saveOrderToSupabase(supabaseOrder).then(savedOrder => {
+        if (savedOrder) {
+            console.log('訂單已成功儲存到 Supabase，ID:', savedOrder.id);
+        }
+    });
+    
     // 關閉模態框
     document.getElementById('saveMenuModal').style.display = 'none';
     
-    alert(`菜單「${menuName}」已成功儲存！`);
-    saveToStorage({ reason: 'manual-save', summary: `儲存菜單「${menuName}」`, menuName });
+    alert(`訂單「${menuName}」已成功儲存！`);
+    saveToStorage({ reason: 'manual-save', summary: `儲存訂單「${menuName}」`, menuName });
 }
 
 function saveToStorage(options = {}) {

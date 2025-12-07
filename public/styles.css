@@ -786,8 +786,93 @@ body {
 /* 購物車摘要 */
 .cart-summary {
     border-top: 1px solid #dee2e6;
-    padding: 0.8rem;
+    padding: 0.6rem;
     background: #f8f9fa;
+}
+
+/* 訂單資訊區域 - 緊湊版 */
+.order-info-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.info-row {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.info-field {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    flex: 1;
+}
+
+.info-field.flex-2 {
+    flex: 2;
+}
+
+.info-field.time-field {
+    flex: 0.8;
+}
+
+.info-field label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    white-space: nowrap;
+    min-width: fit-content;
+}
+
+.input-sm {
+    flex: 1;
+    padding: 0.25rem 0.4rem;
+    font-size: 0.8rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    min-width: 0;
+}
+
+.input-sm:focus {
+    outline: none;
+    border-color: #495057;
+}
+
+.input-sm.time-select {
+    padding: 0.25rem 0.2rem;
+    min-width: 45px;
+}
+
+.info-field.time-field span {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+/* 產業欄位含管理按鈕 */
+.info-field.industry-field {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.btn-icon-sm {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.75rem;
+    background: #f8f9fa;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #6c757d;
+    transition: all 0.2s;
+}
+
+.btn-icon-sm:hover {
+    background: #e9ecef;
+    color: #495057;
 }
 
 /* 小計、服務費、總計同一行 */
