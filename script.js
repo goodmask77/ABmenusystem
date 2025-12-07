@@ -524,6 +524,9 @@ let postLoginAction = null;
 let changeLogEntries = [];
 let lastChangeFingerprint = null;
 
+// 功能 B：追蹤當前編輯的訂單 ID（null 表示新訂單）
+let currentEditingOrderId = null;
+
 let menuData = {
     categories: [
         {
@@ -1095,7 +1098,95 @@ function setRadioValue(name, value) {
     if (radio) radio.checked = true;
 }
 
-// 取得完整訂單資訊
+// ========== 功能 A：可重複使用的自訂下拉選單函式 ==========
+/**
+ * 為下拉選單附加「其他（自訂）」功能
+ * @param {string} selectId - 下拉選單的 ID
+ * @param {string} customInputId - 自訂輸入框的 ID
+ * @param {Array<string>} defaultOptions - 預設選項列表（不包含「其他（自訂）」）
+ */
+function attachCustomizableSelect(selectId, customInputId, defaultOptions) {
+    const select = document.getElementById(selectId);
+    const customInput = document.getElementById(customInputId);
+    
+    if (!select || !customInput) {
+        console.warn(`無法找到元素: ${selectId} 或 ${customInputId}`);
+        return;
+    }
+    
+    // 確保下拉選單有「其他（自訂）」選項
+    const hasCustomOption = Array.from(select.options).some(opt => opt.value === '__CUSTOM__');
+    if (!hasCustomOption) {
+        const customOption = document.createElement('option');
+        customOption.value = '__CUSTOM__';
+        customOption.textContent = '其他（自訂）';
+        select.appendChild(customOption);
+    }
+    
+    // 監聽下拉選單變更
+    select.addEventListener('change', function() {
+        if (select.value === '__CUSTOM__') {
+            customInput.style.display = 'block';
+            customInput.focus();
+        } else {
+            customInput.style.display = 'none';
+            customInput.value = '';
+        }
+    });
+    
+    // 儲存時，如果選到「其他（自訂）」，使用自訂輸入框的值
+    // 這個邏輯會在 getOrderInfo 中處理
+}
+
+/**
+ * 取得自訂下拉選單的值（處理「其他（自訂）」邏輯）
+ * @param {string} selectId - 下拉選單的 ID
+ * @param {string} customInputId - 自訂輸入框的 ID
+ * @returns {string} 選中的值或自訂值
+ */
+function getCustomizableSelectValue(selectId, customInputId) {
+    const select = document.getElementById(selectId);
+    const customInput = document.getElementById(customInputId);
+    
+    if (!select) return '';
+    
+    if (select.value === '__CUSTOM__') {
+        return customInput?.value?.trim() || '';
+    }
+    return select.value || '';
+}
+
+/**
+ * 設定自訂下拉選單的值（處理載入時的邏輯）
+ * @param {string} selectId - 下拉選單的 ID
+ * @param {string} customInputId - 自訂輸入框的 ID
+ * @param {Array<string>} defaultOptions - 預設選項列表
+ * @param {string} value - 要設定的值
+ */
+function setCustomizableSelectValue(selectId, customInputId, defaultOptions, value) {
+    const select = document.getElementById(selectId);
+    const customInput = document.getElementById(customInputId);
+    
+    if (!select || !value) return;
+    
+    // 檢查值是否在預設選項中
+    if (defaultOptions.includes(value)) {
+        select.value = value;
+        if (customInput) {
+            customInput.style.display = 'none';
+            customInput.value = '';
+        }
+    } else {
+        // 不在預設選項中，設為「其他（自訂）」並填入自訂值
+        select.value = '__CUSTOM__';
+        if (customInput) {
+            customInput.value = value;
+            customInput.style.display = 'block';
+        }
+    }
+}
+
+// 取得完整訂單資訊（更新以支援自訂下拉選單）
 function getOrderInfo() {
     return {
         companyName: elements.companyName?.value?.trim() || '',
@@ -1105,9 +1196,9 @@ function getOrderInfo() {
         planType: elements.planType?.value || '',
         lineName: elements.lineName?.value?.trim() || '',
         industry: elements.industrySelect?.value || '',
-        venueScope: elements.venueScope?.value || '',
-        diningStyle: elements.diningStyle?.value || '',
-        paymentMethod: elements.paymentMethod?.value || '',
+        venueScope: getCustomizableSelectValue('venueScope', 'venueScopeCustom'),
+        diningStyle: getCustomizableSelectValue('diningStyle', 'diningStyleCustom'),
+        paymentMethod: getCustomizableSelectValue('paymentMethod', 'paymentMethodCustom'),
         depositPaid: parseFloat(elements.depositPaid?.value) || 0,
         diningDateTime: getDiningDateTime(),
         tableCount: tableCount,
@@ -1115,7 +1206,7 @@ function getOrderInfo() {
     };
 }
 
-// 設定訂單資訊
+// 設定訂單資訊（更新以支援自訂下拉選單）
 function setOrderInfo(info) {
     if (!info) return;
     if (info.companyName && elements.companyName) elements.companyName.value = info.companyName;
@@ -1125,9 +1216,18 @@ function setOrderInfo(info) {
     if (info.planType && elements.planType) elements.planType.value = info.planType;
     if (info.lineName && elements.lineName) elements.lineName.value = info.lineName;
     if (info.industry && elements.industrySelect) elements.industrySelect.value = info.industry;
-    if (info.venueScope && elements.venueScope) elements.venueScope.value = info.venueScope;
-    if (info.diningStyle && elements.diningStyle) elements.diningStyle.value = info.diningStyle;
-    if (info.paymentMethod && elements.paymentMethod) elements.paymentMethod.value = info.paymentMethod;
+    
+    // 使用自訂下拉選單設定函式
+    if (info.venueScope) {
+        setCustomizableSelectValue('venueScope', 'venueScopeCustom', ['全包', '叢林區', '蘆葦區'], info.venueScope);
+    }
+    if (info.diningStyle) {
+        setCustomizableSelectValue('diningStyle', 'diningStyleCustom', ['自助', '桌菜'], info.diningStyle);
+    }
+    if (info.paymentMethod) {
+        setCustomizableSelectValue('paymentMethod', 'paymentMethodCustom', ['匯款', '刷卡', '當天結帳'], info.paymentMethod);
+    }
+    
     if (info.depositPaid !== undefined && elements.depositPaid) elements.depositPaid.value = info.depositPaid;
     if (info.diningDateTime) setDiningDateTime(info.diningDateTime);
     if (info.tableCount) {
@@ -1540,7 +1640,7 @@ function applyStatePayload(payload) {
 function restoreFromLocalStorage() {
     // 不再從 localStorage 恢復菜單資料
     // 菜單完全從 Supabase 載入，確保與雲端和其他協作者同步
-    return false;
+        return false;
 }
 
 function getCurrentStateSnapshot() {
@@ -1824,6 +1924,18 @@ function bindEvents() {
         saveMenuToStorage();
     });
     elements.loadMenu.addEventListener('click', showHistoryModal);
+    
+    // 功能 B：刪除訂單按鈕
+    const deleteOrderBtn = document.getElementById('deleteOrder');
+    if (deleteOrderBtn) {
+        deleteOrderBtn.addEventListener('click', deleteCurrentOrder);
+    }
+    
+    // 功能 E：分析按鈕
+    const showAnalysisBtn = document.getElementById('showAnalysis');
+    if (showAnalysisBtn) {
+        showAnalysisBtn.addEventListener('click', showAnalysisModal);
+    }
     
     // 人數控制
     if (elements.decreasePeople && elements.increasePeople) {
@@ -3017,36 +3129,37 @@ async function loadOrdersFromSupabase() {
             const preview = cartItems.slice(0, 3).map(i => i.name || i.nameEn || '未知').join(', ') || '無品項';
             
             return {
-                id: order.id,
-                name: order.company_name || '未命名',
-                customerName: order.company_name,
-                customerTaxId: order.tax_id,
-                diningDateTime: order.dining_datetime,
-                savedAt: order.created_at,
-                peopleCount: order.people_count || 1,
-                tableCount: order.table_count || 1,
+            id: order.id,
+            name: order.company_name || '未命名',
+            customerName: order.company_name,
+            customerTaxId: order.tax_id,
+            diningDateTime: order.dining_datetime,
+            savedAt: order.created_at,
+            peopleCount: order.people_count || 1,
+            tableCount: order.table_count || 1,
                 cart: cartItems,
-                orderInfo: {
-                    companyName: order.company_name,
-                    taxId: order.tax_id,
-                    contactName: order.contact_name,
-                    contactPhone: order.contact_phone,
+            orderInfo: {
+                companyName: order.company_name,
+                taxId: order.tax_id,
+                contactName: order.contact_name,
+                contactPhone: order.contact_phone,
                     planType: order.plan_type,
                     lineName: order.line_name,
-                    industry: order.industry,
-                    venueScope: order.venue_scope,
-                    diningStyle: order.dining_style,
-                    paymentMethod: order.payment_method,
+                industry: order.industry,
+                venueScope: order.venue_scope,
+                diningStyle: order.dining_style,
+                paymentMethod: order.payment_method,
                     depositPaid: order.deposit_paid || 0
-                },
-                meta: {
+            },
+            meta: {
                     itemCount: itemCount,
                     estimatedTotal: order.total || 0,
                     estimatedPerPerson: order.per_person || 0,
                     preview: preview,
                     createdBy: order.created_by || '未知'
                 },
-                fromSupabase: true // 標記來源
+                fromSupabase: true, // 標記來源
+                isPinned: order.is_pinned || false // 功能 D：釘選狀態
             };
         });
         
@@ -3061,17 +3174,26 @@ async function loadOrdersFromSupabase() {
     }
 }
 
-// 合併本地和 Supabase 訂單（去重）
+// 合併本地和 Supabase 訂單（去重）- 功能 D：支援釘選排序
 function getMergedOrders() {
     // 不再使用 localStorage，完全依賴 Supabase
     // 只返回 Supabase 訂單
     const merged = [...supabaseOrders];
     
-    // 按時間排序（最新在前）
+    // 功能 D：先按釘選狀態排序（釘選的在前），然後按時間排序（最新在前）
     merged.sort((a, b) => {
+        const pinnedA = a.isPinned || false;
+        const pinnedB = b.isPinned || false;
+        
+        // 先比較釘選狀態
+        if (pinnedA !== pinnedB) {
+            return pinnedB ? 1 : -1; // 釘選的在前
+        }
+        
+        // 釘選狀態相同，按時間排序
         const dateA = new Date(a.savedAt || a.created_at || 0);
         const dateB = new Date(b.savedAt || b.created_at || 0);
-        return dateB - dateA;
+        return dateB - dateA; // 最新的在前
     });
     
     return merged;
@@ -3255,6 +3377,99 @@ function saveMenuToStorage() {
     document.getElementById('saveMenuModal').style.display = 'block';
 }
 
+// ========== 功能 B：訂單的新增/修改/刪除 ==========
+
+/**
+ * 儲存或更新訂單到 Supabase
+ * @param {Object} orderData - 訂單資料
+ * @param {string|null} orderId - 訂單 ID（null 表示新增）
+ * @returns {Object|null} 儲存後的訂單資料
+ */
+async function saveOrUpdateOrderToSupabase(orderData, orderId = null) {
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) {
+            console.error('無法儲存訂單：Supabase 未連線');
+            return null;
+        }
+        
+        if (orderId) {
+            // 更新現有訂單
+            console.log('更新訂單到 Supabase...', { orderId, orderData });
+            const { data, error } = await client
+                .from('menu_orders')
+                .update({ ...orderData, updated_at: new Date().toISOString() })
+                .eq('id', orderId)
+                .select()
+                .single();
+            
+            if (error) {
+                console.error('Supabase 更新錯誤：', error);
+                console.error('錯誤詳情:', error.message, error.details, error.hint);
+                throw error;
+            }
+            
+            console.log('✅ 訂單已成功更新到 Supabase:', data);
+            return data;
+        } else {
+            // 新增訂單
+            console.log('新增訂單到 Supabase...', orderData);
+            const { data, error } = await client
+                .from('menu_orders')
+                .insert(orderData)
+                .select()
+                .single();
+            
+            if (error) {
+                console.error('Supabase 插入錯誤：', error);
+                console.error('錯誤詳情:', error.message, error.details, error.hint);
+                throw error;
+            }
+            
+            console.log('✅ 訂單已成功儲存到 Supabase:', data);
+            return data;
+        }
+    } catch (error) {
+        console.error('❌ 儲存/更新訂單到 Supabase 失敗：', error);
+        console.error('錯誤詳情:', error.message, error.details);
+        return null;
+    }
+}
+
+/**
+ * 刪除訂單
+ * @param {string} orderId - 訂單 ID
+ * @returns {boolean} 是否成功刪除
+ */
+async function deleteOrderFromSupabaseById(orderId) {
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) {
+            console.error('無法刪除訂單：Supabase 未連線');
+            return false;
+        }
+        
+        console.log('刪除訂單...', orderId);
+        const { error } = await client
+            .from('menu_orders')
+            .delete()
+            .eq('id', orderId);
+        
+        if (error) {
+            console.error('Supabase 刪除錯誤：', error);
+            console.error('錯誤詳情:', error.message, error.details, error.hint);
+            throw error;
+        }
+        
+        console.log('✅ 訂單已成功刪除');
+        return true;
+    } catch (error) {
+        console.error('❌ 刪除訂單失敗：', error);
+        console.error('錯誤詳情:', error.message, error.details);
+        return false;
+    }
+}
+
 async function confirmSaveMenu() {
     // 驗證公司名稱
     const companyName = elements.companyName?.value?.trim();
@@ -3270,7 +3485,6 @@ async function confirmSaveMenu() {
     const client = supabaseClient || await initSupabaseClient();
     if (!client) {
         console.error('Supabase 連線失敗，嘗試重新初始化...');
-        // 重置初始化狀態，強制重新初始化
         supabaseInitialized = false;
         supabaseClient = null;
         const retryClient = await initSupabaseClient();
@@ -3300,29 +3514,6 @@ async function confirmSaveMenu() {
     // 建立購物車預覽
     const cartPreview = cart.slice(0, 3).map(item => item.name).join(', ') + (cart.length > 3 ? '...' : '');
     
-    const menuVersion = {
-        ...menuSnapshot,
-        peopleCount: peopleCount,
-        tableCount: tableCount,
-        customerName: companyName, // 兼容舊欄位
-        customerTaxId: orderInfo.taxId,
-        diningDateTime: diningDateTime,
-        orderInfo: orderInfo, // 完整訂單資訊
-        savedAt: new Date().toISOString(),
-        name: menuName,
-        cart: deepClone(cart), // 保存購物車內容
-        meta: {
-            ...createHistoryMetadata(menuSnapshot, { createdBy }),
-            itemCount: cartItemCount,
-            estimatedTotal: estimatedTotal,
-            estimatedPerPerson: estimatedPerPerson,
-            preview: cartPreview || '無品項'
-        }
-    };
-    
-    // 不再使用 localStorage 儲存菜單，完全依賴 Supabase
-    // 歷史訂單應該從 menu_orders 表載入，而不是從 localStorage
-    
     // 儲存訂單到 Supabase
     const supabaseOrder = {
         company_name: orderInfo.companyName || null,
@@ -3347,26 +3538,29 @@ async function confirmSaveMenu() {
         created_by: createdBy || '未知'
     };
     
-    console.log('準備儲存訂單到 Supabase...', supabaseOrder);
+    // 判斷是新增還是更新
+    const isUpdate = currentEditingOrderId !== null;
+    console.log(isUpdate ? '準備更新訂單到 Supabase...' : '準備儲存訂單到 Supabase...', supabaseOrder);
     
-    // 儲存訂單到 Supabase 並更新快取
-    const savedOrder = await saveOrderToSupabase(supabaseOrder);
+    // 儲存或更新訂單
+    const savedOrder = await saveOrUpdateOrderToSupabase(supabaseOrder, currentEditingOrderId);
     if (!savedOrder) {
-        console.error('儲存訂單失敗');
+        console.error('儲存/更新訂單失敗');
         alert('儲存失敗，請檢查 Supabase 連線\n\n請開啟瀏覽器 Console (F12) 查看詳細錯誤訊息');
         return;
     }
     
-    console.log('訂單已成功儲存到 Supabase，ID:', savedOrder.id);
+    console.log(`訂單已成功${isUpdate ? '更新' : '儲存'}到 Supabase，ID:`, savedOrder.id);
     
-    // 立即將新訂單加入快取，避免需要重新載入
-    const newOrder = {
+    // 更新快取
+    const orderIndex = supabaseOrders.findIndex(o => o.id === savedOrder.id);
+    const updatedOrder = {
         id: savedOrder.id,
         name: savedOrder.company_name || menuName,
         customerName: savedOrder.company_name,
         customerTaxId: savedOrder.tax_id,
         diningDateTime: savedOrder.dining_datetime,
-        savedAt: savedOrder.created_at,
+        savedAt: savedOrder.created_at || savedOrder.updated_at,
         peopleCount: savedOrder.people_count || peopleCount,
         tableCount: savedOrder.table_count || tableCount,
         cart: Array.isArray(savedOrder.cart_items) ? savedOrder.cart_items : cart,
@@ -3390,11 +3584,17 @@ async function confirmSaveMenu() {
             preview: cartPreview || '無品項',
             createdBy: savedOrder.created_by || createdBy
         },
-        fromSupabase: true
+        fromSupabase: true,
+        isPinned: savedOrder.is_pinned || false
     };
     
-    // 加入快取（放在最前面，因為是最新的）
-    supabaseOrders.unshift(newOrder);
+    if (orderIndex >= 0) {
+        // 更新現有訂單
+        supabaseOrders[orderIndex] = updatedOrder;
+    } else {
+        // 新增訂單（放在最前面）
+        supabaseOrders.unshift(updatedOrder);
+    }
     
     // 限制快取數量
     if (supabaseOrders.length > 100) {
@@ -3403,11 +3603,100 @@ async function confirmSaveMenu() {
     
     console.log('快取已更新，目前訂單數量:', supabaseOrders.length);
     
+    // 重置編輯狀態
+    currentEditingOrderId = null;
+    updateSaveButtonState();
+    clearOrderForm();
+    
     // 關閉模態框
     document.getElementById('saveMenuModal').style.display = 'none';
     
-    alert(`訂單「${menuName}」已成功儲存！`);
-    saveToStorage({ reason: 'manual-save', summary: `儲存訂單「${menuName}」`, menuName });
+    alert(`訂單「${menuName}」已成功${isUpdate ? '更新' : '儲存'}！`);
+    saveToStorage({ reason: 'manual-save', summary: `${isUpdate ? '更新' : '儲存'}訂單「${menuName}」`, menuName });
+}
+
+/**
+ * 清除訂單表單
+ */
+function clearOrderForm() {
+    if (elements.companyName) elements.companyName.value = '';
+    if (elements.customerTaxId) elements.customerTaxId.value = '';
+    if (elements.contactName) elements.contactName.value = '';
+    if (elements.contactPhone) elements.contactPhone.value = '';
+    if (elements.planType) elements.planType.value = '';
+    if (elements.lineName) elements.lineName.value = '';
+    if (elements.industrySelect) elements.industrySelect.value = '';
+    if (elements.depositPaid) elements.depositPaid.value = '';
+    if (elements.diningDate) elements.diningDate.value = '';
+    if (elements.diningHour) elements.diningHour.value = '';
+    if (elements.diningMinute) elements.diningMinute.value = '';
+    
+    // 清除自訂下拉選單
+    setCustomizableSelectValue('venueScope', 'venueScopeCustom', ['全包', '叢林區', '蘆葦區'], '');
+    setCustomizableSelectValue('diningStyle', 'diningStyleCustom', ['自助', '桌菜'], '');
+    setCustomizableSelectValue('paymentMethod', 'paymentMethodCustom', ['匯款', '刷卡', '當天結帳'], '');
+    
+    // 清除購物車
+    cart = [];
+    renderCart();
+    
+    // 重置人數和桌數
+    tableCount = 1;
+    peopleCount = 1;
+    if (elements.tableCountInput) elements.tableCountInput.value = 1;
+    if (elements.peopleCountInput) elements.peopleCountInput.value = 1;
+    updateCartSummary();
+}
+
+/**
+ * 更新儲存按鈕狀態
+ */
+function updateSaveButtonState() {
+    const saveButton = document.getElementById('saveMenu');
+    const saveButtonText = document.getElementById('saveMenuButtonText');
+    const deleteButton = document.getElementById('deleteOrder');
+    
+    if (currentEditingOrderId) {
+        if (saveButtonText) saveButtonText.textContent = '更新訂單';
+        if (deleteButton) deleteButton.style.display = 'inline-flex';
+    } else {
+        if (saveButtonText) saveButtonText.textContent = '儲存菜單';
+        if (deleteButton) deleteButton.style.display = 'none';
+    }
+}
+
+/**
+ * 刪除目前編輯的訂單
+ */
+async function deleteCurrentOrder() {
+    if (!currentEditingOrderId) {
+        alert('目前沒有正在編輯的訂單');
+        return;
+    }
+    
+    if (!confirm('確定要刪除這筆訂單嗎？此動作無法復原。')) {
+        return;
+    }
+    
+    const success = await deleteOrderFromSupabaseById(currentEditingOrderId);
+    if (!success) {
+        alert('刪除失敗，請檢查 Supabase 連線\n\n請開啟瀏覽器 Console (F12) 查看詳細錯誤訊息');
+        return;
+    }
+    
+    // 從快取中移除
+    supabaseOrders = supabaseOrders.filter(o => o.id !== currentEditingOrderId);
+    
+    // 清除表單
+    clearOrderForm();
+    currentEditingOrderId = null;
+    updateSaveButtonState();
+    
+    // 重新渲染歷史列表
+    renderHistoryList();
+    
+    alert('訂單已成功刪除！');
+    console.log('✅ 訂單已刪除，表單已清空');
 }
 
 function saveToStorage(options = {}) {
@@ -3678,57 +3967,101 @@ function renderHistoryList() {
         return;
     }
     
+    // 功能 C & D：完整的表格顯示，包含所有欄位和釘選功能
     historyList.innerHTML = `
-        <table class="history-table">
-            <thead>
-                <tr>
-                    <th class="sortable ${historySort.field === 'name' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('name')">公司/客戶</th>
-                    <th>聯絡人</th>
-                    <th>產業</th>
-                    <th class="sortable ${historySort.field === 'date' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('date')">用餐日期</th>
-                    <th class="sortable ${historySort.field === 'people' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('people')">人數</th>
-                    <th class="sortable ${historySort.field === 'total' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('total')">總金額</th>
-                    <th class="sortable ${historySort.field === 'price' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('price')">人均</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${filteredMenus.map((menu, idx) => {
-                    const metrics = getHistoryMetrics(menu);
-                    const total = metrics.total;
-                    const perPerson = metrics.perPerson;
-                    
-                    // 取得訂單資訊
-                    const orderInfo = menu.orderInfo || {};
-                    const contactName = orderInfo.contactName || menu.customerName || '';
-                    const industry = orderInfo.industry || '';
-                    
-                    // 優先使用用餐日期時間，如果沒有則使用儲存時間
-                    const displayDate = menu.diningDateTime ? formatDate(new Date(menu.diningDateTime)) : formatDate(new Date(menu.savedAt));
-                    
-                    // 使用 data 屬性傳遞訂單資訊
-                    const menuId = menu.id || '';
-                    const menuIdx = idx;
-                    
-                    return `
-                        <tr class="history-row" data-menu-id="${menuId}" data-idx="${menuIdx}" onclick="loadHistoryMenuByData(this)" style="cursor: pointer;">
-                            <td class="menu-name-cell" title="${menu.name || '未命名'}">${menu.name || '未命名'}</td>
-                            <td class="contact-cell">${contactName}</td>
-                            <td class="industry-cell">${industry}</td>
-                            <td class="date-cell">${displayDate}</td>
-                            <td class="people-cell">${menu.peopleCount || 1}人/${menu.tableCount || 1}桌</td>
-                            <td class="total-cell">${typeof total === 'number' ? '$' + total.toLocaleString() : '--'}</td>
-                            <td class="perperson-cell">${typeof perPerson === 'number' ? '$' + perPerson.toLocaleString() : '--'}</td>
-                            <td class="actions-cell" onclick="event.stopPropagation();">
-                                <button class="btn-small btn-delete" onclick="deleteHistoryMenuByData(this.closest('tr'))" title="刪除">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('')}
-            </tbody>
-        </table>
+        <div class="history-table-wrapper">
+            <table class="history-table-full">
+                <thead>
+                    <tr>
+                        <th class="pin-col" onclick="event.stopPropagation();">釘選</th>
+                        <th class="sortable ${historySort.field === 'date' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('date')">建立/用餐日期</th>
+                        <th class="sortable ${historySort.field === 'name' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('name')">客戶名稱</th>
+                        <th>方案</th>
+                        <th>LINE名稱</th>
+                        <th>人數/桌數</th>
+                        <th>用餐方式</th>
+                        <th class="sortable ${historySort.field === 'total' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('total')">小計</th>
+                        <th>服務費</th>
+                        <th>總額</th>
+                        <th>已付訂金</th>
+                        <th class="sortable ${historySort.field === 'price' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('price')">人均</th>
+                        <th>包場範圍</th>
+                        <th>付款方式</th>
+                        <th>聯絡人</th>
+                        <th>手機</th>
+                        <th>產業別</th>
+                        <th>公司名稱</th>
+                        <th>統編</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${filteredMenus.map((menu, idx) => {
+                        const metrics = getHistoryMetrics(menu);
+                        const total = metrics.total || 0;
+                        const perPerson = metrics.perPerson || 0;
+                        const subtotal = menu.orderInfo?.subtotal || (total / 1.1);
+                        const serviceFee = total - subtotal;
+                        
+                        // 取得訂單資訊
+                        const orderInfo = menu.orderInfo || {};
+                        const contactName = orderInfo.contactName || '';
+                        const contactPhone = orderInfo.contactPhone || '';
+                        const industry = orderInfo.industry || '';
+                        const planType = orderInfo.planType || '';
+                        const lineName = orderInfo.lineName || '';
+                        const venueScope = orderInfo.venueScope || '';
+                        const diningStyle = orderInfo.diningStyle || '';
+                        const paymentMethod = orderInfo.paymentMethod || '';
+                        const depositPaid = orderInfo.depositPaid || 0;
+                        const companyName = orderInfo.companyName || menu.name || '';
+                        const taxId = orderInfo.taxId || '';
+                        
+                        // 優先使用用餐日期時間，如果沒有則使用儲存時間
+                        const displayDate = menu.diningDateTime ? formatDate(new Date(menu.diningDateTime)) : formatDate(new Date(menu.savedAt));
+                        const createdDate = formatDate(new Date(menu.savedAt));
+                        
+                        // 使用 data 屬性傳遞訂單資訊
+                        const menuId = menu.id || '';
+                        const menuIdx = idx;
+                        const isPinned = menu.isPinned || false;
+                        
+                        return `
+                            <tr class="history-row ${isPinned ? 'pinned-row' : ''}" data-menu-id="${menuId}" data-idx="${menuIdx}" data-pinned="${isPinned}" onclick="loadHistoryMenuByData(this)" style="cursor: pointer;">
+                                <td class="pin-col" onclick="event.stopPropagation();">
+                                    <button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="toggleOrderPin('${menuId}', event)" title="${isPinned ? '取消釘選' : '釘選'}">
+                                        <i class="fas fa-thumbtack"></i>
+                                    </button>
+                                </td>
+                                <td class="date-cell" title="建立: ${createdDate}">${displayDate}</td>
+                                <td class="menu-name-cell" title="${companyName}">${companyName}</td>
+                                <td class="plan-cell">${planType || '--'}</td>
+                                <td class="line-cell">${lineName || '--'}</td>
+                                <td class="people-cell">${menu.peopleCount || 1}人/${menu.tableCount || 1}桌</td>
+                                <td class="dining-style-cell">${diningStyle || '--'}</td>
+                                <td class="subtotal-cell">${typeof subtotal === 'number' ? '$' + Math.round(subtotal).toLocaleString() : '--'}</td>
+                                <td class="service-fee-cell">${typeof serviceFee === 'number' ? '$' + Math.round(serviceFee).toLocaleString() : '--'}</td>
+                                <td class="total-cell">${typeof total === 'number' ? '$' + Math.round(total).toLocaleString() : '--'}</td>
+                                <td class="deposit-cell">${depositPaid > 0 ? '$' + depositPaid.toLocaleString() : '--'}</td>
+                                <td class="perperson-cell">${typeof perPerson === 'number' ? '$' + Math.round(perPerson).toLocaleString() : '--'}</td>
+                                <td class="venue-cell">${venueScope || '--'}</td>
+                                <td class="payment-cell">${paymentMethod || '--'}</td>
+                                <td class="contact-cell">${contactName || '--'}</td>
+                                <td class="phone-cell">${contactPhone || '--'}</td>
+                                <td class="industry-cell">${industry || '--'}</td>
+                                <td class="company-cell">${companyName || '--'}</td>
+                                <td class="tax-cell">${taxId || '--'}</td>
+                                <td class="actions-cell" onclick="event.stopPropagation();">
+                                    <button class="btn-small btn-delete" onclick="deleteHistoryMenuByData(this.closest('tr'))" title="刪除">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
     `;
     
     // 儲存當前過濾後的訂單列表供後續使用
@@ -3884,7 +4217,7 @@ async function deleteHistoryMenu(index) {
     }
 }
 
-// 根據 data 屬性載入歷史訂單
+// 根據 data 屬性載入歷史訂單（功能 B：支援編輯模式）
 function loadHistoryMenuByData(row) {
     const idx = parseInt(row.dataset.idx);
     const menus = window._currentFilteredMenus || getMergedOrders();
@@ -3895,9 +4228,15 @@ function loadHistoryMenuByData(row) {
         return;
     }
     
+    // 設定當前編輯的訂單 ID
+    currentEditingOrderId = menu.id || null;
+    updateSaveButtonState();
+    
     // 載入購物車
     if (menu.cart && menu.cart.length > 0) {
         cart = deepClone(menu.cart);
+    } else {
+        cart = [];
     }
     
     // 載入人數和桌數
@@ -3932,7 +4271,8 @@ function loadHistoryMenuByData(row) {
     // 關閉模態框
     closeModal('historyModal');
     
-    showSyncStatus(`已載入訂單「${menu.name || '未命名'}」`, 'success');
+    showSyncStatus(`已載入訂單「${menu.name || '未命名'}」，可進行編輯`, 'success');
+    console.log('✅ 已載入訂單進行編輯，ID:', currentEditingOrderId);
 }
 
 // 根據 data 屬性刪除歷史訂單（同時刪除本機和雲端）
@@ -4751,3 +5091,421 @@ function loadSampleData() {
         saveToStorage();
     }
 }
+
+// ========== 功能 D：釘選功能 ==========
+/**
+ * 切換訂單釘選狀態
+ * @param {string} orderId - 訂單 ID
+ * @param {Event} event - 事件物件
+ */
+async function toggleOrderPin(orderId, event) {
+    if (event) event.stopPropagation();
+    
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) {
+            alert('無法連線到 Supabase');
+            return;
+        }
+        
+        // 找到訂單目前的釘選狀態
+        const order = supabaseOrders.find(o => o.id === orderId);
+        const currentPinned = order?.isPinned || false;
+        const newPinned = !currentPinned;
+        
+        console.log(`切換訂單釘選狀態: ${orderId}, ${currentPinned} -> ${newPinned}`);
+        
+        // 更新 Supabase
+        const { error } = await client
+            .from('menu_orders')
+            .update({ is_pinned: newPinned })
+            .eq('id', orderId);
+        
+        if (error) {
+            console.error('更新釘選狀態失敗：', error);
+            alert('更新失敗：' + error.message);
+            return;
+        }
+        
+        // 更新快取
+        if (order) {
+            order.isPinned = newPinned;
+        }
+        
+        // 重新渲染列表（會自動重新排序）
+        renderHistoryList();
+        
+        console.log(`✅ 訂單釘選狀態已更新: ${newPinned ? '已釘選' : '已取消釘選'}`);
+    } catch (error) {
+        console.error('切換釘選狀態失敗：', error);
+        alert('操作失敗：' + error.message);
+    }
+}
+
+// ========== 功能 E：歷史訂單分析 ==========
+/**
+ * 顯示歷史訂單分析視圖
+ */
+async function showAnalysisModal() {
+    const modal = document.getElementById('analysisModal');
+    const content = document.getElementById('analysisContent');
+    
+    if (!modal || !content) {
+        console.error('找不到分析模態框元素');
+        return;
+    }
+    
+    modal.style.display = 'block';
+    content.innerHTML = '<div class="loading-analysis"><i class="fas fa-spinner fa-spin"></i> 載入分析資料中...</div>';
+    
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) {
+            content.innerHTML = '<div class="error-message">無法連線到 Supabase</div>';
+            return;
+        }
+        
+        // 載入所有訂單
+        const { data: orders, error } = await client
+            .from('menu_orders')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (error) {
+            console.error('載入訂單失敗：', error);
+            content.innerHTML = '<div class="error-message">載入資料失敗：' + error.message + '</div>';
+            return;
+        }
+        
+        if (!orders || orders.length === 0) {
+            content.innerHTML = '<div class="empty-analysis">目前沒有任何訂單資料</div>';
+            return;
+        }
+        
+        // 計算統計資料
+        const stats = calculateOrderStatistics(orders);
+        
+        // 渲染分析結果
+        renderAnalysisContent(content, stats);
+        
+    } catch (error) {
+        console.error('分析失敗：', error);
+        content.innerHTML = '<div class="error-message">分析失敗：' + error.message + '</div>';
+    }
+}
+
+/**
+ * 計算訂單統計資料
+ * @param {Array} orders - 訂單陣列
+ * @returns {Object} 統計資料
+ */
+function calculateOrderStatistics(orders) {
+    const stats = {
+        totalOrders: orders.length,
+        totalRevenue: 0,
+        averagePerPerson: 0,
+        perPersonStats: [],
+        industryStats: {},
+        amountRanges: {
+            '0-5000': 0,
+            '5001-10000': 0,
+            '10001-20000': 0,
+            '20001-30000': 0,
+            '30000+': 0
+        },
+        recentOrders: orders.slice(0, 10) // 最近 10 筆
+    };
+    
+    let totalPerPerson = 0;
+    let validPerPersonCount = 0;
+    
+    orders.forEach(order => {
+        // 總營收
+        if (order.total) {
+            stats.totalRevenue += parseFloat(order.total);
+        }
+        
+        // 人均統計
+        if (order.per_person && order.per_person > 0) {
+            totalPerPerson += parseFloat(order.per_person);
+            validPerPersonCount++;
+            stats.perPersonStats.push(parseFloat(order.per_person));
+        }
+        
+        // 產業別統計
+        if (order.industry) {
+            if (!stats.industryStats[order.industry]) {
+                stats.industryStats[order.industry] = {
+                    count: 0,
+                    total: 0
+                };
+            }
+            stats.industryStats[order.industry].count++;
+            if (order.total) {
+                stats.industryStats[order.industry].total += parseFloat(order.total);
+            }
+        }
+        
+        // 金額分布
+        const total = parseFloat(order.total) || 0;
+        if (total <= 5000) {
+            stats.amountRanges['0-5000']++;
+        } else if (total <= 10000) {
+            stats.amountRanges['5001-10000']++;
+        } else if (total <= 20000) {
+            stats.amountRanges['10001-20000']++;
+        } else if (total <= 30000) {
+            stats.amountRanges['20001-30000']++;
+        } else {
+            stats.amountRanges['30000+']++;
+        }
+    });
+    
+    // 計算平均人均
+    if (validPerPersonCount > 0) {
+        stats.averagePerPerson = totalPerPerson / validPerPersonCount;
+    }
+    
+    // 排序人均統計
+    stats.perPersonStats.sort((a, b) => a - b);
+    
+    return stats;
+}
+
+/**
+ * 渲染分析內容
+ * @param {HTMLElement} container - 容器元素
+ * @param {Object} stats - 統計資料
+ */
+function renderAnalysisContent(container, stats) {
+    const industryRows = Object.entries(stats.industryStats)
+        .map(([industry, data]) => `
+            <tr>
+                <td>${industry || '未分類'}</td>
+                <td>${data.count}</td>
+                <td>$${Math.round(data.total).toLocaleString()}</td>
+                <td>$${Math.round(data.total / data.count).toLocaleString()}</td>
+            </tr>
+        `).join('');
+    
+    container.innerHTML = `
+        <div class="analysis-sections">
+            <div class="analysis-section">
+                <h3><i class="fas fa-chart-line"></i> 總覽</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">總訂單數</div>
+                        <div class="stat-value">${stats.totalOrders}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">總營收</div>
+                        <div class="stat-value">$${Math.round(stats.totalRevenue).toLocaleString()}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">平均人均</div>
+                        <div class="stat-value">$${Math.round(stats.averagePerPerson).toLocaleString()}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="analysis-section">
+                <h3><i class="fas fa-users"></i> 人均消費分析</h3>
+                <div class="per-person-analysis">
+                    <p>平均人均：<strong>$${Math.round(stats.averagePerPerson).toLocaleString()}</strong></p>
+                    ${stats.perPersonStats.length > 0 ? `
+                        <p>最低人均：$${Math.round(stats.perPersonStats[0]).toLocaleString()}</p>
+                        <p>最高人均：$${Math.round(stats.perPersonStats[stats.perPersonStats.length - 1]).toLocaleString()}</p>
+                        <p>中位數人均：$${Math.round(stats.perPersonStats[Math.floor(stats.perPersonStats.length / 2)]).toLocaleString()}</p>
+                    ` : '<p>無有效人均資料</p>'}
+                </div>
+            </div>
+            
+            <div class="analysis-section">
+                <h3><i class="fas fa-industry"></i> 產業別分布</h3>
+                <table class="analysis-table">
+                    <thead>
+                        <tr>
+                            <th>產業別</th>
+                            <th>訂單數</th>
+                            <th>總金額</th>
+                            <th>平均金額</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${industryRows || '<tr><td colspan="4">無資料</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="analysis-section">
+                <h3><i class="fas fa-dollar-sign"></i> 消費金額分布</h3>
+                <table class="analysis-table">
+                    <thead>
+                        <tr>
+                            <th>金額區間</th>
+                            <th>訂單數</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>$0 - $5,000</td><td>${stats.amountRanges['0-5000']}</td></tr>
+                        <tr><td>$5,001 - $10,000</td><td>${stats.amountRanges['5001-10000']}</td></tr>
+                        <tr><td>$10,001 - $20,000</td><td>${stats.amountRanges['10001-20000']}</td></tr>
+                        <tr><td>$20,001 - $30,000</td><td>${stats.amountRanges['20001-30000']}</td></tr>
+                        <tr><td>$30,000+</td><td>${stats.amountRanges['30000+']}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+// ========== 功能 F：建立測試訂單 ==========
+/**
+ * 建立 20 筆虛擬測試訂單
+ */
+async function createTestOrders() {
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) {
+            alert('無法連線到 Supabase');
+            return;
+        }
+        
+        // 檢查是否已有測試訂單
+        const { data: existing } = await client
+            .from('menu_orders')
+            .select('id')
+            .like('company_name', '【測試】%')
+            .limit(1);
+        
+        if (existing && existing.length > 0) {
+            if (!confirm('已存在測試訂單，是否要重新建立？這會刪除現有的測試訂單。')) {
+                return;
+            }
+            
+            // 刪除現有測試訂單
+            await client
+                .from('menu_orders')
+                .delete()
+                .like('company_name', '【測試】%');
+        }
+        
+        // 建立 20 筆測試訂單
+        const testOrders = generateTestOrders();
+        
+        console.log('準備建立測試訂單...', testOrders.length);
+        
+        const { data, error } = await client
+            .from('menu_orders')
+            .insert(testOrders)
+            .select();
+        
+        if (error) {
+            console.error('建立測試訂單失敗：', error);
+            alert('建立失敗：' + error.message);
+            return;
+        }
+        
+        console.log('✅ 已成功建立', data.length, '筆測試訂單');
+        alert(`已成功建立 ${data.length} 筆測試訂單！`);
+        
+        // 重新載入訂單列表
+        if (document.getElementById('historyModal')?.style.display === 'block') {
+            await showHistoryModal();
+        }
+    } catch (error) {
+        console.error('建立測試訂單失敗：', error);
+        alert('建立失敗：' + error.message);
+    }
+}
+
+/**
+ * 生成測試訂單資料
+ * @returns {Array} 測試訂單陣列
+ */
+function generateTestOrders() {
+    const industries = ['科技業', '金融業', '製造業', '服務業', '餐飲業', '零售業', '醫療業', '教育業', '建築業', '其他'];
+    const planTypes = ['大訂', '包場'];
+    const venueScopes = ['全包', '叢林區', '蘆葦區', 'VIP區'];
+    const diningStyles = ['自助', '桌菜'];
+    const paymentMethods = ['匯款', '刷卡', '當天結帳'];
+    const lineNames = ['包場群組A', '春酒群組B', '尾牙群組C', '聚餐群組D', '會議群組E'];
+    
+    const names = ['王小明', '李美麗', '張三', '陳四', '林五', '黃六', '吳七', '周八', '鄭九', '劉十'];
+    const companies = ['科技公司', '行銷公司', '設計公司', '貿易公司', '建設公司', '餐飲集團', '零售連鎖', '醫療機構', '教育機構', '金融機構'];
+    
+    const orders = [];
+    const now = new Date();
+    
+    for (let i = 0; i < 20; i++) {
+        const peopleCount = [2, 4, 6, 8, 10, 12, 15, 20, 25, 30][i % 10];
+        const tableCount = Math.ceil(peopleCount / 6);
+        const subtotal = Math.floor(Math.random() * 25000) + 5000; // 5000-30000
+        const serviceFee = Math.round(subtotal * 0.1);
+        const total = subtotal + serviceFee;
+        const perPerson = Math.round(total / peopleCount);
+        
+        const diningDate = new Date(now);
+        diningDate.setDate(diningDate.getDate() - Math.floor(Math.random() * 30)); // 過去 30 天內
+        
+        const order = {
+            company_name: `【測試】${companies[i % 10]}`,
+            tax_id: String(10000000 + i).padStart(8, '0'),
+            contact_name: names[i % 10],
+            contact_phone: `09${String(Math.floor(Math.random() * 100000000)).padStart(8, '0')}`,
+            plan_type: planTypes[i % 2],
+            line_name: lineNames[i % 5],
+            industry: industries[i % industries.length],
+            venue_scope: venueScopes[i % venueScopes.length],
+            dining_style: diningStyles[i % 2],
+            payment_method: paymentMethods[i % 3],
+            deposit_paid: i % 3 === 0 ? Math.round(total * 0.3) : 0,
+            dining_datetime: diningDate.toISOString(),
+            table_count: tableCount,
+            people_count: peopleCount,
+            subtotal: subtotal,
+            service_fee: serviceFee,
+            total: total,
+            per_person: perPerson,
+            cart_items: [
+                { name: '測試餐點A', price: Math.floor(subtotal / 3), quantity: 1 },
+                { name: '測試餐點B', price: Math.floor(subtotal / 3), quantity: 1 },
+                { name: '測試餐點C', price: Math.floor(subtotal / 3), quantity: 1 }
+            ],
+            created_by: '測試系統',
+            is_pinned: i < 5 // 前 5 筆設為釘選
+        };
+        
+        orders.push(order);
+    }
+    
+    return orders;
+}
+
+// 在初始化時綁定自訂下拉選單和事件
+document.addEventListener('DOMContentLoaded', function() {
+    // 功能 A：初始化自訂下拉選單
+    setTimeout(() => {
+        attachCustomizableSelect('venueScope', 'venueScopeCustom', ['全包', '叢林區', '蘆葦區']);
+        attachCustomizableSelect('diningStyle', 'diningStyleCustom', ['自助', '桌菜']);
+        attachCustomizableSelect('paymentMethod', 'paymentMethodCustom', ['匯款', '刷卡', '當天結帳']);
+    }, 500);
+    
+    // 綁定刪除按鈕
+    const deleteButton = document.getElementById('deleteOrder');
+    if (deleteButton) {
+        deleteButton.addEventListener('click', deleteCurrentOrder);
+    }
+    
+    // 綁定分析按鈕
+    const analysisButton = document.getElementById('showAnalysis');
+    if (analysisButton) {
+        analysisButton.addEventListener('click', showAnalysisModal);
+    }
+    
+    // 開發模式：在 Console 中提供建立測試訂單的函式
+    if (typeof window !== 'undefined') {
+        window.createTestOrders = createTestOrders;
+        console.log('💡 開發提示：可在 Console 中執行 createTestOrders() 來建立測試訂單');
+    }
+});

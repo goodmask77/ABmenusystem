@@ -483,6 +483,171 @@ body {
     font-size: 0.9rem;
 }
 
+.order-field .custom-input {
+    margin-top: 0.3rem;
+}
+
+.customizable-select-wrapper {
+    display: flex;
+    flex-direction: column;
+}
+
+/* 功能 C & D：歷史訂單表格樣式 */
+.history-table-wrapper {
+    max-height: 600px;
+    overflow: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+.history-table-full {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    min-width: 2000px; /* 確保所有欄位都能顯示 */
+}
+
+.history-table-full thead {
+    background: #f8f9fa;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.history-table-full th {
+    padding: 0.6rem 0.4rem;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+    white-space: nowrap;
+}
+
+.history-table-full td {
+    padding: 0.5rem 0.4rem;
+    border-bottom: 1px solid #e9ecef;
+    white-space: nowrap;
+}
+
+.history-table-full tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.history-table-full tbody tr.pinned-row {
+    background: #fff9e6;
+    border-left: 3px solid #ffc107;
+}
+
+.history-table-full .pin-col {
+    width: 50px;
+    text-align: center;
+}
+
+.pin-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.3rem;
+    color: #6c757d;
+    transition: color 0.2s;
+}
+
+.pin-btn:hover {
+    color: #ffc107;
+}
+
+.pin-btn.pinned {
+    color: #ffc107;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+    border-color: #bd2130;
+}
+
+/* 功能 E：分析視圖樣式 */
+.analysis-content {
+    padding: 1rem;
+}
+
+.analysis-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.analysis-section {
+    background: white;
+    padding: 1rem;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+.analysis-section h3 {
+    margin-bottom: 1rem;
+    color: #495057;
+    font-size: 1.1rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.stat-card {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #212529;
+}
+
+.analysis-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.5rem;
+}
+
+.analysis-table th,
+.analysis-table td {
+    padding: 0.6rem;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.analysis-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+}
+
+.per-person-analysis p {
+    margin: 0.5rem 0;
+}
+
+.loading-analysis,
+.empty-analysis {
+    text-align: center;
+    padding: 2rem;
+    color: #6c757d;
+}
+
 .order-field.datetime-field {
     grid-column: span 2;
 }

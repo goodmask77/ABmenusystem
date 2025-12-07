@@ -183,29 +183,41 @@
                             <!-- 第三行：其他選項 -->
                             <div class="order-field">
                                 <label>包場範圍:</label>
-                                <select id="venueScope" class="input-field">
-                                    <option value="">請選擇</option>
-                                    <option value="全包">全包</option>
-                                    <option value="叢林區">叢林區</option>
-                                    <option value="蘆葦區">蘆葦區</option>
-                                </select>
+                                <div class="customizable-select-wrapper">
+                                    <select id="venueScope" class="input-field">
+                                        <option value="">請選擇</option>
+                                        <option value="全包">全包</option>
+                                        <option value="叢林區">叢林區</option>
+                                        <option value="蘆葦區">蘆葦區</option>
+                                        <option value="__CUSTOM__">其他（自訂）</option>
+                                    </select>
+                                    <input type="text" id="venueScopeCustom" class="input-field custom-input" placeholder="請輸入自訂內容" style="display: none; margin-top: 0.3rem;">
+                                </div>
                             </div>
                             <div class="order-field">
                                 <label>用餐方式:</label>
-                                <select id="diningStyle" class="input-field">
-                                    <option value="">請選擇</option>
-                                    <option value="自助">自助</option>
-                                    <option value="桌菜">桌菜</option>
-                                </select>
+                                <div class="customizable-select-wrapper">
+                                    <select id="diningStyle" class="input-field">
+                                        <option value="">請選擇</option>
+                                        <option value="自助">自助</option>
+                                        <option value="桌菜">桌菜</option>
+                                        <option value="__CUSTOM__">其他（自訂）</option>
+                                    </select>
+                                    <input type="text" id="diningStyleCustom" class="input-field custom-input" placeholder="請輸入自訂內容" style="display: none; margin-top: 0.3rem;">
+                                </div>
                             </div>
                             <div class="order-field">
                                 <label>付款:</label>
-                                <select id="paymentMethod" class="input-field">
-                                    <option value="">請選擇</option>
-                                    <option value="匯款">匯款</option>
-                                    <option value="刷卡">刷卡</option>
-                                    <option value="當天結帳">當天結帳</option>
-                                </select>
+                                <div class="customizable-select-wrapper">
+                                    <select id="paymentMethod" class="input-field">
+                                        <option value="">請選擇</option>
+                                        <option value="匯款">匯款</option>
+                                        <option value="刷卡">刷卡</option>
+                                        <option value="當天結帳">當天結帳</option>
+                                        <option value="__CUSTOM__">其他（自訂）</option>
+                                    </select>
+                                    <input type="text" id="paymentMethodCustom" class="input-field custom-input" placeholder="請輸入自訂內容" style="display: none; margin-top: 0.3rem;">
+                                </div>
                             </div>
                             <div class="order-field">
                                 <label>已付訂金:</label>
@@ -269,8 +281,17 @@
                         </button>
                     </div>
                     <!-- 儲存菜單按鈕 -->
-                    <button id="saveMenu" class="btn btn-primary btn-save-menu">
-                        <i class="fas fa-save"></i> 儲存菜單
+                    <div style="display: flex; gap: 0.4rem; margin-top: 0.8rem;">
+                        <button id="saveMenu" class="btn btn-primary btn-save-menu" style="flex: 1;">
+                            <i class="fas fa-save"></i> <span id="saveMenuButtonText">儲存菜單</span>
+                        </button>
+                        <button id="deleteOrder" class="btn btn-danger" style="display: none; padding: 0.5rem 1rem;" title="刪除目前訂單">
+                            <i class="fas fa-trash"></i> 刪除
+                        </button>
+                    </div>
+                    <!-- 歷史訂單分析按鈕 -->
+                    <button id="showAnalysis" class="btn btn-secondary" style="width: 100%; margin-top: 0.4rem;">
+                        <i class="fas fa-chart-bar"></i> 歷史訂單分析
                     </button>
                 </div>
             </div>
@@ -388,10 +409,13 @@
 
             <div class="history-controls">
                 <input type="text" id="historySearch" placeholder="搜索歷史紀錄..." oninput="renderHistoryList()">
+                <select id="historyIndustryFilter">
+                    <option value="">全部產業</option>
+                </select>
                 <select id="historySortBy" onchange="renderHistoryList()">
                     <option value="newest">最新建立</option>
                     <option value="oldest">最舊建立</option>
-                    <option value="name">稱排序</option>
+                    <option value="name">名稱排序</option>
                     <option value="items">項目數量</option>
                     <option value="people">人數排序</option>
                     <option value="tables">桌數排序</option>
@@ -399,7 +423,18 @@
                 </select>
             </div>
 
-            <div id="historyList"></div>
+            <div id="historyList" class="history-table-container"></div>
+        </div>
+    </div>
+
+    <!-- 歷史訂單分析對話框 -->
+    <div id="analysisModal" class="modal">
+        <div class="modal-content extra-large">
+            <button class="close" onclick="closeModal('analysisModal')">&times;</button>
+            <h2>歷史訂單分析</h2>
+            <div id="analysisContent" class="analysis-content">
+                <div class="loading-analysis"><i class="fas fa-spinner fa-spin"></i> 載入分析資料中...</div>
+            </div>
         </div>
     </div>
 
