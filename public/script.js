@@ -4370,17 +4370,26 @@ function getHistoryMetrics(menu) {
     let total = null;
     let perPerson = null;
     
-    // 優先使用 meta 中的值
-    if (Number.isFinite(meta.estimatedTotal)) {
-        total = meta.estimatedTotal;
-    } else if (legacy?.total) {
-        total = legacy.total;
+    // 優先使用 Supabase 的 order.total（如果訂單來自 Supabase）
+    // 檢查是否有 fromSupabase 標記，且 meta.estimatedTotal 存在
+    if (menu.fromSupabase && meta.estimatedTotal !== undefined && meta.estimatedTotal !== null) {
+        const supabaseTotal = parseFloat(meta.estimatedTotal);
+        if (!isNaN(supabaseTotal) && supabaseTotal >= 0) {
+            total = supabaseTotal;
+        }
     }
     
-    if (Number.isFinite(meta.estimatedPerPerson)) {
-        perPerson = meta.estimatedPerPerson;
-    } else if (legacy?.perPerson) {
-        perPerson = legacy.perPerson;
+    // 如果沒有 Supabase 的 total，使用 meta 中的值
+    if (total === null && meta.estimatedTotal !== undefined && meta.estimatedTotal !== null) {
+        const metaTotal = parseFloat(meta.estimatedTotal);
+        if (!isNaN(metaTotal) && metaTotal >= 0) {
+            total = metaTotal;
+        }
+    }
+    
+    // 如果還是沒有，從 cart 計算
+    if (total === null && legacy?.total) {
+        total = legacy.total;
     }
     
     // 如果還是沒有，嘗試從 categories 計算
@@ -4394,13 +4403,36 @@ function getHistoryMetrics(menu) {
         if (subtotal > 0) {
             const serviceFee = Math.round(subtotal * 0.1);
             total = subtotal + serviceFee;
-            perPerson = Math.round(total / (menu.peopleCount || 1));
         }
+    }
+    
+    // 人均計算
+    if (menu.fromSupabase && meta.estimatedPerPerson !== undefined && meta.estimatedPerPerson !== null) {
+        const supabasePerPerson = parseFloat(meta.estimatedPerPerson);
+        if (!isNaN(supabasePerPerson) && supabasePerPerson >= 0) {
+            perPerson = supabasePerPerson;
+        }
+    }
+    
+    if (perPerson === null && meta.estimatedPerPerson !== undefined && meta.estimatedPerPerson !== null) {
+        const metaPerPerson = parseFloat(meta.estimatedPerPerson);
+        if (!isNaN(metaPerPerson) && metaPerPerson >= 0) {
+            perPerson = metaPerPerson;
+        }
+    }
+    
+    if (perPerson === null && legacy?.perPerson) {
+        perPerson = legacy.perPerson;
+    }
+    
+    // 如果還是沒有 perPerson，從 total 計算
+    if (perPerson === null && total !== null && menu.peopleCount && menu.peopleCount > 0) {
+        perPerson = Math.round(total / menu.peopleCount);
     }
     
     const itemCount = Number.isFinite(meta.itemCount) ? meta.itemCount : legacy?.itemCount ?? 0;
     const preview = meta.preview || legacy?.preview || '無品項預覽';
-    return { total, perPerson, itemCount, preview };
+    return { total: total || 0, perPerson: perPerson || 0, itemCount, preview };
 }
 
 function getLegacyCartSummary(menu) {
