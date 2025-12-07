@@ -1790,6 +1790,36 @@ body {
     white-space: nowrap;
     font-size: 0.9rem;
     max-width: 150px; /* 限制最大寬度，避免過寬 */
+    text-align: left;
+}
+
+.history-table-full td {
+    text-align: center;
+    padding: 0.5rem 0.4rem;
+    vertical-align: middle;
+}
+
+.history-table-full td.date-cell,
+.history-table-full td.menu-name-cell,
+.history-table-full td.plan-cell,
+.history-table-full td.line-cell,
+.history-table-full td.contact-cell,
+.history-table-full td.phone-cell,
+.history-table-full td.industry-cell,
+.history-table-full td.company-cell,
+.history-table-full td.tax-cell,
+.history-table-full td.venue-content-cell,
+.history-table-full td.venue-cell,
+.history-table-full td.payment-cell,
+.history-table-full td.dining-style-cell {
+    text-align: left;
+}
+
+.history-table-full td.people-cell,
+.history-table-full td.total-cell,
+.history-table-full td.deposit-cell,
+.history-table-full td.perperson-cell {
+    text-align: right;
 }
 
 .menu-name-cell:hover {

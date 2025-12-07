@@ -1079,6 +1079,8 @@ const elements = {
     lineName: document.getElementById('lineName'),
     industrySelect: document.getElementById('industrySelect'),
     manageIndustry: document.getElementById('manageIndustry'),
+    venueContentSelect: document.getElementById('venueContentSelect'),
+    manageVenueContent: document.getElementById('manageVenueContent'),
     venueScope: document.getElementById('venueScope'),
     diningStyle: document.getElementById('diningStyle'),
     paymentMethod: document.getElementById('paymentMethod'),
@@ -1195,7 +1197,8 @@ function getOrderInfo() {
         contactPhone: elements.contactPhone?.value?.trim() || '',
         planType: elements.planType?.value || '',
         lineName: elements.lineName?.value?.trim() || '',
-        industry: elements.industrySelect?.value || '',
+        industry: getCustomizableSelectValue('industrySelect', 'industrySelectCustom'),
+        venueContent: getCustomizableSelectValue('venueContentSelect', 'venueContentSelectCustom'),
         venueScope: getCustomizableSelectValue('venueScope', 'venueScopeCustom'),
         diningStyle: getCustomizableSelectValue('diningStyle', 'diningStyleCustom'),
         paymentMethod: getCustomizableSelectValue('paymentMethod', 'paymentMethodCustom'),
@@ -1223,6 +1226,11 @@ function setOrderInfo(info) {
         // 產業別需要從 industryOptions 取得預設選項
         const defaultIndustries = industryOptions.map(opt => opt.name);
         setCustomizableSelectValue('industrySelect', 'industrySelectCustom', defaultIndustries, info.industry);
+    }
+    if (info.venueContent) {
+        // 包場內容需要從 venueContentOptions 取得預設選項
+        const defaultVenueContents = venueContentOptions.map(opt => opt.name);
+        setCustomizableSelectValue('venueContentSelect', 'venueContentSelectCustom', defaultVenueContents, info.venueContent);
     }
     if (info.venueScope) {
         setCustomizableSelectValue('venueScope', 'venueScopeCustom', ['全包', '叢林區', '蘆葦區'], info.venueScope);
@@ -1327,6 +1335,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     await initAccounts();
     await initChangeLog();
     await loadIndustryOptions(); // 載入產業選項
+    await loadVenueContentOptions(); // 載入包場內容選項
     restoreCurrentUser();
     updateAuthUI();
 });
@@ -2942,6 +2951,7 @@ function generateCartImageContent() {
 
 // ========== 產業選項管理 ==========
 let industryOptions = [];
+let venueContentOptions = []; // 包場內容選項
 
 async function loadIndustryOptions() {
     try {
@@ -3101,6 +3111,173 @@ async function deleteIndustryOption(id, name) {
     }
 }
 
+// ========== 包場內容管理功能 ==========
+async function loadVenueContentOptions() {
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) {
+            console.warn('無法載入包場內容選項：Supabase 未連線');
+            return;
+        }
+        
+        const { data, error } = await client
+            .from('venue_content_options')
+            .select('*')
+            .order('sort_order', { ascending: true });
+        
+        if (error) throw error;
+        venueContentOptions = data || [];
+        renderVenueContentSelect();
+    } catch (error) {
+        console.error('載入包場內容選項失敗：', error);
+        // 使用預設選項
+        venueContentOptions = [
+            { id: 1, name: '產品發表', sort_order: 1 },
+            { id: 2, name: '婚禮派對', sort_order: 2 },
+            { id: 3, name: '春酒尾牙', sort_order: 3 },
+            { id: 4, name: '公司聚餐', sort_order: 4 }
+        ];
+        renderVenueContentSelect();
+    }
+}
+
+function renderVenueContentSelect() {
+    const select = document.getElementById('venueContentSelect');
+    if (!select) return;
+    
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">請選擇</option>';
+    
+    venueContentOptions.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.name;
+        option.textContent = opt.name;
+        select.appendChild(option);
+    });
+    
+    // 確保有「其他（自訂）」選項
+    const hasCustomOption = Array.from(select.options).some(opt => opt.value === '__CUSTOM__');
+    if (!hasCustomOption) {
+        const customOption = document.createElement('option');
+        customOption.value = '__CUSTOM__';
+        customOption.textContent = '其他（自訂）';
+        select.appendChild(customOption);
+    }
+    
+    if (currentValue) select.value = currentValue;
+}
+
+async function showVenueContentManager() {
+    let modal = document.getElementById('venueContentModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'venueContentModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h3><i class="fas fa-calendar-alt"></i> 包場內容管理</h3>
+                    <button class="close-modal" onclick="closeVenueContentModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="venueContentList" style="margin-bottom: 1rem;"></div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="newVenueContentName" placeholder="新增包場內容" style="flex: 1; padding: 0.5rem; border: 1px solid #dee2e6; border-radius: 4px;">
+                        <button onclick="addVenueContentOption()" class="btn btn-primary" style="padding: 0.5rem 1rem;">
+                            <i class="fas fa-plus"></i> 新增
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    modal.style.display = 'block';
+    renderVenueContentList();
+}
+
+function closeVenueContentModal() {
+    const modal = document.getElementById('venueContentModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function renderVenueContentList() {
+    const list = document.getElementById('venueContentList');
+    if (!list) return;
+    
+    if (venueContentOptions.length === 0) {
+        list.innerHTML = '<div style="color: #999; text-align: center; padding: 1rem;">目前沒有包場內容選項</div>';
+        return;
+    }
+    
+    list.innerHTML = venueContentOptions.map(opt => `
+        <div style="display: flex; align-items: center; padding: 0.5rem; border-bottom: 1px solid #eee;">
+            <span style="flex: 1;">${opt.name}</span>
+            <button onclick="deleteVenueContentOption(${opt.id}, '${opt.name}')" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+async function addVenueContentOption() {
+    const input = document.getElementById('newVenueContentName');
+    const name = input?.value?.trim();
+    if (!name) {
+        alert('請輸入包場內容');
+        return;
+    }
+    
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) throw new Error('Supabase 未連線');
+        
+        const maxOrder = venueContentOptions.reduce((max, opt) => Math.max(max, opt.sort_order || 0), 0);
+        
+        const { data, error } = await client
+            .from('venue_content_options')
+            .insert({ name, sort_order: maxOrder + 1 })
+            .select()
+            .single();
+        
+        if (error) throw error;
+        
+        venueContentOptions.push(data);
+        renderVenueContentSelect();
+        renderVenueContentList();
+        input.value = '';
+        showSyncStatus('包場內容選項已新增', 'success');
+    } catch (error) {
+        console.error('新增包場內容選項失敗：', error);
+        alert('新增失敗：' + error.message);
+    }
+}
+
+async function deleteVenueContentOption(id, name) {
+    if (!confirm(`確定要刪除「${name}」嗎？`)) return;
+    
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) throw new Error('Supabase 未連線');
+        
+        const { error } = await client
+            .from('venue_content_options')
+            .delete()
+            .eq('id', id);
+        
+        if (error) throw error;
+        
+        venueContentOptions = venueContentOptions.filter(opt => opt.id !== id);
+        renderVenueContentSelect();
+        renderVenueContentList();
+        showSyncStatus('包場內容選項已刪除', 'success');
+    } catch (error) {
+        console.error('刪除包場內容選項失敗：', error);
+        alert('刪除失敗：' + error.message);
+    }
+}
+
 // ========== 訂單儲存到 Supabase ==========
 async function saveOrderToSupabase(orderData) {
     try {
@@ -3191,6 +3368,7 @@ async function loadOrdersFromSupabase() {
                     planType: order.plan_type,
                     lineName: order.line_name,
                 industry: order.industry,
+                venueContent: order.venue_content,
                 venueScope: order.venue_scope,
                 diningStyle: order.dining_style,
                 paymentMethod: order.payment_method,
@@ -3354,6 +3532,7 @@ async function syncLocalOrdersToSupabase() {
                 plan_type: orderInfo.planType || '',
                 line_name: orderInfo.lineName || '',
                 industry: orderInfo.industry || '',
+                venue_content: orderInfo.venueContent || '',
                 venue_scope: orderInfo.venueScope || '',
                 dining_style: orderInfo.diningStyle || '',
                 payment_method: orderInfo.paymentMethod || '',
@@ -3568,6 +3747,8 @@ async function confirmSaveMenu() {
         plan_type: orderInfo.planType || null,
         line_name: orderInfo.lineName || null,
         industry: orderInfo.industry || null,
+        venue_content: orderInfo.venueContent || null,
+        venue_content: orderInfo.venueContent || null,
         venue_scope: orderInfo.venueScope || null,
         dining_style: orderInfo.diningStyle || null,
         payment_method: orderInfo.paymentMethod || null,
@@ -3930,6 +4111,7 @@ function renderHistoryList() {
                 orderInfo.industry?.toLowerCase().includes(searchTerm) ||
                 orderInfo.planType?.toLowerCase().includes(searchTerm) ||
                 orderInfo.lineName?.toLowerCase().includes(searchTerm) ||
+                orderInfo.venueContent?.toLowerCase().includes(searchTerm) ||
                 orderInfo.venueScope?.toLowerCase().includes(searchTerm) ||
                 orderInfo.diningStyle?.toLowerCase().includes(searchTerm) ||
                 orderInfo.paymentMethod?.toLowerCase().includes(searchTerm)) {
@@ -4022,6 +4204,9 @@ function renderHistoryList() {
             case 'diningStyle':
                 result = (orderInfoA.diningStyle || '').localeCompare(orderInfoB.diningStyle || '');
                 break;
+            case 'venueContent':
+                result = (orderInfoA.venueContent || '').localeCompare(orderInfoB.venueContent || '');
+                break;
             case 'venueScope':
                 result = (orderInfoA.venueScope || '').localeCompare(orderInfoB.venueScope || '');
                 break;
@@ -4059,10 +4244,10 @@ function renderHistoryList() {
     historyList.innerHTML = `
         <div class="history-table-wrapper">
             <table class="history-table-full" id="historyTable">
-                <thead>
-                    <tr>
+            <thead>
+                <tr>
                         <th class="sortable pin-col ${historySort.field === 'pinned' ? 'sort-' + historySort.direction : ''}" onclick="event.stopPropagation(); sortHistoryBy('pinned')">釘選</th>
-                        <th class="sortable ${historySort.field === 'date' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('date')">建立/用餐日期</th>
+                    <th class="sortable ${historySort.field === 'date' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('date')">用餐日期</th>
                         <th class="sortable ${historySort.field === 'companyName' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('companyName')">客戶名稱</th>
                         <th class="sortable ${historySort.field === 'planType' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('planType')">方案</th>
                         <th class="sortable ${historySort.field === 'lineName' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('lineName')">LINE名稱</th>
@@ -4071,6 +4256,7 @@ function renderHistoryList() {
                         <th class="sortable ${historySort.field === 'total' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('total')">總額</th>
                         <th class="sortable ${historySort.field === 'depositPaid' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('depositPaid')">已付訂金</th>
                         <th class="sortable ${historySort.field === 'perPerson' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('perPerson')">人均</th>
+                        <th class="sortable ${historySort.field === 'venueContent' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('venueContent')">包場內容</th>
                         <th class="sortable ${historySort.field === 'venueScope' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('venueScope')">包場範圍</th>
                         <th class="sortable ${historySort.field === 'paymentMethod' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('paymentMethod')">付款方式</th>
                         <th class="sortable ${historySort.field === 'contactName' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('contactName')">聯絡人</th>
@@ -4079,53 +4265,54 @@ function renderHistoryList() {
                         <th class="sortable ${historySort.field === 'companyName' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('companyName')">公司名稱</th>
                         <th class="sortable ${historySort.field === 'taxId' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('taxId')">統編</th>
                         <th class="actions-col" onclick="event.stopPropagation();">操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${filteredMenus.map((menu, idx) => {
-                        const metrics = getHistoryMetrics(menu);
+                </tr>
+            </thead>
+            <tbody>
+                ${filteredMenus.map((menu, idx) => {
+                    const metrics = getHistoryMetrics(menu);
                         const total = metrics.total || 0;
                         const perPerson = metrics.perPerson || 0;
-                        
-                        // 取得訂單資訊
-                        const orderInfo = menu.orderInfo || {};
+                    
+                    // 取得訂單資訊
+                    const orderInfo = menu.orderInfo || {};
                         const contactName = orderInfo.contactName || '';
                         const contactPhone = orderInfo.contactPhone || '';
-                        const industry = orderInfo.industry || '';
+                    const industry = orderInfo.industry || '';
                         const planType = orderInfo.planType || '';
                         const lineName = orderInfo.lineName || '';
+                        const venueContent = orderInfo.venueContent || '';
                         const venueScope = orderInfo.venueScope || '';
                         const diningStyle = orderInfo.diningStyle || '';
                         const paymentMethod = orderInfo.paymentMethod || '';
                         const depositPaid = orderInfo.depositPaid || 0;
                         const companyName = orderInfo.companyName || menu.name || '';
                         const taxId = orderInfo.taxId || '';
-                        
-                        // 優先使用用餐日期時間，如果沒有則使用儲存時間
-                        const displayDate = menu.diningDateTime ? formatDate(new Date(menu.diningDateTime)) : formatDate(new Date(menu.savedAt));
-                        const createdDate = formatDate(new Date(menu.savedAt));
-                        
-                        // 使用 data 屬性傳遞訂單資訊
-                        const menuId = menu.id || '';
-                        const menuIdx = idx;
+                    
+                    // 優先使用用餐日期時間，如果沒有則使用儲存時間
+                    const displayDate = menu.diningDateTime ? formatDate(new Date(menu.diningDateTime)) : formatDate(new Date(menu.savedAt));
+                    
+                    // 使用 data 屬性傳遞訂單資訊
+                    const menuId = menu.id || '';
+                    const menuIdx = idx;
                         const isPinned = menu.isPinned || false;
-                        
-                        return `
+                    
+                    return `
                             <tr class="history-row ${isPinned ? 'pinned-row' : ''}" data-menu-id="${menuId}" data-idx="${menuIdx}" data-pinned="${isPinned}" onclick="loadHistoryMenuByData(this)" style="cursor: pointer;">
                                 <td class="pin-col" onclick="event.stopPropagation();">
                                     <button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="toggleOrderPin('${menuId}', event)" title="${isPinned ? '取消釘選' : '釘選'}">
                                         <i class="fas fa-thumbtack"></i>
                                     </button>
                                 </td>
-                                <td class="date-cell" title="建立: ${createdDate}">${displayDate}</td>
+                            <td class="date-cell">${displayDate}</td>
                                 <td class="menu-name-cell" title="${companyName}">${companyName}</td>
                                 <td class="plan-cell">${planType || '--'}</td>
                                 <td class="line-cell">${lineName || '--'}</td>
-                                <td class="people-cell">${menu.peopleCount || 1}人/${menu.tableCount || 1}桌</td>
+                            <td class="people-cell">${menu.peopleCount || 1}人/${menu.tableCount || 1}桌</td>
                                 <td class="dining-style-cell">${diningStyle || '--'}</td>
                                 <td class="total-cell">${typeof total === 'number' ? '$' + Math.round(total).toLocaleString() : '--'}</td>
                                 <td class="deposit-cell">${depositPaid > 0 ? '$' + depositPaid.toLocaleString() : '--'}</td>
                                 <td class="perperson-cell">${typeof perPerson === 'number' ? '$' + Math.round(perPerson).toLocaleString() : '--'}</td>
+                                <td class="venue-content-cell">${venueContent || '--'}</td>
                                 <td class="venue-cell">${venueScope || '--'}</td>
                                 <td class="payment-cell">${paymentMethod || '--'}</td>
                                 <td class="contact-cell">${contactName || '--'}</td>
@@ -4133,16 +4320,16 @@ function renderHistoryList() {
                                 <td class="industry-cell">${industry || '--'}</td>
                                 <td class="company-cell">${companyName || '--'}</td>
                                 <td class="tax-cell">${taxId || '--'}</td>
-                                <td class="actions-cell" onclick="event.stopPropagation();">
-                                    <button class="btn-small btn-delete" onclick="deleteHistoryMenuByData(this.closest('tr'))" title="刪除">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        `;
-                    }).join('')}
-                </tbody>
-            </table>
+                            <td class="actions-cell" onclick="event.stopPropagation();">
+                                <button class="btn-small btn-delete" onclick="deleteHistoryMenuByData(this.closest('tr'))" title="刪除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
         </div>
     `;
     
@@ -5287,29 +5474,42 @@ async function showAnalysisModal() {
  * @returns {Object} 統計資料
  */
 function calculateOrderStatistics(orders) {
+    // 取得自訂金額區間設定（從 localStorage 或使用預設值）
+    const customRanges = getCustomAmountRanges();
+    
     const stats = {
         totalOrders: orders.length,
         totalRevenue: 0,
+        totalPeople: 0,
+        averagePeople: 0,
         averagePerPerson: 0,
         perPersonStats: [],
         industryStats: {},
-        amountRanges: {
-            '0-5000': 0,
-            '5001-10000': 0,
-            '10001-20000': 0,
-            '20001-30000': 0,
-            '30000+': 0
-        },
+        venueContentStats: {},
+        amountRanges: {},
         recentOrders: orders.slice(0, 10) // 最近 10 筆
     };
     
+    // 初始化金額區間
+    customRanges.forEach(range => {
+        stats.amountRanges[range.label] = 0;
+    });
+    
     let totalPerPerson = 0;
     let validPerPersonCount = 0;
+    let totalPeopleCount = 0;
+    let validPeopleCount = 0;
     
     orders.forEach(order => {
         // 總營收
         if (order.total) {
             stats.totalRevenue += parseFloat(order.total);
+        }
+        
+        // 人數統計
+        if (order.people_count && order.people_count > 0) {
+            totalPeopleCount += parseInt(order.people_count);
+            validPeopleCount++;
         }
         
         // 人均統計
@@ -5333,20 +5533,34 @@ function calculateOrderStatistics(orders) {
             }
         }
         
-        // 金額分布
-        const total = parseFloat(order.total) || 0;
-        if (total <= 5000) {
-            stats.amountRanges['0-5000']++;
-        } else if (total <= 10000) {
-            stats.amountRanges['5001-10000']++;
-        } else if (total <= 20000) {
-            stats.amountRanges['10001-20000']++;
-        } else if (total <= 30000) {
-            stats.amountRanges['20001-30000']++;
-        } else {
-            stats.amountRanges['30000+']++;
+        // 包場內容統計
+        if (order.venue_content) {
+            if (!stats.venueContentStats[order.venue_content]) {
+                stats.venueContentStats[order.venue_content] = {
+                    count: 0,
+                    total: 0
+                };
+            }
+            stats.venueContentStats[order.venue_content].count++;
+            if (order.total) {
+                stats.venueContentStats[order.venue_content].total += parseFloat(order.total);
+            }
         }
+        
+        // 金額分布（使用自訂區間）
+        const total = parseFloat(order.total) || 0;
+        customRanges.forEach(range => {
+            if (total >= range.min && (range.max === null || total <= range.max)) {
+                stats.amountRanges[range.label]++;
+            }
+        });
     });
+    
+    // 計算平均人數
+    if (validPeopleCount > 0) {
+        stats.totalPeople = totalPeopleCount;
+        stats.averagePeople = totalPeopleCount / validPeopleCount;
+    }
     
     // 計算平均人均
     if (validPerPersonCount > 0) {
@@ -5357,6 +5571,42 @@ function calculateOrderStatistics(orders) {
     stats.perPersonStats.sort((a, b) => a - b);
     
     return stats;
+}
+
+/**
+ * 取得自訂金額區間設定
+ */
+function getCustomAmountRanges() {
+    try {
+        const saved = localStorage.getItem('customAmountRanges');
+        if (saved) {
+            return JSON.parse(saved);
+        }
+    } catch (e) {
+        console.warn('無法讀取自訂金額區間設定', e);
+    }
+    
+    // 預設區間
+    return [
+        { label: '0-5,000', min: 0, max: 5000 },
+        { label: '5,001-10,000', min: 5001, max: 10000 },
+        { label: '10,001-20,000', min: 10001, max: 20000 },
+        { label: '20,001-30,000', min: 20001, max: 30000 },
+        { label: '30,000+', min: 30001, max: null }
+    ];
+}
+
+/**
+ * 設定自訂金額區間
+ */
+function setCustomAmountRanges(ranges) {
+    try {
+        localStorage.setItem('customAmountRanges', JSON.stringify(ranges));
+        return true;
+    } catch (e) {
+        console.error('無法儲存自訂金額區間設定', e);
+        return false;
+    }
 }
 
 /**
@@ -5381,14 +5631,22 @@ function renderAnalysisContent(container, stats) {
     const industryCounts = Object.values(stats.industryStats).map(d => d.count);
     const industryTotals = Object.values(stats.industryStats).map(d => Math.round(d.total));
     
-    const amountLabels = ['$0-$5K', '$5K-$10K', '$10K-$20K', '$20K-$30K', '$30K+'];
-    const amountCounts = [
-        stats.amountRanges['0-5000'],
-        stats.amountRanges['5001-10000'],
-        stats.amountRanges['10001-20000'],
-        stats.amountRanges['20001-30000'],
-        stats.amountRanges['30000+']
-    ];
+    // 包場內容統計
+    const venueContentRows = Object.entries(stats.venueContentStats)
+        .sort((a, b) => b[1].count - a[1].count)
+        .map(([content, data]) => `
+            <tr>
+                <td>${content || '未分類'}</td>
+                <td>${data.count}</td>
+                <td>$${Math.round(data.total).toLocaleString()}</td>
+                <td>$${Math.round(data.total / data.count).toLocaleString()}</td>
+            </tr>
+        `).join('');
+    
+    // 準備金額分布圖表資料（使用自訂區間）
+    const customRanges = getCustomAmountRanges();
+    const amountLabels = customRanges.map(r => r.label);
+    const amountCounts = customRanges.map(r => stats.amountRanges[r.label] || 0);
     
     container.innerHTML = `
         <div class="analysis-sections">
@@ -5402,6 +5660,14 @@ function renderAnalysisContent(container, stats) {
                     <div class="stat-card">
                         <div class="stat-label">總營收</div>
                         <div class="stat-value">$${Math.round(stats.totalRevenue).toLocaleString()}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">總人數</div>
+                        <div class="stat-value">${stats.totalPeople.toLocaleString()}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">平均人數</div>
+                        <div class="stat-value">${Math.round(stats.averagePeople)}</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">平均人均</div>
@@ -5431,7 +5697,30 @@ function renderAnalysisContent(container, stats) {
             </div>
             
             <div class="analysis-section">
-                <h3><i class="fas fa-dollar-sign"></i> 消費金額分布</h3>
+                <h3><i class="fas fa-calendar-alt"></i> 包場內容分布</h3>
+                ${venueContentRows ? `
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th>包場內容</th>
+                                <th>訂單數</th>
+                                <th>總金額</th>
+                                <th>平均金額</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${venueContentRows || '<tr><td colspan="4">無資料</td></tr>'}
+                        </tbody>
+                    </table>
+                ` : '<p>目前沒有包場內容資料</p>'}
+            </div>
+            
+            <div class="analysis-section">
+                <h3><i class="fas fa-dollar-sign"></i> 消費金額分布
+                    <button onclick="showCustomAmountRangesDialog()" class="btn btn-small" style="margin-left: 1rem; padding: 0.3rem 0.6rem; font-size: 0.85rem;" title="自訂金額區間">
+                        <i class="fas fa-cog"></i> 自訂區間
+                    </button>
+                </h3>
                 <div class="chart-container">
                     <canvas id="amountChart"></canvas>
                 </div>
@@ -5443,11 +5732,12 @@ function renderAnalysisContent(container, stats) {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td>$0 - $5,000</td><td>${stats.amountRanges['0-5000']}</td></tr>
-                        <tr><td>$5,001 - $10,000</td><td>${stats.amountRanges['5001-10000']}</td></tr>
-                        <tr><td>$10,001 - $20,000</td><td>${stats.amountRanges['10001-20000']}</td></tr>
-                        <tr><td>$20,001 - $30,000</td><td>${stats.amountRanges['20001-30000']}</td></tr>
-                        <tr><td>$30,000+</td><td>${stats.amountRanges['30000+']}</td></tr>
+                        ${customRanges.map(range => `
+                            <tr>
+                                <td>$${range.label}</td>
+                                <td>${stats.amountRanges[range.label] || 0}</td>
+                            </tr>
+                        `).join('')}
                     </tbody>
                 </table>
             </div>
@@ -5470,6 +5760,119 @@ function renderAnalysisContent(container, stats) {
     setTimeout(() => {
         renderCharts(industryLabels, industryCounts, industryTotals, amountLabels, amountCounts);
     }, 100);
+}
+
+/**
+ * 顯示自訂金額區間設定對話框
+ */
+function showCustomAmountRangesDialog() {
+    const currentRanges = getCustomAmountRanges();
+    let modal = document.getElementById('customAmountRangesModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'customAmountRangesModal';
+        modal.className = 'modal';
+        document.body.appendChild(modal);
+    }
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> 自訂金額區間設定</h3>
+                <button class="close-modal" onclick="document.getElementById('customAmountRangesModal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="amountRangesList"></div>
+                <button onclick="addAmountRange()" class="btn btn-primary" style="margin-top: 1rem;">
+                    <i class="fas fa-plus"></i> 新增區間
+                </button>
+                <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                    <button onclick="saveCustomAmountRanges()" class="btn btn-primary" style="flex: 1;">
+                        <i class="fas fa-save"></i> 儲存
+                    </button>
+                    <button onclick="resetCustomAmountRanges()" class="btn btn-secondary" style="flex: 1;">
+                        <i class="fas fa-undo"></i> 重置為預設
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    modal.style.display = 'block';
+    renderAmountRangesList(currentRanges);
+}
+
+function renderAmountRangesList(ranges) {
+    const list = document.getElementById('amountRangesList');
+    if (!list) return;
+    
+    list.innerHTML = ranges.map((range, idx) => `
+        <div style="display: flex; gap: 0.5rem; align-items: center; padding: 0.5rem; border-bottom: 1px solid #eee; margin-bottom: 0.5rem;">
+            <input type="text" value="${range.label}" placeholder="區間標籤" class="input-field" style="flex: 1;" onchange="updateAmountRangeLabel(${idx}, this.value)">
+            <input type="number" value="${range.min || 0}" placeholder="最小值" class="input-field" style="width: 100px;" onchange="updateAmountRangeMin(${idx}, this.value)">
+            <span>~</span>
+            <input type="number" value="${range.max || ''}" placeholder="最大值（留空為無上限）" class="input-field" style="width: 150px;" onchange="updateAmountRangeMax(${idx}, this.value)">
+            <button onclick="removeAmountRange(${idx})" class="btn btn-danger" style="padding: 0.25rem 0.5rem;">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+    
+    window._currentAmountRanges = ranges;
+}
+
+function addAmountRange() {
+    if (!window._currentAmountRanges) return;
+    window._currentAmountRanges.push({ label: '新區間', min: 0, max: null });
+    renderAmountRangesList(window._currentAmountRanges);
+}
+
+function removeAmountRange(idx) {
+    if (!window._currentAmountRanges || !confirm('確定要刪除此區間嗎？')) return;
+    window._currentAmountRanges.splice(idx, 1);
+    renderAmountRangesList(window._currentAmountRanges);
+}
+
+function updateAmountRangeLabel(idx, label) {
+    if (window._currentAmountRanges && window._currentAmountRanges[idx]) {
+        window._currentAmountRanges[idx].label = label;
+    }
+}
+
+function updateAmountRangeMin(idx, min) {
+    if (window._currentAmountRanges && window._currentAmountRanges[idx]) {
+        window._currentAmountRanges[idx].min = parseInt(min) || 0;
+    }
+}
+
+function updateAmountRangeMax(idx, max) {
+    if (window._currentAmountRanges && window._currentAmountRanges[idx]) {
+        window._currentAmountRanges[idx].max = max ? parseInt(max) : null;
+    }
+}
+
+function saveCustomAmountRanges() {
+    if (!window._currentAmountRanges) return;
+    if (setCustomAmountRanges(window._currentAmountRanges)) {
+        alert('金額區間設定已儲存！');
+        document.getElementById('customAmountRangesModal').style.display = 'none';
+        // 重新載入分析
+        showAnalysisModal();
+    } else {
+        alert('儲存失敗，請稍後再試');
+    }
+}
+
+function resetCustomAmountRanges() {
+    if (!confirm('確定要重置為預設區間嗎？')) return;
+    setCustomAmountRanges([
+        { label: '0-5,000', min: 0, max: 5000 },
+        { label: '5,001-10,000', min: 5001, max: 10000 },
+        { label: '10,001-20,000', min: 10001, max: 20000 },
+        { label: '20,001-30,000', min: 20001, max: 30000 },
+        { label: '30,000+', min: 30001, max: null }
+    ]);
+    renderAmountRangesList(getCustomAmountRanges());
 }
 
 /**
@@ -5787,6 +6190,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (industryOptions && industryOptions.length > 0) {
             const defaultIndustries = industryOptions.map(opt => opt.name);
             attachCustomizableSelect('industrySelect', 'industrySelectCustom', defaultIndustries);
+        }
+        
+        // 包場內容需要動態載入後再綁定
+        if (venueContentOptions && venueContentOptions.length > 0) {
+            const defaultVenueContents = venueContentOptions.map(opt => opt.name);
+            attachCustomizableSelect('venueContentSelect', 'venueContentSelectCustom', defaultVenueContents);
         }
         
         // 時間選單的自訂處理
