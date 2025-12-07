@@ -354,7 +354,10 @@
             <h2>菜單歷史紀錄</h2>
 
             <div class="history-controls">
-                <input type="text" id="historySearch" placeholder="搜索歷史紀錄..." oninput="renderHistoryList()">
+                <input type="text" id="historySearch" placeholder="搜尋公司、聯絡人、餐點..." oninput="renderHistoryList()">
+                <select id="historyIndustryFilter" onchange="renderHistoryList()">
+                    <option value="">全部產業</option>
+                </select>
                 <select id="historySortBy" onchange="renderHistoryList()">
                     <option value="newest">最新建立</option>
                     <option value="oldest">最舊建立</option>

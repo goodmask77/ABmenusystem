@@ -2868,9 +2868,11 @@ function saveMenuToStorage() {
     document.getElementById('saveMenuPeople').textContent = peopleCount;
     
     // 顯示客戶資訊
-    const customerName = elements.customerName?.value?.trim() || '未填寫';
+    const companyName = elements.companyName?.value?.trim() || '未填寫';
+    const contactName = elements.contactName?.value?.trim() || '';
+    const displayName = contactName ? `${companyName} (${contactName})` : companyName;
     const diningDateTime = getDiningDateTime();
-    document.getElementById('saveMenuCustomerName').textContent = customerName;
+    document.getElementById('saveMenuCustomerName').textContent = displayName;
     document.getElementById('saveMenuDiningDateTime').textContent = diningDateTime ? formatDate(new Date(diningDateTime)) : '未設定';
     
     // 顯示儲存模態框
@@ -3049,6 +3051,19 @@ function createAutoHistoryEntry(statePayload) {
 
 function showHistoryModal() {
     document.getElementById('historyModal').style.display = 'block';
+    
+    // 填充產業篩選器選項
+    const industryFilter = document.getElementById('historyIndustryFilter');
+    if (industryFilter) {
+        industryFilter.innerHTML = '<option value="">全部產業</option>';
+        industryOptions.forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt.name;
+            option.textContent = opt.name;
+            industryFilter.appendChild(option);
+        });
+    }
+    
     renderHistoryList();
     
     // 確保Modal事件正確綁定
@@ -3058,12 +3073,42 @@ function showHistoryModal() {
 function renderHistoryList() {
     const savedMenus = getSavedMenus();
     const historyList = document.getElementById('historyList');
-    const searchTerm = document.getElementById('historySearch').value.toLowerCase();
+    const searchTerm = document.getElementById('historySearch')?.value?.toLowerCase() || '';
+    const industryFilter = document.getElementById('historyIndustryFilter')?.value || '';
     const sortBy = historySort.field;
     
     let filteredMenus = savedMenus.filter(menu => {
-        // 搜尋菜單名稱
+        // 產業篩選
+        if (industryFilter) {
+            const menuIndustry = menu.orderInfo?.industry || '';
+            if (menuIndustry !== industryFilter) {
+                return false;
+            }
+        }
+        
+        // 如果沒有搜尋字詞，直接通過
+        if (!searchTerm) return true;
+        
+        // 搜尋菜單名稱/公司名稱
         if (menu.name && menu.name.toLowerCase().includes(searchTerm)) {
+            return true;
+        }
+        
+        // 搜尋訂單資訊欄位
+        if (menu.orderInfo) {
+            const orderInfo = menu.orderInfo;
+            if (orderInfo.companyName?.toLowerCase().includes(searchTerm) ||
+                orderInfo.contactName?.toLowerCase().includes(searchTerm) ||
+                orderInfo.contactPhone?.includes(searchTerm) ||
+                orderInfo.taxId?.includes(searchTerm) ||
+                orderInfo.industry?.toLowerCase().includes(searchTerm)) {
+                return true;
+            }
+        }
+        
+        // 兼容舊格式的客戶資訊
+        if (menu.customerName?.toLowerCase().includes(searchTerm) ||
+            menu.customerTaxId?.includes(searchTerm)) {
             return true;
         }
         
@@ -3140,14 +3185,13 @@ function renderHistoryList() {
         <table class="history-table">
             <thead>
                 <tr>
-                    <th class="sortable ${historySort.field === 'name' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('name')">菜單名稱</th>
+                    <th class="sortable ${historySort.field === 'name' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('name')">公司/客戶</th>
+                    <th>聯絡人</th>
+                    <th>產業</th>
                     <th class="sortable ${historySort.field === 'date' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('date')">用餐日期</th>
-                    <th class="sortable ${historySort.field === 'items' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('items')">餐點數</th>
                     <th class="sortable ${historySort.field === 'people' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('people')">人數</th>
-                    <th class="sortable ${historySort.field === 'tables' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('tables')">桌數</th>
                     <th class="sortable ${historySort.field === 'total' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('total')">總金額</th>
                     <th class="sortable ${historySort.field === 'price' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('price')">人均</th>
-                    <th>餐點內容</th>
                     <th>操作</th>
                 </tr>
             </thead>
@@ -3158,21 +3202,23 @@ function renderHistoryList() {
                     const perPerson = metrics.perPerson;
                     const originalMenuIndex = savedMenus.indexOf(menu);
                     
-                    const cartPreview = metrics.preview;
+                    // 取得訂單資訊
+                    const orderInfo = menu.orderInfo || {};
+                    const contactName = orderInfo.contactName || menu.customerName || '';
+                    const industry = orderInfo.industry || '';
                     
                     // 優先使用用餐日期時間，如果沒有則使用儲存時間
                     const displayDate = menu.diningDateTime ? formatDate(new Date(menu.diningDateTime)) : formatDate(new Date(menu.savedAt));
                     
                     return `
                         <tr class="history-row" onclick="loadHistoryMenu(${originalMenuIndex})" style="cursor: pointer;">
-                            <td class="menu-name-cell" title="${menu.name || '未命名菜單'}">${menu.name || '未命名菜單'}</td>
+                            <td class="menu-name-cell" title="${menu.name || '未命名'}">${menu.name || '未命名'}</td>
+                            <td class="contact-cell">${contactName}</td>
+                            <td class="industry-cell">${industry}</td>
                             <td class="date-cell">${displayDate}</td>
-                            <td class="count-cell">${metrics.itemCount}</td>
-                            <td class="people-cell">${menu.peopleCount || 1}</td>
-                            <td class="table-cell">${menu.tableCount || 1}</td>
-                            <td class="total-cell">${typeof total === 'number' ? '$' + total : '--'}</td>
-                            <td class="perperson-cell">${typeof perPerson === 'number' ? '$' + perPerson : '--'}</td>
-                            <td class="preview-cell" title="${cartPreview}">${cartPreview}</td>
+                            <td class="people-cell">${menu.peopleCount || 1}人/${menu.tableCount || 1}桌</td>
+                            <td class="total-cell">${typeof total === 'number' ? '$' + total.toLocaleString() : '--'}</td>
+                            <td class="perperson-cell">${typeof perPerson === 'number' ? '$' + perPerson.toLocaleString() : '--'}</td>
                             <td class="actions-cell" onclick="event.stopPropagation();">
                                 <button class="btn-small btn-edit" onclick="editHistoryMenu(${originalMenuIndex})" title="編輯">
                                     <i class="fas fa-edit"></i>
