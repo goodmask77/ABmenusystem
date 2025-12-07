@@ -218,8 +218,9 @@ body {
 /* 菜單類別 */
 .menu-categories {
     padding: 0.4rem;
-    max-height: 70vh;
+    max-height: calc(100vh - 200px);
     overflow-y: auto;
+    min-height: 0;
 }
 
 .category {
@@ -452,6 +453,40 @@ body {
     padding: 0.35rem 0.5rem;
     font-size: 0.8rem;
     min-width: 60px;
+}
+
+/* 用餐日期時間選擇區域 */
+.customer-datetime-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding-bottom: 0.8rem;
+    margin-bottom: 0.8rem;
+    border-bottom: 1px solid #dee2e6;
+    flex-wrap: wrap;
+}
+
+.customer-datetime-row label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #495057;
+    white-space: nowrap;
+}
+
+.customer-datetime-row .input-field {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.8rem;
+}
+
+.customer-datetime-row input[type="date"] {
+    flex: 1;
+    min-width: 120px;
+}
+
+.time-select {
+    width: 55px;
+    min-width: 55px;
+    text-align: center;
 }
 
 /* 儲存菜單按鈕 */

@@ -1065,8 +1065,46 @@ const elements = {
     // 客戶資訊欄位
     customerName: document.getElementById('customerName'),
     customerTaxId: document.getElementById('customerTaxId'),
-    diningDateTime: document.getElementById('diningDateTime')
+    diningDate: document.getElementById('diningDate'),
+    diningHour: document.getElementById('diningHour'),
+    diningMinute: document.getElementById('diningMinute')
 };
+
+// 取得組合的用餐日期時間
+function getDiningDateTime() {
+    const date = elements.diningDate?.value || '';
+    const hour = elements.diningHour?.value || '';
+    const minute = elements.diningMinute?.value || '';
+    if (date && hour && minute) {
+        return `${date}T${hour}:${minute}`;
+    }
+    return '';
+}
+
+// 設定用餐日期時間
+function setDiningDateTime(dateTimeStr) {
+    if (!dateTimeStr) {
+        if (elements.diningDate) elements.diningDate.value = '';
+        if (elements.diningHour) elements.diningHour.value = '';
+        if (elements.diningMinute) elements.diningMinute.value = '';
+        return;
+    }
+    try {
+        const dt = new Date(dateTimeStr);
+        if (isNaN(dt.getTime())) return;
+        const year = dt.getFullYear();
+        const month = String(dt.getMonth() + 1).padStart(2, '0');
+        const day = String(dt.getDate()).padStart(2, '0');
+        const hour = String(dt.getHours()).padStart(2, '0');
+        const minute = String(Math.floor(dt.getMinutes() / 10) * 10).padStart(2, '0');
+        if (elements.diningDate) elements.diningDate.value = `${year}-${month}-${day}`;
+        if (elements.diningHour) elements.diningHour.value = hour;
+        if (elements.diningMinute) elements.diningMinute.value = minute;
+    } catch (e) {
+        console.warn('設定用餐時間失敗：', e);
+    }
+}
+
 // 初始化應用程式
 document.addEventListener('DOMContentLoaded', async function() {
     await prepareInitialState();
@@ -1343,7 +1381,7 @@ function persistCartState() {
             tableCount,
             customerName: elements.customerName?.value || '',
             customerTaxId: elements.customerTaxId?.value || '',
-            diningDateTime: elements.diningDateTime?.value || '',
+            diningDateTime: getDiningDateTime(),
             updatedAt: new Date().toISOString()
         };
         localStorage.setItem(CART_STATE_KEY, JSON.stringify(payload));
@@ -1377,8 +1415,8 @@ function restoreCartState() {
         if (payload?.customerTaxId && elements.customerTaxId) {
             elements.customerTaxId.value = payload.customerTaxId;
         }
-        if (payload?.diningDateTime && elements.diningDateTime) {
-            elements.diningDateTime.value = payload.diningDateTime;
+        if (payload?.diningDateTime) {
+            setDiningDateTime(payload.diningDateTime);
         }
         return true;
     } catch (error) {
@@ -1530,8 +1568,15 @@ function bindEvents() {
     if (elements.customerTaxId) {
         elements.customerTaxId.addEventListener('change', persistCartState);
     }
-    if (elements.diningDateTime) {
-        elements.diningDateTime.addEventListener('change', persistCartState);
+    // 用餐日期時間選擇器
+    if (elements.diningDate) {
+        elements.diningDate.addEventListener('change', persistCartState);
+    }
+    if (elements.diningHour) {
+        elements.diningHour.addEventListener('change', persistCartState);
+    }
+    if (elements.diningMinute) {
+        elements.diningMinute.addEventListener('change', persistCartState);
     }
     
     // 清除購物車
@@ -1976,9 +2021,8 @@ function clearCart() {
     if (elements.customerTaxId) {
         elements.customerTaxId.value = '';
     }
-    if (elements.diningDateTime) {
-        elements.diningDateTime.value = '';
-    }
+    // 清除用餐日期時間
+    setDiningDateTime('');
     
     renderCart();
     renderMenu(); // 重新渲染菜單以移除選中狀態
@@ -2385,7 +2429,7 @@ function saveMenuToStorage() {
     
     // 顯示客戶資訊
     const customerName = elements.customerName?.value?.trim() || '未填寫';
-    const diningDateTime = elements.diningDateTime?.value;
+    const diningDateTime = getDiningDateTime();
     document.getElementById('saveMenuCustomerName').textContent = customerName;
     document.getElementById('saveMenuDiningDateTime').textContent = diningDateTime ? formatDate(new Date(diningDateTime)) : '未設定';
     
@@ -2403,7 +2447,7 @@ function confirmSaveMenu() {
     }
     
     const customerTaxId = elements.customerTaxId?.value?.trim() || '';
-    const diningDateTime = elements.diningDateTime?.value || '';
+    const diningDateTime = getDiningDateTime();
     
     // 使用客戶名稱作為菜單名稱
     const menuName = customerName;
@@ -2758,9 +2802,8 @@ function loadHistoryMenu(index) {
         if (elements.customerTaxId) {
             elements.customerTaxId.value = menu.customerTaxId || '';
         }
-        if (elements.diningDateTime) {
-            elements.diningDateTime.value = menu.diningDateTime || '';
-        }
+        // 恢復用餐日期時間
+        setDiningDateTime(menu.diningDateTime || '');
         
         renderMenu();
         renderCart();

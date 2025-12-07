@@ -84,9 +84,6 @@
                 </div>
 
                 <div class="cart-summary">
-                    <!-- 客戶資訊區域 -->
-                    <div class="customer-info">
-                        <div class="customer-info-row">
                     <!-- 客戶資訊區域 - 單行版 -->
                     <div class="customer-info-inline">
                         <div class="customer-field">
@@ -97,10 +94,47 @@
                             <label>統編:</label>
                             <input type="text" id="customerTaxId" class="input-field" placeholder="選填">
                         </div>
-                        <div class="customer-field">
-                            <label>用餐:</label>
-                            <input type="datetime-local" id="diningDateTime" class="input-field" step="600">
-                        </div>
+                    </div>
+                    <div class="customer-datetime-row">
+                        <label>用餐:</label>
+                        <input type="date" id="diningDate" class="input-field">
+                        <select id="diningHour" class="input-field time-select">
+                            <option value="">時</option>
+                            <option value="00">00</option>
+                            <option value="01">01</option>
+                            <option value="02">02</option>
+                            <option value="03">03</option>
+                            <option value="04">04</option>
+                            <option value="05">05</option>
+                            <option value="06">06</option>
+                            <option value="07">07</option>
+                            <option value="08">08</option>
+                            <option value="09">09</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                            <option value="13">13</option>
+                            <option value="14">14</option>
+                            <option value="15">15</option>
+                            <option value="16">16</option>
+                            <option value="17">17</option>
+                            <option value="18">18</option>
+                            <option value="19">19</option>
+                            <option value="20">20</option>
+                            <option value="21">21</option>
+                            <option value="22">22</option>
+                            <option value="23">23</option>
+                        </select>
+                        <span>:</span>
+                        <select id="diningMinute" class="input-field time-select">
+                            <option value="">分</option>
+                            <option value="00">00</option>
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="30">30</option>
+                            <option value="40">40</option>
+                            <option value="50">50</option>
+                        </select>
                     </div>
 
                     <div class="summary-row">
