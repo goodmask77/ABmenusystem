@@ -1794,9 +1794,13 @@ body {
 }
 
 .history-table-full td {
-    text-align: center;
+    text-align: left; /* 預設置左 */
     padding: 0.5rem 0.4rem;
     vertical-align: middle;
+}
+
+.history-table-full th {
+    text-align: left; /* 標題也置左 */
 }
 
 .history-table-full td.date-cell,
@@ -1819,7 +1823,7 @@ body {
 .history-table-full td.total-cell,
 .history-table-full td.deposit-cell,
 .history-table-full td.perperson-cell {
-    text-align: right;
+    text-align: right; /* 數字欄位保持右對齊 */
 }
 
 .menu-name-cell:hover {

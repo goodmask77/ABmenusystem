@@ -3202,6 +3202,14 @@ function closeVenueContentModal() {
     if (modal) modal.style.display = 'none';
 }
 
+// 將函式暴露到全局，以便 HTML 中的 onclick 可以調用
+if (typeof window !== 'undefined') {
+    window.closeVenueContentModal = closeVenueContentModal;
+    window.showVenueContentManager = showVenueContentManager;
+    window.addVenueContentOption = addVenueContentOption;
+    window.deleteVenueContentOption = deleteVenueContentOption;
+}
+
 function renderVenueContentList() {
     const list = document.getElementById('venueContentList');
     if (!list) return;
@@ -6355,6 +6363,8 @@ function generateTestOrders() {
     const diningStyles = ['自助', '桌菜'];
     const paymentMethods = ['匯款', '刷卡', '當天結帳'];
     const lineNames = ['包場群組A', '春酒群組B', '尾牙群組C', '聚餐群組D', '會議群組E'];
+    // 包場內容選項（與 venue_content_options 表一致）
+    const venueContents = ['產品發表', '婚禮派對', '春酒尾牙', '公司聚餐'];
     
     const names = ['王小明', '李美麗', '張三', '陳四', '林五', '黃六', '吳七', '周八', '鄭九', '劉十'];
     const companies = ['科技公司', '行銷公司', '設計公司', '貿易公司', '建設公司', '餐飲集團', '零售連鎖', '醫療機構', '教育機構', '金融機構'];
@@ -6381,6 +6391,7 @@ function generateTestOrders() {
             plan_type: planTypes[i % 2],
             line_name: lineNames[i % 5],
             industry: industries[i % industries.length],
+            venue_content: venueContents[i % venueContents.length], // 加入包場內容
             venue_scope: venueScopes[i % venueScopes.length],
             dining_style: diningStyles[i % 2],
             payment_method: paymentMethods[i % 3],
@@ -6535,6 +6546,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             await createTestOrders();
+        });
+    }
+    
+    // 綁定包場內容管理按鈕
+    const manageVenueContentBtn = document.getElementById('manageVenueContent');
+    if (manageVenueContentBtn) {
+        manageVenueContentBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showVenueContentManager();
         });
     }
     
