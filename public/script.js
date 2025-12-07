@@ -3290,49 +3290,54 @@ async function confirmSaveMenu() {
     
     // 儲存訂單到 Supabase 並更新快取
     const savedOrder = await saveOrderToSupabase(supabaseOrder);
-    if (savedOrder) {
-        console.log('訂單已成功儲存到 Supabase，ID:', savedOrder.id);
-        
-        // 立即將新訂單加入快取，避免需要重新載入
-        const newOrder = {
-            id: savedOrder.id,
-            name: savedOrder.company_name || menuName,
-            customerName: savedOrder.company_name,
-            customerTaxId: savedOrder.tax_id,
-            diningDateTime: savedOrder.dining_datetime,
-            savedAt: savedOrder.created_at,
-            peopleCount: savedOrder.people_count || peopleCount,
-            tableCount: savedOrder.table_count || tableCount,
-            cart: savedOrder.cart_items || cart,
-            orderInfo: {
-                companyName: savedOrder.company_name,
-                taxId: savedOrder.tax_id,
-                contactName: savedOrder.contact_name,
-                contactPhone: savedOrder.contact_phone,
-                industry: savedOrder.industry,
-                venueScope: savedOrder.venue_scope,
-                diningStyle: savedOrder.dining_style,
-                paymentMethod: savedOrder.payment_method,
-                depositPaid: savedOrder.deposit_paid
-            },
-            meta: {
-                itemCount: cartItemCount,
-                estimatedTotal: estimatedTotal,
-                estimatedPerPerson: estimatedPerPerson,
-                preview: cartPreview || '無品項',
-                createdBy: savedOrder.created_by || createdBy
-            },
-            fromSupabase: true
-        };
-        
-        // 加入快取（放在最前面，因為是最新的）
-        supabaseOrders.unshift(newOrder);
-        
-        // 限制快取數量
-        if (supabaseOrders.length > 100) {
-            supabaseOrders = supabaseOrders.slice(0, 100);
-        }
+    if (!savedOrder) {
+        alert('儲存失敗，請檢查 Supabase 連線');
+        return;
     }
+    
+    console.log('訂單已成功儲存到 Supabase，ID:', savedOrder.id);
+    
+    // 立即將新訂單加入快取，避免需要重新載入
+    const newOrder = {
+        id: savedOrder.id,
+        name: savedOrder.company_name || menuName,
+        customerName: savedOrder.company_name,
+        customerTaxId: savedOrder.tax_id,
+        diningDateTime: savedOrder.dining_datetime,
+        savedAt: savedOrder.created_at,
+        peopleCount: savedOrder.people_count || peopleCount,
+        tableCount: savedOrder.table_count || tableCount,
+        cart: Array.isArray(savedOrder.cart_items) ? savedOrder.cart_items : cart,
+        orderInfo: {
+            companyName: savedOrder.company_name,
+            taxId: savedOrder.tax_id,
+            contactName: savedOrder.contact_name,
+            contactPhone: savedOrder.contact_phone,
+            industry: savedOrder.industry,
+            venueScope: savedOrder.venue_scope,
+            diningStyle: savedOrder.dining_style,
+            paymentMethod: savedOrder.payment_method,
+            depositPaid: savedOrder.deposit_paid || 0
+        },
+        meta: {
+            itemCount: cartItemCount,
+            estimatedTotal: estimatedTotal,
+            estimatedPerPerson: estimatedPerPerson,
+            preview: cartPreview || '無品項',
+            createdBy: savedOrder.created_by || createdBy
+        },
+        fromSupabase: true
+    };
+    
+    // 加入快取（放在最前面，因為是最新的）
+    supabaseOrders.unshift(newOrder);
+    
+    // 限制快取數量
+    if (supabaseOrders.length > 100) {
+        supabaseOrders = supabaseOrders.slice(0, 100);
+    }
+    
+    console.log('快取已更新，目前訂單數量:', supabaseOrders.length);
     
     // 關閉模態框
     document.getElementById('saveMenuModal').style.display = 'none';
@@ -3435,27 +3440,42 @@ async function showHistoryModal() {
     
     // 從 Supabase 載入訂單（強制重新載入）
     try {
+        // 清空快取，強制重新載入
+        supabaseOrders = [];
+        
         const loadedOrders = await loadOrdersFromSupabase();
+        const mergedOrders = getMergedOrders();
+        
         console.log('載入完成，訂單數量:', loadedOrders.length);
         console.log('supabaseOrders 快取數量:', supabaseOrders.length);
+        console.log('合併後訂單數量:', mergedOrders.length);
         
-        if (loadedOrders.length === 0 && supabaseOrders.length === 0) {
+        if (mergedOrders.length === 0) {
             console.warn('沒有載入到任何訂單');
             if (historyList) {
-                historyList.innerHTML = '<div class="empty-history">目前沒有任何歷史記錄</div>';
+                historyList.innerHTML = '<div class="empty-history">目前沒有任何歷史記錄<br><small>請先儲存一張菜單</small></div>';
             }
             return;
         }
     } catch (error) {
         console.error('載入訂單失敗:', error);
         if (historyList) {
-            historyList.innerHTML = '<div class="error-message">載入訂單失敗：' + (error.message || '未知錯誤') + '</div>';
+            historyList.innerHTML = '<div class="error-message">載入訂單失敗：' + (error.message || '未知錯誤') + '<br><small>請檢查 Supabase 連線</small></div>';
         }
         return;
     }
     
     // 渲染歷史列表
-    console.log('開始渲染歷史列表，訂單數量:', getMergedOrders().length);
+    const mergedOrders = getMergedOrders();
+    console.log('開始渲染歷史列表，訂單數量:', mergedOrders.length);
+    
+    if (mergedOrders.length === 0) {
+        if (historyList) {
+            historyList.innerHTML = '<div class="empty-history">目前沒有任何歷史記錄<br><small>請先儲存一張菜單</small></div>';
+        }
+        return;
+    }
+    
     renderHistoryList();
     
     // 確保Modal事件正確綁定
