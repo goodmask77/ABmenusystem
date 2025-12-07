@@ -574,8 +574,9 @@ body {
 
 .cart-items {
     padding: 0.8rem;
-    max-height: none;
-    overflow-y: visible;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 .empty-cart {
@@ -792,6 +793,7 @@ body {
     border-top: 1px solid #dee2e6;
     padding: 0.8rem;
     background: #f8f9fa;
+    flex-shrink: 0;
 }
 
 .summary-row {
