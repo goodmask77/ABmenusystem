@@ -1063,15 +1063,17 @@ const elements = {
     newAccountRole: document.getElementById('newAccountRole'),
     addAccountButton: document.getElementById('addAccountButton'),
     // 客戶資訊欄位
-    customerName: document.getElementById('customerName'),
+    customerName: document.getElementById('customerName'), // 保留兼容
     customerTaxId: document.getElementById('customerTaxId'),
     diningDate: document.getElementById('diningDate'),
     diningHour: document.getElementById('diningHour'),
     diningMinute: document.getElementById('diningMinute'),
     // 訂單資訊欄位
     companyName: document.getElementById('companyName'),
-    contactName: document.getElementById('customerName'), // 聯絡人欄位
-    contactPhone: document.getElementById('customerPhone'),
+    contactName: document.getElementById('contactName'),
+    contactPhone: document.getElementById('contactPhone'),
+    planType: document.getElementById('planType'),
+    lineName: document.getElementById('lineName'),
     industrySelect: document.getElementById('industrySelect'),
     manageIndustry: document.getElementById('manageIndustry'),
     venueScope: document.getElementById('venueScope'),
@@ -1100,6 +1102,8 @@ function getOrderInfo() {
         taxId: elements.customerTaxId?.value?.trim() || '',
         contactName: elements.contactName?.value?.trim() || '',
         contactPhone: elements.contactPhone?.value?.trim() || '',
+        planType: elements.planType?.value || '',
+        lineName: elements.lineName?.value?.trim() || '',
         industry: elements.industrySelect?.value || '',
         venueScope: elements.venueScope?.value || '',
         diningStyle: elements.diningStyle?.value || '',
@@ -1118,11 +1122,13 @@ function setOrderInfo(info) {
     if (info.taxId && elements.customerTaxId) elements.customerTaxId.value = info.taxId;
     if (info.contactName && elements.contactName) elements.contactName.value = info.contactName;
     if (info.contactPhone && elements.contactPhone) elements.contactPhone.value = info.contactPhone;
+    if (info.planType && elements.planType) elements.planType.value = info.planType;
+    if (info.lineName && elements.lineName) elements.lineName.value = info.lineName;
     if (info.industry && elements.industrySelect) elements.industrySelect.value = info.industry;
     if (info.venueScope && elements.venueScope) elements.venueScope.value = info.venueScope;
     if (info.diningStyle && elements.diningStyle) elements.diningStyle.value = info.diningStyle;
     if (info.paymentMethod && elements.paymentMethod) elements.paymentMethod.value = info.paymentMethod;
-    if (info.depositPaid && elements.depositPaid) elements.depositPaid.value = info.depositPaid;
+    if (info.depositPaid !== undefined && elements.depositPaid) elements.depositPaid.value = info.depositPaid;
     if (info.diningDateTime) setDiningDateTime(info.diningDateTime);
     if (info.tableCount) {
         tableCount = info.tableCount;
@@ -3025,6 +3031,8 @@ async function loadOrdersFromSupabase() {
                     taxId: order.tax_id,
                     contactName: order.contact_name,
                     contactPhone: order.contact_phone,
+                    planType: order.plan_type,
+                    lineName: order.line_name,
                     industry: order.industry,
                     venueScope: order.venue_scope,
                     diningStyle: order.dining_style,
@@ -3176,6 +3184,8 @@ async function syncLocalOrdersToSupabase() {
                 tax_id: orderInfo.taxId || menu.customerTaxId || '',
                 contact_name: orderInfo.contactName || '',
                 contact_phone: orderInfo.contactPhone || '',
+                plan_type: orderInfo.planType || '',
+                line_name: orderInfo.lineName || '',
                 industry: orderInfo.industry || '',
                 venue_scope: orderInfo.venueScope || '',
                 dining_style: orderInfo.diningStyle || '',
@@ -3231,7 +3241,14 @@ function saveMenuToStorage() {
     const contactName = elements.contactName?.value?.trim() || '';
     const displayName = contactName ? `${companyName} (${contactName})` : companyName;
     const diningDateTime = getDiningDateTime();
-    document.getElementById('saveMenuCustomerName').textContent = displayName;
+    const planType = elements.planType?.value || '';
+    const lineName = elements.lineName?.value?.trim() || '';
+    
+    let customerDisplay = displayName;
+    if (planType) customerDisplay += ` - ${planType}`;
+    if (lineName) customerDisplay += ` (LINE: ${lineName})`;
+    
+    document.getElementById('saveMenuCustomerName').textContent = customerDisplay;
     document.getElementById('saveMenuDiningDateTime').textContent = diningDateTime ? formatDate(new Date(diningDateTime)) : '未設定';
     
     // 顯示儲存模態框
@@ -3312,6 +3329,8 @@ async function confirmSaveMenu() {
         tax_id: orderInfo.taxId || null,
         contact_name: orderInfo.contactName || null,
         contact_phone: orderInfo.contactPhone || null,
+        plan_type: orderInfo.planType || null,
+        line_name: orderInfo.lineName || null,
         industry: orderInfo.industry || null,
         venue_scope: orderInfo.venueScope || null,
         dining_style: orderInfo.diningStyle || null,
@@ -3356,6 +3375,8 @@ async function confirmSaveMenu() {
             taxId: savedOrder.tax_id,
             contactName: savedOrder.contact_name,
             contactPhone: savedOrder.contact_phone,
+            planType: savedOrder.plan_type,
+            lineName: savedOrder.line_name,
             industry: savedOrder.industry,
             venueScope: savedOrder.venue_scope,
             diningStyle: savedOrder.dining_style,
@@ -3572,7 +3593,12 @@ function renderHistoryList() {
                 orderInfo.contactName?.toLowerCase().includes(searchTerm) ||
                 orderInfo.contactPhone?.includes(searchTerm) ||
                 orderInfo.taxId?.includes(searchTerm) ||
-                orderInfo.industry?.toLowerCase().includes(searchTerm)) {
+                orderInfo.industry?.toLowerCase().includes(searchTerm) ||
+                orderInfo.planType?.toLowerCase().includes(searchTerm) ||
+                orderInfo.lineName?.toLowerCase().includes(searchTerm) ||
+                orderInfo.venueScope?.toLowerCase().includes(searchTerm) ||
+                orderInfo.diningStyle?.toLowerCase().includes(searchTerm) ||
+                orderInfo.paymentMethod?.toLowerCase().includes(searchTerm)) {
                 return true;
             }
         }

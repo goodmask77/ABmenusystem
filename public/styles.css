@@ -446,6 +446,60 @@ body {
     align-items: center;
 }
 
+/* 訂單資訊區域 */
+.order-info-section {
+    padding: 0.8rem 0;
+    margin-bottom: 0.8rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.order-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+}
+
+.order-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.order-field label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.order-field label .required {
+    color: #dc3545;
+}
+
+.order-field .input-field {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.order-field.datetime-field {
+    grid-column: span 2;
+}
+
+.order-field.datetime-field .input-field {
+    flex: 1;
+}
+
+@media (max-width: 768px) {
+    .order-info-grid {
+        grid-template-columns: 1fr;
+    }
+    .order-field.datetime-field {
+        grid-column: span 1;
+    }
+}
+
 .customer-field {
     display: flex;
     align-items: center;
@@ -786,93 +840,8 @@ body {
 /* 購物車摘要 */
 .cart-summary {
     border-top: 1px solid #dee2e6;
-    padding: 0.6rem;
+    padding: 0.8rem;
     background: #f8f9fa;
-}
-
-/* 訂單資訊區域 - 緊湊版 */
-.order-info-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    margin-bottom: 0.5rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #dee2e6;
-}
-
-.info-row {
-    display: flex;
-    gap: 0.4rem;
-    align-items: center;
-}
-
-.info-field {
-    display: flex;
-    align-items: center;
-    gap: 0.2rem;
-    flex: 1;
-}
-
-.info-field.flex-2 {
-    flex: 2;
-}
-
-.info-field.time-field {
-    flex: 0.8;
-}
-
-.info-field label {
-    font-size: 0.75rem;
-    color: #6c757d;
-    white-space: nowrap;
-    min-width: fit-content;
-}
-
-.input-sm {
-    flex: 1;
-    padding: 0.25rem 0.4rem;
-    font-size: 0.8rem;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    min-width: 0;
-}
-
-.input-sm:focus {
-    outline: none;
-    border-color: #495057;
-}
-
-.input-sm.time-select {
-    padding: 0.25rem 0.2rem;
-    min-width: 45px;
-}
-
-.info-field.time-field span {
-    font-size: 0.8rem;
-    color: #6c757d;
-}
-
-/* 產業欄位含管理按鈕 */
-.info-field.industry-field {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-}
-
-.btn-icon-sm {
-    padding: 0.2rem 0.4rem;
-    font-size: 0.75rem;
-    background: #f8f9fa;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    cursor: pointer;
-    color: #6c757d;
-    transition: all 0.2s;
-}
-
-.btn-icon-sm:hover {
-    background: #e9ecef;
-    color: #495057;
 }
 
 /* 小計、服務費、總計同一行 */
@@ -2049,56 +2018,13 @@ body {
 
 /* 操作欄位固定寬度＋合理間距 */
 .history-modal .actions-cell {
-  width: 60px;
+  width: 112px;
   white-space: nowrap;
 }
 
 .history-modal .actions-cell .btn-small {
   padding: 6px 10px;
   margin-left: var(--space-xxs);
-}
-
-/* 載入中樣式 */
-.loading-history {
-  text-align: center;
-  padding: 2rem;
-  color: #6c757d;
-  font-size: 1.1rem;
-}
-
-.loading-history i {
-  margin-right: 0.5rem;
-}
-
-/* 同步到雲端按鈕 */
-.btn-sync-cloud {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.6rem 1rem;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.btn-sync-cloud:hover {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-}
-
-.btn-sync-cloud:active {
-  transform: translateY(0);
-}
-
-.btn-sync-cloud i {
-  font-size: 1rem;
 }
 
 /* 手機／窄螢幕調整：略縮內距，但保留邊匡感 */

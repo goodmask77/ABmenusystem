@@ -91,56 +91,126 @@
                 </div>
 
                 <div class="cart-summary">
-                    <!-- 客戶資訊區域 - 單行版 -->
-                    <div class="customer-info-inline">
-                        <div class="customer-field">
-                            <label>客戶:</label>
-                            <input type="text" id="customerName" class="input-field" placeholder="名稱">
-                        </div>
-                        <div class="customer-field">
-                            <label>統編:</label>
-                            <input type="text" id="customerTaxId" class="input-field" placeholder="選填">
-                        </div>
-                        <div class="customer-field datetime-field">
-                            <label>用餐:</label>
-                            <input type="date" id="diningDate" class="input-field date-input">
-                            <select id="diningHour" class="input-field time-select">
-                                <option value="">時</option>
-                                <option value="00">00</option>
-                                <option value="01">01</option>
-                                <option value="02">02</option>
-                                <option value="03">03</option>
-                                <option value="04">04</option>
-                                <option value="05">05</option>
-                                <option value="06">06</option>
-                                <option value="07">07</option>
-                                <option value="08">08</option>
-                                <option value="09">09</option>
-                                <option value="10">10</option>
-                                <option value="11">11</option>
-                                <option value="12">12</option>
-                                <option value="13">13</option>
-                                <option value="14">14</option>
-                                <option value="15">15</option>
-                                <option value="16">16</option>
-                                <option value="17">17</option>
-                                <option value="18">18</option>
-                                <option value="19">19</option>
-                                <option value="20">20</option>
-                                <option value="21">21</option>
-                                <option value="22">22</option>
-                                <option value="23">23</option>
-                            </select>
-                            <span class="time-separator">:</span>
-                            <select id="diningMinute" class="input-field time-select">
-                                <option value="">分</option>
-                                <option value="00">00</option>
-                                <option value="10">10</option>
-                                <option value="20">20</option>
-                                <option value="30">30</option>
-                                <option value="40">40</option>
-                                <option value="50">50</option>
-                            </select>
+                    <!-- 客戶資訊區域 - 整合版 -->
+                    <div class="order-info-section">
+                        <div class="order-info-grid">
+                            <!-- 第一行：基本資訊 -->
+                            <div class="order-field">
+                                <label>公司名稱 <span class="required">*</span>:</label>
+                                <input type="text" id="companyName" class="input-field" placeholder="必填">
+                            </div>
+                            <div class="order-field">
+                                <label>統一編號:</label>
+                                <input type="text" id="customerTaxId" class="input-field" placeholder="選填">
+                            </div>
+                            <div class="order-field">
+                                <label>姓名:</label>
+                                <input type="text" id="contactName" class="input-field" placeholder="選填">
+                            </div>
+                            <div class="order-field">
+                                <label>手機:</label>
+                                <input type="tel" id="contactPhone" class="input-field" placeholder="選填">
+                            </div>
+                            
+                            <!-- 第二行：方案和LINE -->
+                            <div class="order-field">
+                                <label>方案:</label>
+                                <select id="planType" class="input-field">
+                                    <option value="">請選擇</option>
+                                    <option value="大訂">大訂</option>
+                                    <option value="包場">包場</option>
+                                </select>
+                            </div>
+                            <div class="order-field">
+                                <label>LINE名稱:</label>
+                                <input type="text" id="lineName" class="input-field" placeholder="選填">
+                            </div>
+                            <div class="order-field">
+                                <label>產業別:</label>
+                                <div style="display: flex; gap: 0.3rem;">
+                                    <select id="industrySelect" class="input-field" style="flex: 1;">
+                                        <option value="">請選擇</option>
+                                    </select>
+                                    <button id="manageIndustry" class="btn btn-small" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" title="管理產業別">
+                                        <i class="fas fa-cog"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="order-field datetime-field">
+                                <label>用餐日期時間:</label>
+                                <div style="display: flex; gap: 0.3rem; align-items: center;">
+                                    <input type="date" id="diningDate" class="input-field date-input" style="flex: 1;">
+                                    <select id="diningHour" class="input-field time-select" style="width: 60px;">
+                                        <option value="">時</option>
+                                        <option value="00">00</option>
+                                        <option value="01">01</option>
+                                        <option value="02">02</option>
+                                        <option value="03">03</option>
+                                        <option value="04">04</option>
+                                        <option value="05">05</option>
+                                        <option value="06">06</option>
+                                        <option value="07">07</option>
+                                        <option value="08">08</option>
+                                        <option value="09">09</option>
+                                        <option value="10">10</option>
+                                        <option value="11">11</option>
+                                        <option value="12">12</option>
+                                        <option value="13">13</option>
+                                        <option value="14">14</option>
+                                        <option value="15">15</option>
+                                        <option value="16">16</option>
+                                        <option value="17">17</option>
+                                        <option value="18">18</option>
+                                        <option value="19">19</option>
+                                        <option value="20">20</option>
+                                        <option value="21">21</option>
+                                        <option value="22">22</option>
+                                        <option value="23">23</option>
+                                    </select>
+                                    <span>:</span>
+                                    <select id="diningMinute" class="input-field time-select" style="width: 60px;">
+                                        <option value="">分</option>
+                                        <option value="00">00</option>
+                                        <option value="10">10</option>
+                                        <option value="20">20</option>
+                                        <option value="30">30</option>
+                                        <option value="40">40</option>
+                                        <option value="50">50</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- 第三行：其他選項 -->
+                            <div class="order-field">
+                                <label>包場範圍:</label>
+                                <select id="venueScope" class="input-field">
+                                    <option value="">請選擇</option>
+                                    <option value="全包">全包</option>
+                                    <option value="叢林區">叢林區</option>
+                                    <option value="蘆葦區">蘆葦區</option>
+                                </select>
+                            </div>
+                            <div class="order-field">
+                                <label>用餐方式:</label>
+                                <select id="diningStyle" class="input-field">
+                                    <option value="">請選擇</option>
+                                    <option value="自助">自助</option>
+                                    <option value="桌菜">桌菜</option>
+                                </select>
+                            </div>
+                            <div class="order-field">
+                                <label>付款:</label>
+                                <select id="paymentMethod" class="input-field">
+                                    <option value="">請選擇</option>
+                                    <option value="匯款">匯款</option>
+                                    <option value="刷卡">刷卡</option>
+                                    <option value="當天結帳">當天結帳</option>
+                                </select>
+                            </div>
+                            <div class="order-field">
+                                <label>已付訂金:</label>
+                                <input type="number" id="depositPaid" class="input-field" placeholder="0" min="0" step="0.01">
+                            </div>
                         </div>
                     </div>
 
