@@ -1251,6 +1251,53 @@ async function syncItemToMenuItems(item, categoryName, action = 'upsert') {
     }
 }
 
+// 同步所有菜單排序到 menu_items 表
+async function syncAllOrdersToMenuItems() {
+    const client = supabaseClient || await initSupabaseClient();
+    if (!client) {
+        console.warn('Supabase 未連線，無法同步排序');
+        return false;
+    }
+    
+    try {
+        let categoryOrder = 0;
+        const updates = [];
+        
+        for (const category of menuData.categories) {
+            categoryOrder++;
+            let itemOrder = 0;
+            
+            for (const item of category.items || []) {
+                itemOrder++;
+                updates.push({
+                    id: item.id,
+                    category: category.name,
+                    category_order: categoryOrder,
+                    item_order: itemOrder
+                });
+            }
+        }
+        
+        // 分批更新
+        const batchSize = 50;
+        for (let i = 0; i < updates.length; i += batchSize) {
+            const batch = updates.slice(i, i + batchSize);
+            const { error } = await client
+                .from('menu_items')
+                .upsert(batch, { onConflict: 'id', ignoreDuplicates: false });
+            if (error) {
+                console.error('同步排序失敗:', error);
+            }
+        }
+        
+        console.log('✅ 排序已同步到 menu_items');
+        return true;
+    } catch (error) {
+        console.error('同步排序時發生錯誤:', error);
+        return false;
+    }
+}
+
 async function loadStateFromSupabase() {
     if (!supabaseClient) return false;
     try {
@@ -2120,6 +2167,8 @@ function reorderCategories(oldIndex, newIndex) {
     const [movedCategory] = menuData.categories.splice(oldIndex, 1);
     menuData.categories.splice(newIndex, 0, movedCategory);
     saveToStorage();
+    // 同步排序到 menu_items
+    syncAllOrdersToMenuItems();
 }
 
 function reorderCartItems(oldIndex, newIndex) {
@@ -2134,6 +2183,8 @@ function reorderCategoryItems(categoryId, oldIndex, newIndex) {
         const [movedItem] = category.items.splice(oldIndex, 1);
         category.items.splice(newIndex, 0, movedItem);
         saveToStorage();
+        // 同步排序到 menu_items
+        syncAllOrdersToMenuItems();
     }
 }
 
