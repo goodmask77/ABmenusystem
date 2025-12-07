@@ -7,7 +7,8 @@
 
 html, body {
     height: 100%;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 body {
@@ -18,10 +19,9 @@ body {
 }
 
 .app {
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
 }
 
 /* 標題列樣式 */
@@ -135,7 +135,6 @@ body {
     margin: 0 auto;
     padding: 1.5rem;
     gap: 1.5rem;
-    overflow: hidden;
     min-height: 0;
 }
 
@@ -161,8 +160,7 @@ body {
     min-width: 380px;
     display: flex;
     flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
+    height: fit-content;
 }
 
 .section-header {
@@ -574,9 +572,6 @@ body {
 
 .cart-items {
     padding: 0.8rem;
-    flex: 1;
-    overflow-y: auto;
-    min-height: 0;
 }
 
 .empty-cart {
@@ -793,7 +788,35 @@ body {
     border-top: 1px solid #dee2e6;
     padding: 0.8rem;
     background: #f8f9fa;
-    flex-shrink: 0;
+}
+
+/* 小計、服務費、總計同一行 */
+.summary-inline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    border-top: 1px solid #dee2e6;
+    margin-bottom: 0.5rem;
+}
+
+.summary-item {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.85rem;
+    color: #495057;
+}
+
+.summary-item.total {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #212529;
+}
+
+.summary-item.total span:last-child {
+    color: #dc3545;
 }
 
 .summary-row {

@@ -137,17 +137,20 @@
                         </div>
                     </div>
 
-                    <div class="summary-row">
-                        <span>小計:</span>
-                        <span id="subtotal">$0</span>
-                    </div>
-                    <div class="summary-row">
-                        <span>服務費 (10%):</span>
-                        <span id="serviceFee">$0</span>
-                    </div>
-                    <div class="summary-row total">
-                        <span>總計:</span>
-                        <span id="total">$0</span>
+                    <!-- 小計、服務費、總計放同一行 -->
+                    <div class="summary-inline">
+                        <div class="summary-item">
+                            <span>小計:</span>
+                            <span id="subtotal">$0</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>服務費(10%):</span>
+                            <span id="serviceFee">$0</span>
+                        </div>
+                        <div class="summary-item total">
+                            <span>總計:</span>
+                            <span id="total">$0</span>
+                        </div>
                     </div>
 
                     <!-- 新的控制區域 -->
