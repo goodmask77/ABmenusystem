@@ -5,6 +5,11 @@
     box-sizing: border-box;
 }
 
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
 body {
     font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: #f8f9fa;
@@ -13,9 +18,10 @@ body {
 }
 
 .app {
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 /* 標題列樣式 */
@@ -129,6 +135,8 @@ body {
     margin: 0 auto;
     padding: 1.5rem;
     gap: 1.5rem;
+    overflow: hidden;
+    min-height: 0;
 }
 
 .menu-section {
@@ -141,7 +149,7 @@ body {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    max-height: calc(100vh - 120px);
+    min-height: 0;
 }
 
 .cart-section {
@@ -149,11 +157,12 @@ body {
     background: #ffffff;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    height: fit-content;
-    position: sticky;
-    top: 1rem;
     border: 1px solid #dee2e6;
     min-width: 380px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .section-header {
@@ -163,6 +172,7 @@ body {
     justify-content: space-between;
     align-items: center;
     background: #f8f9fa;
+    flex-shrink: 0;
 }
 
 .section-header h2 {
@@ -181,6 +191,7 @@ body {
 .category-filter {
     border-bottom: 1px solid #dee2e6;
     background: #f8f9fa;
+    flex-shrink: 0;
 }
 
 .category-tabs {
