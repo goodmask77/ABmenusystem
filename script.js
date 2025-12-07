@@ -3120,12 +3120,27 @@ async function loadVenueContentOptions() {
             return;
         }
         
+        // 明確指定要查詢的欄位
         const { data, error } = await client
             .from('venue_content_options')
-            .select('*')
+            .select('id, name, sort_order, created_at')
             .order('sort_order', { ascending: true });
         
-        if (error) throw error;
+        if (error) {
+            // 如果表不存在或欄位錯誤，使用預設選項
+            if (error.message.includes('Could not find') || error.message.includes('relation') || error.message.includes('column')) {
+                console.warn('venue_content_options 表結構問題，使用預設選項：', error.message);
+                venueContentOptions = [
+                    { id: 1, name: '產品發表', sort_order: 1 },
+                    { id: 2, name: '婚禮派對', sort_order: 2 },
+                    { id: 3, name: '春酒尾牙', sort_order: 3 },
+                    { id: 4, name: '公司聚餐', sort_order: 4 }
+                ];
+                renderVenueContentSelect();
+                return;
+            }
+            throw error;
+        }
         venueContentOptions = data || [];
         renderVenueContentSelect();
     } catch (error) {
