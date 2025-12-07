@@ -1067,8 +1067,72 @@ const elements = {
     customerTaxId: document.getElementById('customerTaxId'),
     diningDate: document.getElementById('diningDate'),
     diningHour: document.getElementById('diningHour'),
-    diningMinute: document.getElementById('diningMinute')
+    diningMinute: document.getElementById('diningMinute'),
+    // 訂單資訊欄位
+    companyName: document.getElementById('companyName'),
+    contactName: document.getElementById('customerName'), // 聯絡人欄位
+    contactPhone: document.getElementById('customerPhone'),
+    industrySelect: document.getElementById('industrySelect'),
+    manageIndustry: document.getElementById('manageIndustry'),
+    venueScope: document.getElementById('venueScope'),
+    diningStyle: document.getElementById('diningStyle'),
+    paymentMethod: document.getElementById('paymentMethod'),
+    depositPaid: document.getElementById('depositPaid')
 };
+
+// 取得 radio 選項值
+function getRadioValue(name) {
+    const radio = document.querySelector(`input[name="${name}"]:checked`);
+    return radio ? radio.value : '';
+}
+
+// 設定 radio 選項值
+function setRadioValue(name, value) {
+    if (!value) return;
+    const radio = document.querySelector(`input[name="${name}"][value="${value}"]`);
+    if (radio) radio.checked = true;
+}
+
+// 取得完整訂單資訊
+function getOrderInfo() {
+    return {
+        companyName: elements.companyName?.value?.trim() || '',
+        taxId: elements.customerTaxId?.value?.trim() || '',
+        contactName: elements.contactName?.value?.trim() || '',
+        contactPhone: elements.contactPhone?.value?.trim() || '',
+        industry: elements.industrySelect?.value || '',
+        venueScope: elements.venueScope?.value || '',
+        diningStyle: elements.diningStyle?.value || '',
+        paymentMethod: elements.paymentMethod?.value || '',
+        depositPaid: parseFloat(elements.depositPaid?.value) || 0,
+        diningDateTime: getDiningDateTime(),
+        tableCount: tableCount,
+        peopleCount: peopleCount
+    };
+}
+
+// 設定訂單資訊
+function setOrderInfo(info) {
+    if (!info) return;
+    if (info.companyName && elements.companyName) elements.companyName.value = info.companyName;
+    if (info.taxId && elements.customerTaxId) elements.customerTaxId.value = info.taxId;
+    if (info.contactName && elements.contactName) elements.contactName.value = info.contactName;
+    if (info.contactPhone && elements.contactPhone) elements.contactPhone.value = info.contactPhone;
+    if (info.industry && elements.industrySelect) elements.industrySelect.value = info.industry;
+    if (info.venueScope && elements.venueScope) elements.venueScope.value = info.venueScope;
+    if (info.diningStyle && elements.diningStyle) elements.diningStyle.value = info.diningStyle;
+    if (info.paymentMethod && elements.paymentMethod) elements.paymentMethod.value = info.paymentMethod;
+    if (info.depositPaid && elements.depositPaid) elements.depositPaid.value = info.depositPaid;
+    if (info.diningDateTime) setDiningDateTime(info.diningDateTime);
+    if (info.tableCount) {
+        tableCount = info.tableCount;
+        if (elements.tableCountInput) elements.tableCountInput.value = tableCount;
+    }
+    if (info.peopleCount) {
+        peopleCount = info.peopleCount;
+        if (elements.peopleCountInput) elements.peopleCountInput.value = peopleCount;
+    }
+}
 
 // 取得組合的用餐日期時間
 function getDiningDateTime() {
@@ -1112,6 +1176,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     bindEvents();
     await initAccounts();
     await initChangeLog();
+    await loadIndustryOptions(); // 載入產業選項
     restoreCurrentUser();
     updateAuthUI();
 });
@@ -1483,9 +1548,18 @@ function persistCartState() {
             cart,
             peopleCount,
             tableCount,
-            customerName: elements.customerName?.value || '',
+            customerName: elements.contactName?.value || '',
             customerTaxId: elements.customerTaxId?.value || '',
             diningDateTime: getDiningDateTime(),
+            // 新增訂單欄位
+            companyName: elements.companyName?.value || '',
+            contactName: elements.contactName?.value || '',
+            contactPhone: elements.contactPhone?.value || '',
+            industry: elements.industrySelect?.value || '',
+            venueScope: elements.venueScope?.value || '',
+            diningStyle: elements.diningStyle?.value || '',
+            paymentMethod: elements.paymentMethod?.value || '',
+            depositPaid: elements.depositPaid?.value || '',
             updatedAt: new Date().toISOString()
         };
         localStorage.setItem(CART_STATE_KEY, JSON.stringify(payload));
@@ -1521,6 +1595,31 @@ function restoreCartState() {
         }
         if (payload?.diningDateTime) {
             setDiningDateTime(payload.diningDateTime);
+        }
+        // 恢復訂單欄位
+        if (payload?.companyName && elements.companyName) {
+            elements.companyName.value = payload.companyName;
+        }
+        if (payload?.contactName && elements.contactName) {
+            elements.contactName.value = payload.contactName;
+        }
+        if (payload?.contactPhone && elements.contactPhone) {
+            elements.contactPhone.value = payload.contactPhone;
+        }
+        if (payload?.industry && elements.industrySelect) {
+            elements.industrySelect.value = payload.industry;
+        }
+        if (payload?.venueScope && elements.venueScope) {
+            elements.venueScope.value = payload.venueScope;
+        }
+        if (payload?.diningStyle && elements.diningStyle) {
+            elements.diningStyle.value = payload.diningStyle;
+        }
+        if (payload?.paymentMethod && elements.paymentMethod) {
+            elements.paymentMethod.value = payload.paymentMethod;
+        }
+        if (payload?.depositPaid && elements.depositPaid) {
+            elements.depositPaid.value = payload.depositPaid;
         }
         return true;
     } catch (error) {
@@ -1681,6 +1780,38 @@ function bindEvents() {
     }
     if (elements.diningMinute) {
         elements.diningMinute.addEventListener('change', persistCartState);
+    }
+    
+    // 新增訂單欄位自動保存
+    if (elements.companyName) {
+        elements.companyName.addEventListener('change', persistCartState);
+    }
+    if (elements.contactName) {
+        elements.contactName.addEventListener('change', persistCartState);
+    }
+    if (elements.contactPhone) {
+        elements.contactPhone.addEventListener('change', persistCartState);
+    }
+    if (elements.industrySelect) {
+        elements.industrySelect.addEventListener('change', persistCartState);
+    }
+    if (elements.depositPaid) {
+        elements.depositPaid.addEventListener('change', persistCartState);
+    }
+    // Select 選項變更時保存
+    if (elements.venueScope) {
+        elements.venueScope.addEventListener('change', persistCartState);
+    }
+    if (elements.diningStyle) {
+        elements.diningStyle.addEventListener('change', persistCartState);
+    }
+    if (elements.paymentMethod) {
+        elements.paymentMethod.addEventListener('change', persistCartState);
+    }
+    
+    // 產業管理按鈕
+    if (elements.manageIndustry) {
+        elements.manageIndustry.addEventListener('click', showIndustryManager);
     }
     
     // 清除購物車
@@ -2541,6 +2672,429 @@ function generateCartImageContent() {
     return html;
 }
 
+// ========== 產業選項管理 ==========
+let industryOptions = [];
+
+async function loadIndustryOptions() {
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) {
+            console.warn('無法載入產業選項：Supabase 未連線');
+            return;
+        }
+        
+        const { data, error } = await client
+            .from('industry_options')
+            .select('*')
+            .order('sort_order', { ascending: true });
+        
+        if (error) throw error;
+        industryOptions = data || [];
+        renderIndustrySelect();
+    } catch (error) {
+        console.error('載入產業選項失敗：', error);
+        // 使用預設選項
+        industryOptions = [
+            { id: 1, name: '科技業', sort_order: 1 },
+            { id: 2, name: '金融業', sort_order: 2 },
+            { id: 3, name: '製造業', sort_order: 3 },
+            { id: 4, name: '服務業', sort_order: 4 },
+            { id: 5, name: '其他', sort_order: 5 }
+        ];
+        renderIndustrySelect();
+    }
+}
+
+function renderIndustrySelect() {
+    const select = elements.industrySelect;
+    if (!select) return;
+    
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">請選擇</option>';
+    
+    industryOptions.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.name;
+        option.textContent = opt.name;
+        select.appendChild(option);
+    });
+    
+    if (currentValue) select.value = currentValue;
+}
+
+async function showIndustryManager() {
+    let modal = document.getElementById('industryModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'industryModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h3><i class="fas fa-industry"></i> 產業別管理</h3>
+                    <button class="close-modal" onclick="closeIndustryModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="industryList" style="margin-bottom: 1rem;"></div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="newIndustryName" placeholder="新增產業名稱" style="flex: 1; padding: 0.5rem; border: 1px solid #dee2e6; border-radius: 4px;">
+                        <button onclick="addIndustryOption()" class="btn btn-primary" style="padding: 0.5rem 1rem;">
+                            <i class="fas fa-plus"></i> 新增
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    modal.style.display = 'block';
+    renderIndustryList();
+}
+
+function closeIndustryModal() {
+    const modal = document.getElementById('industryModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function renderIndustryList() {
+    const list = document.getElementById('industryList');
+    if (!list) return;
+    
+    if (industryOptions.length === 0) {
+        list.innerHTML = '<div style="color: #999; text-align: center; padding: 1rem;">目前沒有產業選項</div>';
+        return;
+    }
+    
+    list.innerHTML = industryOptions.map(opt => `
+        <div style="display: flex; align-items: center; padding: 0.5rem; border-bottom: 1px solid #eee;">
+            <span style="flex: 1;">${opt.name}</span>
+            <button onclick="deleteIndustryOption(${opt.id}, '${opt.name}')" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+async function addIndustryOption() {
+    const input = document.getElementById('newIndustryName');
+    const name = input?.value?.trim();
+    if (!name) {
+        alert('請輸入產業名稱');
+        return;
+    }
+    
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) throw new Error('Supabase 未連線');
+        
+        const maxOrder = industryOptions.reduce((max, opt) => Math.max(max, opt.sort_order || 0), 0);
+        
+        const { data, error } = await client
+            .from('industry_options')
+            .insert({ name, sort_order: maxOrder + 1 })
+            .select()
+            .single();
+        
+        if (error) throw error;
+        
+        industryOptions.push(data);
+        renderIndustrySelect();
+        renderIndustryList();
+        input.value = '';
+        showSyncStatus('產業選項已新增', 'success');
+    } catch (error) {
+        console.error('新增產業選項失敗：', error);
+        alert('新增失敗：' + error.message);
+    }
+}
+
+async function deleteIndustryOption(id, name) {
+    if (!confirm(`確定要刪除「${name}」嗎？`)) return;
+    
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) throw new Error('Supabase 未連線');
+        
+        const { error } = await client
+            .from('industry_options')
+            .delete()
+            .eq('id', id);
+        
+        if (error) throw error;
+        
+        industryOptions = industryOptions.filter(opt => opt.id !== id);
+        renderIndustrySelect();
+        renderIndustryList();
+        showSyncStatus('產業選項已刪除', 'success');
+    } catch (error) {
+        console.error('刪除產業選項失敗：', error);
+        alert('刪除失敗：' + error.message);
+    }
+}
+
+// ========== 訂單儲存到 Supabase ==========
+async function saveOrderToSupabase(orderData) {
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) {
+            console.warn('無法儲存訂單：Supabase 未連線');
+            return null;
+        }
+        
+        const { data, error } = await client
+            .from('menu_orders')
+            .insert(orderData)
+            .select()
+            .single();
+        
+        if (error) throw error;
+        console.log('訂單已儲存到 Supabase:', data);
+        return data;
+    } catch (error) {
+        console.error('儲存訂單到 Supabase 失敗：', error);
+        return null;
+    }
+}
+
+// ========== 從 Supabase 載入訂單歷史 ==========
+let supabaseOrders = []; // 快取 Supabase 訂單
+
+async function loadOrdersFromSupabase() {
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) {
+            console.warn('無法載入訂單：Supabase 未連線');
+            return [];
+        }
+        
+        const { data, error } = await client
+            .from('menu_orders')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(100);
+        
+        if (error) throw error;
+        
+        // 轉換為歷史菜單格式
+        supabaseOrders = (data || []).map(order => ({
+            id: order.id,
+            name: order.company_name || '未命名',
+            customerName: order.company_name,
+            customerTaxId: order.tax_id,
+            diningDateTime: order.dining_datetime,
+            savedAt: order.created_at,
+            peopleCount: order.people_count || 1,
+            tableCount: order.table_count || 1,
+            cart: order.cart_items || [],
+            orderInfo: {
+                companyName: order.company_name,
+                taxId: order.tax_id,
+                contactName: order.contact_name,
+                contactPhone: order.contact_phone,
+                industry: order.industry,
+                venueScope: order.venue_scope,
+                diningStyle: order.dining_style,
+                paymentMethod: order.payment_method,
+                depositPaid: order.deposit_paid
+            },
+            meta: {
+                itemCount: order.cart_items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 0,
+                estimatedTotal: order.total,
+                estimatedPerPerson: order.per_person,
+                preview: order.cart_items?.slice(0, 3).map(i => i.name).join(', ') || '無品項',
+                createdBy: order.created_by
+            },
+            fromSupabase: true // 標記來源
+        }));
+        
+        console.log(`已從 Supabase 載入 ${supabaseOrders.length} 筆訂單`);
+        return supabaseOrders;
+    } catch (error) {
+        console.error('從 Supabase 載入訂單失敗：', error);
+        return [];
+    }
+}
+
+// 合併本地和 Supabase 訂單（去重）
+function getMergedOrders() {
+    const localMenus = getSavedMenus();
+    
+    // 用 savedAt + name 作為簡單去重依據
+    const seen = new Set();
+    const merged = [];
+    
+    // 先加入本地訂單
+    localMenus.forEach(menu => {
+        const key = `${menu.name}-${menu.savedAt}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            merged.push(menu);
+        }
+    });
+    
+    // 再加入 Supabase 訂單（避免重複）
+    supabaseOrders.forEach(order => {
+        const key = `${order.name}-${order.savedAt}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            merged.push(order);
+        }
+    });
+    
+    // 按時間排序（最新在前）
+    merged.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+    
+    return merged;
+}
+
+// 刪除 Supabase 訂單
+async function deleteOrderFromSupabase(orderId) {
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) return false;
+        
+        const { error } = await client
+            .from('menu_orders')
+            .delete()
+            .eq('id', orderId);
+        
+        if (error) throw error;
+        
+        // 從快取中移除
+        supabaseOrders = supabaseOrders.filter(o => o.id !== orderId);
+        console.log('訂單已從 Supabase 刪除:', orderId);
+        return true;
+    } catch (error) {
+        console.error('刪除 Supabase 訂單失敗：', error);
+        return false;
+    }
+}
+
+// 將本地訂單完全同步到 Supabase（清除雲端後重新上傳）
+async function syncLocalOrdersToSupabase() {
+    const localMenus = getSavedMenus();
+    
+    // 過濾出有效的訂單（排除自動同步記錄）
+    const validMenus = localMenus.filter(menu => 
+        !menu.autoGenerated && 
+        menu.name && 
+        !menu.name.startsWith('最新同步')
+    );
+    
+    const client = supabaseClient || await initSupabaseClient();
+    if (!client) {
+        showSyncStatus('無法連線到雲端', 'error');
+        return 0;
+    }
+    
+    if (!confirm(`確定要同步嗎？\n\n這將會：\n1. 清除雲端所有訂單\n2. 上傳本地 ${validMenus.length} 筆訂單\n\n此操作無法復原。`)) {
+        return 0;
+    }
+    
+    showSyncStatus('正在清除雲端資料...', 'pending');
+    
+    // 1. 先查詢所有現有訂單的 ID
+    try {
+        const { data: existingOrders, error: selectError } = await client
+            .from('menu_orders')
+            .select('id');
+        
+        if (selectError) {
+            console.error('查詢雲端資料失敗:', selectError);
+            showSyncStatus('查詢雲端資料失敗', 'error');
+            return 0;
+        }
+        
+        console.log(`雲端有 ${existingOrders?.length || 0} 筆訂單需要刪除`);
+        
+        // 2. 逐個刪除（確保 RLS 不會阻擋）
+        if (existingOrders && existingOrders.length > 0) {
+            for (const order of existingOrders) {
+                const { error: deleteError } = await client
+                    .from('menu_orders')
+                    .delete()
+                    .eq('id', order.id);
+                
+                if (deleteError) {
+                    console.warn('刪除訂單失敗:', order.id, deleteError);
+                }
+            }
+            console.log('雲端訂單已清除');
+        }
+    } catch (err) {
+        console.error('清除雲端資料錯誤:', err);
+        showSyncStatus('清除雲端資料失敗', 'error');
+        return 0;
+    }
+    
+    // 清空本地快取
+    supabaseOrders = [];
+    
+    if (validMenus.length === 0) {
+        showSyncStatus('雲端已清除，本地無訂單需同步', 'success');
+        renderHistoryList();
+        return 0;
+    }
+    
+    // 2. 批次上傳本地訂單
+    let successCount = 0;
+    showSyncStatus(`正在上傳 ${validMenus.length} 筆訂單...`, 'pending');
+    
+    for (const menu of validMenus) {
+        try {
+            const orderInfo = menu.orderInfo || {};
+            const cartItems = menu.cart || [];
+            const subtotal = cartItems.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
+            const serviceFee = Math.round(subtotal * 0.1);
+            const total = subtotal + serviceFee;
+            const perPerson = Math.round(total / (menu.peopleCount || 1));
+            
+            const orderData = {
+                company_name: orderInfo.companyName || menu.customerName || menu.name || '',
+                tax_id: orderInfo.taxId || menu.customerTaxId || '',
+                contact_name: orderInfo.contactName || '',
+                contact_phone: orderInfo.contactPhone || '',
+                industry: orderInfo.industry || '',
+                venue_scope: orderInfo.venueScope || '',
+                dining_style: orderInfo.diningStyle || '',
+                payment_method: orderInfo.paymentMethod || '',
+                deposit_paid: orderInfo.depositPaid || 0,
+                dining_datetime: menu.diningDateTime || null,
+                table_count: menu.tableCount || 1,
+                people_count: menu.peopleCount || 1,
+                subtotal: subtotal,
+                service_fee: serviceFee,
+                total: total,
+                per_person: perPerson,
+                cart_items: cartItems,
+                created_by: menu.meta?.createdBy || '系統同步',
+                created_at: menu.savedAt || new Date().toISOString()
+            };
+            
+            const { error } = await client
+                .from('menu_orders')
+                .insert(orderData);
+            
+            if (!error) {
+                successCount++;
+            } else {
+                console.warn('同步訂單失敗:', menu.name, error);
+            }
+        } catch (err) {
+            console.error('同步訂單錯誤:', err);
+        }
+    }
+    
+    showSyncStatus(`已同步 ${successCount}/${validMenus.length} 筆訂單到雲端`, 'success');
+    
+    // 重新載入 Supabase 訂單
+    await loadOrdersFromSupabase();
+    renderHistoryList();
+    
+    return successCount;
+}
+
 // 儲存與載入
 function saveMenuToStorage() {
     // 更新儲存模態框的資訊
@@ -2552,9 +3106,11 @@ function saveMenuToStorage() {
     document.getElementById('saveMenuPeople').textContent = peopleCount;
     
     // 顯示客戶資訊
-    const customerName = elements.customerName?.value?.trim() || '未填寫';
+    const companyName = elements.companyName?.value?.trim() || '未填寫';
+    const contactName = elements.contactName?.value?.trim() || '';
+    const displayName = contactName ? `${companyName} (${contactName})` : companyName;
     const diningDateTime = getDiningDateTime();
-    document.getElementById('saveMenuCustomerName').textContent = customerName;
+    document.getElementById('saveMenuCustomerName').textContent = displayName;
     document.getElementById('saveMenuDiningDateTime').textContent = diningDateTime ? formatDate(new Date(diningDateTime)) : '未設定';
     
     // 顯示儲存模態框
@@ -2562,19 +3118,21 @@ function saveMenuToStorage() {
 }
 
 function confirmSaveMenu() {
-    const customerName = elements.customerName?.value?.trim();
-    if (!customerName) {
-        alert('請輸入客戶名稱');
-        elements.customerName?.focus();
+    // 驗證公司名稱
+    const companyName = elements.companyName?.value?.trim();
+    if (!companyName) {
+        alert('請輸入公司名稱');
+        elements.companyName?.focus();
         document.getElementById('saveMenuModal').style.display = 'none';
         return;
     }
     
-    const customerTaxId = elements.customerTaxId?.value?.trim() || '';
+    // 取得所有訂單資訊
+    const orderInfo = getOrderInfo();
     const diningDateTime = getDiningDateTime();
     
-    // 使用客戶名稱作為菜單名稱
-    const menuName = customerName;
+    // 使用公司名稱作為菜單名稱
+    const menuName = companyName;
     
     const menuSnapshot = deepClone(menuData);
     const createdBy = currentUser?.username || '未知';
@@ -2593,9 +3151,10 @@ function confirmSaveMenu() {
         ...menuSnapshot,
         peopleCount: peopleCount,
         tableCount: tableCount,
-        customerName: customerName,
-        customerTaxId: customerTaxId,
+        customerName: companyName, // 兼容舊欄位
+        customerTaxId: orderInfo.taxId,
         diningDateTime: diningDateTime,
+        orderInfo: orderInfo, // 完整訂單資訊
         savedAt: new Date().toISOString(),
         name: menuName,
         cart: deepClone(cart), // 保存購物車內容
@@ -2619,11 +3178,39 @@ function confirmSaveMenu() {
     localStorage.setItem('savedMenus', JSON.stringify(savedMenus));
     localStorage.setItem('currentMenu', JSON.stringify(menuVersion));
     
+    // 儲存訂單到 Supabase
+    const supabaseOrder = {
+        company_name: orderInfo.companyName,
+        tax_id: orderInfo.taxId,
+        contact_name: orderInfo.contactName,
+        contact_phone: orderInfo.contactPhone,
+        industry: orderInfo.industry,
+        venue_scope: orderInfo.venueScope,
+        dining_style: orderInfo.diningStyle,
+        payment_method: orderInfo.paymentMethod,
+        deposit_paid: orderInfo.depositPaid,
+        dining_datetime: diningDateTime || null,
+        table_count: tableCount,
+        people_count: peopleCount,
+        subtotal: subtotal,
+        service_fee: serviceFee,
+        total: estimatedTotal,
+        per_person: estimatedPerPerson,
+        cart_items: cart,
+        created_by: createdBy
+    };
+    
+    saveOrderToSupabase(supabaseOrder).then(savedOrder => {
+        if (savedOrder) {
+            console.log('訂單已成功儲存到 Supabase，ID:', savedOrder.id);
+        }
+    });
+    
     // 關閉模態框
     document.getElementById('saveMenuModal').style.display = 'none';
     
-    alert(`菜單「${menuName}」已成功儲存！`);
-    saveToStorage({ reason: 'manual-save', summary: `儲存菜單「${menuName}」`, menuName });
+    alert(`訂單「${menuName}」已成功儲存！`);
+    saveToStorage({ reason: 'manual-save', summary: `儲存訂單「${menuName}」`, menuName });
 }
 
 function saveToStorage(options = {}) {
@@ -2700,8 +3287,30 @@ function createAutoHistoryEntry(statePayload) {
     };
 }
 
-function showHistoryModal() {
+async function showHistoryModal() {
     document.getElementById('historyModal').style.display = 'block';
+    
+    // 顯示載入中
+    const historyList = document.getElementById('historyList');
+    if (historyList) {
+        historyList.innerHTML = '<div class="loading-history"><i class="fas fa-spinner fa-spin"></i> 載入中...</div>';
+    }
+    
+    // 填充產業篩選器選項
+    const industryFilter = document.getElementById('historyIndustryFilter');
+    if (industryFilter) {
+        industryFilter.innerHTML = '<option value="">全部產業</option>';
+        industryOptions.forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt.name;
+            option.textContent = opt.name;
+            industryFilter.appendChild(option);
+        });
+    }
+    
+    // 從 Supabase 載入訂單
+    await loadOrdersFromSupabase();
+    
     renderHistoryList();
     
     // 確保Modal事件正確綁定
@@ -2709,14 +3318,45 @@ function showHistoryModal() {
 }
 
 function renderHistoryList() {
-    const savedMenus = getSavedMenus();
+    // 使用合併的訂單（本地 + Supabase）
+    const allOrders = getMergedOrders();
     const historyList = document.getElementById('historyList');
-    const searchTerm = document.getElementById('historySearch').value.toLowerCase();
+    const searchTerm = document.getElementById('historySearch')?.value?.toLowerCase() || '';
+    const industryFilter = document.getElementById('historyIndustryFilter')?.value || '';
     const sortBy = historySort.field;
     
-    let filteredMenus = savedMenus.filter(menu => {
-        // 搜尋菜單名稱
+    let filteredMenus = allOrders.filter(menu => {
+        // 產業篩選
+        if (industryFilter) {
+            const menuIndustry = menu.orderInfo?.industry || '';
+            if (menuIndustry !== industryFilter) {
+                return false;
+            }
+        }
+        
+        // 如果沒有搜尋字詞，直接通過
+        if (!searchTerm) return true;
+        
+        // 搜尋菜單名稱/公司名稱
         if (menu.name && menu.name.toLowerCase().includes(searchTerm)) {
+            return true;
+        }
+        
+        // 搜尋訂單資訊欄位
+        if (menu.orderInfo) {
+            const orderInfo = menu.orderInfo;
+            if (orderInfo.companyName?.toLowerCase().includes(searchTerm) ||
+                orderInfo.contactName?.toLowerCase().includes(searchTerm) ||
+                orderInfo.contactPhone?.includes(searchTerm) ||
+                orderInfo.taxId?.includes(searchTerm) ||
+                orderInfo.industry?.toLowerCase().includes(searchTerm)) {
+                return true;
+            }
+        }
+        
+        // 兼容舊格式的客戶資訊
+        if (menu.customerName?.toLowerCase().includes(searchTerm) ||
+            menu.customerTaxId?.includes(searchTerm)) {
             return true;
         }
         
@@ -2793,44 +3433,45 @@ function renderHistoryList() {
         <table class="history-table">
             <thead>
                 <tr>
-                    <th class="sortable ${historySort.field === 'name' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('name')">菜單名稱</th>
+                    <th class="sortable ${historySort.field === 'name' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('name')">公司/客戶</th>
+                    <th>聯絡人</th>
+                    <th>產業</th>
                     <th class="sortable ${historySort.field === 'date' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('date')">用餐日期</th>
-                    <th class="sortable ${historySort.field === 'items' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('items')">餐點數</th>
                     <th class="sortable ${historySort.field === 'people' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('people')">人數</th>
-                    <th class="sortable ${historySort.field === 'tables' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('tables')">桌數</th>
                     <th class="sortable ${historySort.field === 'total' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('total')">總金額</th>
                     <th class="sortable ${historySort.field === 'price' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('price')">人均</th>
-                    <th>餐點內容</th>
                     <th>操作</th>
                 </tr>
             </thead>
             <tbody>
-                ${filteredMenus.map((menu, originalIndex) => {
+                ${filteredMenus.map((menu, idx) => {
                     const metrics = getHistoryMetrics(menu);
                     const total = metrics.total;
                     const perPerson = metrics.perPerson;
-                    const originalMenuIndex = savedMenus.indexOf(menu);
                     
-                    const cartPreview = metrics.preview;
+                    // 取得訂單資訊
+                    const orderInfo = menu.orderInfo || {};
+                    const contactName = orderInfo.contactName || menu.customerName || '';
+                    const industry = orderInfo.industry || '';
                     
                     // 優先使用用餐日期時間，如果沒有則使用儲存時間
                     const displayDate = menu.diningDateTime ? formatDate(new Date(menu.diningDateTime)) : formatDate(new Date(menu.savedAt));
                     
+                    // 使用 data 屬性傳遞訂單資訊
+                    const menuId = menu.id || '';
+                    const menuIdx = idx;
+                    
                     return `
-                        <tr class="history-row" onclick="loadHistoryMenu(${originalMenuIndex})" style="cursor: pointer;">
-                            <td class="menu-name-cell" title="${menu.name || '未命名菜單'}">${menu.name || '未命名菜單'}</td>
+                        <tr class="history-row" data-menu-id="${menuId}" data-idx="${menuIdx}" onclick="loadHistoryMenuByData(this)" style="cursor: pointer;">
+                            <td class="menu-name-cell" title="${menu.name || '未命名'}">${menu.name || '未命名'}</td>
+                            <td class="contact-cell">${contactName}</td>
+                            <td class="industry-cell">${industry}</td>
                             <td class="date-cell">${displayDate}</td>
-                            <td class="count-cell">${metrics.itemCount}</td>
-                            <td class="people-cell">${menu.peopleCount || 1}</td>
-                            <td class="table-cell">${menu.tableCount || 1}</td>
-                            <td class="total-cell">${typeof total === 'number' ? '$' + total : '--'}</td>
-                            <td class="perperson-cell">${typeof perPerson === 'number' ? '$' + perPerson : '--'}</td>
-                            <td class="preview-cell" title="${cartPreview}">${cartPreview}</td>
+                            <td class="people-cell">${menu.peopleCount || 1}人/${menu.tableCount || 1}桌</td>
+                            <td class="total-cell">${typeof total === 'number' ? '$' + total.toLocaleString() : '--'}</td>
+                            <td class="perperson-cell">${typeof perPerson === 'number' ? '$' + perPerson.toLocaleString() : '--'}</td>
                             <td class="actions-cell" onclick="event.stopPropagation();">
-                                <button class="btn-small btn-edit" onclick="editHistoryMenu(${originalMenuIndex})" title="編輯">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn-small btn-delete" onclick="deleteHistoryMenu(${originalMenuIndex})" title="刪除">
+                                <button class="btn-small btn-delete" onclick="deleteHistoryMenuByData(this.closest('tr'))" title="刪除">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </td>
@@ -2840,6 +3481,9 @@ function renderHistoryList() {
             </tbody>
         </table>
     `;
+    
+    // 儲存當前過濾後的訂單列表供後續使用
+    window._currentFilteredMenus = filteredMenus;
 }
 
 // 歷史紀錄排序函數
@@ -2985,6 +3629,136 @@ function deleteHistoryMenu(index) {
         renderHistoryList();
         alert('菜單已刪除');
     }
+}
+
+// 根據 data 屬性載入歷史訂單
+function loadHistoryMenuByData(row) {
+    const idx = parseInt(row.dataset.idx);
+    const menus = window._currentFilteredMenus || getMergedOrders();
+    const menu = menus[idx];
+    
+    if (!menu) {
+        alert('找不到該訂單');
+        return;
+    }
+    
+    // 載入購物車
+    if (menu.cart && menu.cart.length > 0) {
+        cart = deepClone(menu.cart);
+    }
+    
+    // 載入人數和桌數
+    if (menu.peopleCount) {
+        peopleCount = menu.peopleCount;
+        if (elements.peopleCountInput) elements.peopleCountInput.value = peopleCount;
+    }
+    if (menu.tableCount) {
+        tableCount = menu.tableCount;
+        if (elements.tableCountInput) elements.tableCountInput.value = tableCount;
+    }
+    
+    // 載入訂單資訊
+    if (menu.orderInfo) {
+        setOrderInfo(menu.orderInfo);
+    } else {
+        // 兼容舊格式
+        if (menu.customerName && elements.companyName) elements.companyName.value = menu.customerName;
+        if (menu.customerTaxId && elements.customerTaxId) elements.customerTaxId.value = menu.customerTaxId;
+    }
+    
+    // 設定用餐日期時間
+    if (menu.diningDateTime) {
+        setDiningDateTime(menu.diningDateTime);
+    }
+    
+    // 更新介面
+    renderCart();
+    updateCartSummary();
+    persistCartState();
+    
+    // 關閉模態框
+    closeModal('historyModal');
+    
+    showSyncStatus(`已載入訂單「${menu.name || '未命名'}」`, 'success');
+}
+
+// 根據 data 屬性刪除歷史訂單（同時刪除本機和雲端）
+async function deleteHistoryMenuByData(row) {
+    const idx = parseInt(row.dataset.idx);
+    const menuId = row.dataset.menuId;
+    const menus = window._currentFilteredMenus || getMergedOrders();
+    const menu = menus[idx];
+    
+    if (!menu) {
+        alert('找不到該訂單');
+        return;
+    }
+    
+    if (!confirm(`確定要刪除訂單「${menu.name || '未命名'}」嗎？此操作無法復原。`)) {
+        return;
+    }
+    
+    let deletedFromCloud = false;
+    let deletedFromLocal = false;
+    
+    const menuName = menu.name || '';
+    const menuSavedAt = menu.savedAt || '';
+    
+    console.log('準備刪除訂單:', { menuName, menuSavedAt, menuId, fromSupabase: menu.fromSupabase, orderId: menu.id });
+    
+    // 1. 刪除 Supabase 訂單（優先使用 menu.id，其次使用 menuId）
+    const supabaseId = menu.id || menuId;
+    if (supabaseId) {
+        deletedFromCloud = await deleteOrderFromSupabase(supabaseId);
+        console.log('Supabase 刪除結果:', deletedFromCloud);
+    }
+    
+    // 2. 從 supabaseOrders 快取中移除（不論刪除是否成功）
+    if (supabaseId) {
+        const prevLength = supabaseOrders.length;
+        supabaseOrders = supabaseOrders.filter(o => o.id !== supabaseId);
+        console.log(`從快取移除: ${prevLength} -> ${supabaseOrders.length}`);
+    }
+    
+    // 3. 刪除本地訂單（多重匹配條件）
+    const savedMenus = getSavedMenus();
+    
+    // 嘗試多種匹配方式
+    let localIndex = savedMenus.findIndex(m => {
+        // 精確匹配 name + savedAt
+        if (m.name === menuName && m.savedAt === menuSavedAt) return true;
+        // 匹配名稱 + 用餐日期時間
+        if (m.name === menuName && m.diningDateTime && m.diningDateTime === menu.diningDateTime) return true;
+        // 只匹配名稱和相近時間（1分鐘內）
+        if (m.name === menuName && m.savedAt && menuSavedAt) {
+            const timeDiff = Math.abs(new Date(m.savedAt) - new Date(menuSavedAt));
+            if (timeDiff < 60000) return true; // 1分鐘內
+        }
+        return false;
+    });
+    
+    if (localIndex >= 0) {
+        const removed = savedMenus.splice(localIndex, 1);
+        localStorage.setItem('savedMenus', JSON.stringify(savedMenus));
+        deletedFromLocal = true;
+        console.log('已刪除本地訂單:', removed[0]?.name);
+    } else {
+        console.log('本地找不到匹配的訂單:', menuName, menuSavedAt);
+    }
+    
+    if (deletedFromCloud || deletedFromLocal) {
+        showSyncStatus('訂單已刪除', 'success');
+    } else {
+        showSyncStatus('刪除失敗', 'error');
+    }
+    
+    // 重新渲染（不重新載入 Supabase，避免刪除後又載回來）
+    // 只有在確認雲端刪除成功後才重新載入
+    if (!deletedFromCloud && menu.fromSupabase) {
+        // 如果是來自 Supabase 但刪除失敗，重新載入確認狀態
+        await loadOrdersFromSupabase();
+    }
+    renderHistoryList();
 }
 
 // 渲染功能

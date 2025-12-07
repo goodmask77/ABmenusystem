@@ -2994,17 +2994,33 @@ async function syncLocalOrdersToSupabase() {
     
     showSyncStatus('正在清除雲端資料...', 'pending');
     
-    // 1. 先清除 Supabase 所有訂單
+    // 1. 先查詢所有現有訂單的 ID
     try {
-        const { error: deleteError } = await client
+        const { data: existingOrders, error: selectError } = await client
             .from('menu_orders')
-            .delete()
-            .neq('id', '00000000-0000-0000-0000-000000000000'); // 刪除所有記錄
+            .select('id');
         
-        if (deleteError) {
-            console.error('清除雲端資料失敗:', deleteError);
-            showSyncStatus('清除雲端資料失敗', 'error');
+        if (selectError) {
+            console.error('查詢雲端資料失敗:', selectError);
+            showSyncStatus('查詢雲端資料失敗', 'error');
             return 0;
+        }
+        
+        console.log(`雲端有 ${existingOrders?.length || 0} 筆訂單需要刪除`);
+        
+        // 2. 逐個刪除（確保 RLS 不會阻擋）
+        if (existingOrders && existingOrders.length > 0) {
+            for (const order of existingOrders) {
+                const { error: deleteError } = await client
+                    .from('menu_orders')
+                    .delete()
+                    .eq('id', order.id);
+                
+                if (deleteError) {
+                    console.warn('刪除訂單失敗:', order.id, deleteError);
+                }
+            }
+            console.log('雲端訂單已清除');
         }
     } catch (err) {
         console.error('清除雲端資料錯誤:', err);
@@ -3012,9 +3028,11 @@ async function syncLocalOrdersToSupabase() {
         return 0;
     }
     
+    // 清空本地快取
+    supabaseOrders = [];
+    
     if (validMenus.length === 0) {
         showSyncStatus('雲端已清除，本地無訂單需同步', 'success');
-        supabaseOrders = [];
         renderHistoryList();
         return 0;
     }
