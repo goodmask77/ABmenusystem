@@ -50,12 +50,12 @@ const categoryDisplayNames = {
 async function updateMenuState() {
   console.log('Fetching menu items from menu_items table...');
   
-  // Fetch all menu items
+  // Fetch all menu items - 按照 category_order 和 item_order 排序
   const { data: menuItems, error: fetchError } = await supabase
     .from('menu_items')
     .select('*')
-    .order('category', { ascending: true })
-    .order('price', { ascending: true });
+    .order('category_order', { ascending: true })
+    .order('item_order', { ascending: true });
 
   if (fetchError) {
     console.error('Error fetching menu items:', fetchError);
@@ -64,8 +64,9 @@ async function updateMenuState() {
 
   console.log(`Found ${menuItems.length} menu items`);
 
-  // Group by category
+  // Group by category - 保持順序
   const categoriesMap = new Map();
+  const categoryOrderMap = new Map();
   
   menuItems.forEach(item => {
     const catId = categoryIdMap[item.category] || item.category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -76,6 +77,7 @@ async function updateMenuState() {
         name: categoryDisplayNames[catId] || item.category,
         items: []
       });
+      categoryOrderMap.set(catId, item.category_order || 999);
     }
     
     categoriesMap.get(catId).items.push({
@@ -88,8 +90,9 @@ async function updateMenuState() {
     });
   });
 
-  // Convert to array and sort
-  const categories = Array.from(categoriesMap.values());
+  // Convert to array and sort by category_order
+  const categories = Array.from(categoriesMap.values())
+    .sort((a, b) => (categoryOrderMap.get(a.id) || 999) - (categoryOrderMap.get(b.id) || 999));
   
   // Fetch existing menu_state to preserve other settings
   const { data: existingState, error: stateError } = await supabase
