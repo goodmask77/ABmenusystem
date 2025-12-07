@@ -39,7 +39,13 @@ git commit -m "$COMMIT_MSG"
 
 # 推送到 GitHub
 echo -e "${BLUE}📤 推送到 GitHub...${NC}"
-git push origin main
+if git push origin main; then
+    echo -e "${GREEN}✅ 成功推送到 GitHub${NC}"
+else
+    echo -e "${YELLOW}⚠️  Push 失敗，可能需要設定認證${NC}"
+    echo -e "${YELLOW}💡 提示: 使用 SSH key 或 GitHub Personal Access Token${NC}"
+    exit 1
+fi
 
 echo -e "\n${GREEN}✅ 部署完成！${NC}"
 echo -e "${GREEN}📦 變更已推送到 GitHub${NC}"
