@@ -10,6 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script>
         // Supabase 配置（直接嵌入，確保在 Vercel 上可用）
         window.SUPABASE_CONFIG = {
@@ -115,11 +116,15 @@
                             <!-- 第二行：方案和LINE -->
                             <div class="order-field">
                                 <label>方案:</label>
-                                <select id="planType" class="input-field">
-                                    <option value="">請選擇</option>
-                                    <option value="大訂">大訂</option>
-                                    <option value="包場">包場</option>
-                                </select>
+                                <div class="customizable-select-wrapper">
+                                    <select id="planType" class="input-field">
+                                        <option value="">請選擇</option>
+                                        <option value="大訂">大訂</option>
+                                        <option value="包場">包場</option>
+                                        <option value="__CUSTOM__">其他（自訂）</option>
+                                    </select>
+                                    <input type="text" id="planTypeCustom" class="input-field custom-input" placeholder="請輸入自訂內容" style="display: none; margin-top: 0.3rem;">
+                                </div>
                             </div>
                             <div class="order-field">
                                 <label>LINE名稱:</label>
@@ -128,9 +133,12 @@
                             <div class="order-field">
                                 <label>產業別:</label>
                                 <div style="display: flex; gap: 0.3rem;">
-                                    <select id="industrySelect" class="input-field" style="flex: 1;">
-                                        <option value="">請選擇</option>
-                                    </select>
+                                    <div class="customizable-select-wrapper" style="flex: 1;">
+                                        <select id="industrySelect" class="input-field">
+                                            <option value="">請選擇</option>
+                                        </select>
+                                        <input type="text" id="industrySelectCustom" class="input-field custom-input" placeholder="請輸入自訂內容" style="display: none; margin-top: 0.3rem;">
+                                    </div>
                                     <button id="manageIndustry" class="btn btn-small" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" title="管理產業別">
                                         <i class="fas fa-cog"></i>
                                     </button>
@@ -142,18 +150,6 @@
                                     <input type="date" id="diningDate" class="input-field date-input" style="flex: 1;">
                                     <select id="diningHour" class="input-field time-select" style="width: 60px;">
                                         <option value="">時</option>
-                                        <option value="00">00</option>
-                                        <option value="01">01</option>
-                                        <option value="02">02</option>
-                                        <option value="03">03</option>
-                                        <option value="04">04</option>
-                                        <option value="05">05</option>
-                                        <option value="06">06</option>
-                                        <option value="07">07</option>
-                                        <option value="08">08</option>
-                                        <option value="09">09</option>
-                                        <option value="10">10</option>
-                                        <option value="11">11</option>
                                         <option value="12">12</option>
                                         <option value="13">13</option>
                                         <option value="14">14</option>
@@ -165,8 +161,9 @@
                                         <option value="20">20</option>
                                         <option value="21">21</option>
                                         <option value="22">22</option>
-                                        <option value="23">23</option>
+                                        <option value="__CUSTOM__">其他（自訂）</option>
                                     </select>
+                                    <input type="number" id="diningHourCustom" class="input-field custom-input" placeholder="時" min="0" max="23" style="display: none; width: 60px; margin-top: 0.3rem;">
                                     <span>:</span>
                                     <select id="diningMinute" class="input-field time-select" style="width: 60px;">
                                         <option value="">分</option>
@@ -292,6 +289,10 @@
                     <!-- 歷史訂單分析按鈕 -->
                     <button id="showAnalysis" class="btn btn-secondary" style="width: 100%; margin-top: 0.4rem;">
                         <i class="fas fa-chart-bar"></i> 歷史訂單分析
+                    </button>
+                    <!-- 建立測試訂單按鈕（開發用） -->
+                    <button id="createTestOrdersBtn" class="btn btn-secondary" style="width: 100%; margin-top: 0.4rem; background: #6c757d; font-size: 0.85rem;">
+                        <i class="fas fa-vial"></i> 建立測試訂單（20筆）
                     </button>
                 </div>
             </div>

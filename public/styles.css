@@ -505,6 +505,7 @@ body {
     border-collapse: collapse;
     font-size: 0.85rem;
     min-width: 2000px; /* 確保所有欄位都能顯示 */
+    table-layout: auto; /* 允許自動調整欄位寬度 */
 }
 
 .history-table-full thead {
@@ -520,6 +521,33 @@ body {
     font-weight: 600;
     border-bottom: 2px solid #dee2e6;
     white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+.history-table-full th.sortable:hover {
+    background: #f0f0f0;
+}
+
+.history-table-full th.sortable:after {
+    content: " ⇅";
+    font-size: 0.7rem;
+    color: #999;
+    margin-left: 0.3rem;
+    opacity: 0.7;
+}
+
+.history-table-full th.sort-asc:after {
+    content: " ↑";
+    color: #007bff;
+    opacity: 1;
+}
+
+.history-table-full th.sort-desc:after {
+    content: " ↓";
+    color: #007bff;
+    opacity: 1;
 }
 
 .history-table-full td {
@@ -646,6 +674,17 @@ body {
     text-align: center;
     padding: 2rem;
     color: #6c757d;
+}
+
+.chart-container {
+    width: 100%;
+    height: 300px;
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.chart-container canvas {
+    max-height: 300px;
 }
 
 .order-field.datetime-field {
@@ -1746,17 +1785,11 @@ body {
 .menu-name-cell {
     font-weight: 600;
     color: #007bff;
-    width: 25%;
-    min-width: 200px;
-    max-width: 300px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: #007bff;
-    max-width: 160px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 1rem;
+    font-size: 0.9rem;
+    max-width: 150px; /* 限制最大寬度，避免過寬 */
 }
 
 .menu-name-cell:hover {

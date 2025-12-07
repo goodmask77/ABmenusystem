@@ -1206,18 +1206,24 @@ function getOrderInfo() {
     };
 }
 
-// 設定訂單資訊（更新以支援自訂下拉選單）
+// 設定訂單資訊（更新以支援所有自訂下拉選單）
 function setOrderInfo(info) {
     if (!info) return;
     if (info.companyName && elements.companyName) elements.companyName.value = info.companyName;
     if (info.taxId && elements.customerTaxId) elements.customerTaxId.value = info.taxId;
     if (info.contactName && elements.contactName) elements.contactName.value = info.contactName;
     if (info.contactPhone && elements.contactPhone) elements.contactPhone.value = info.contactPhone;
-    if (info.planType && elements.planType) elements.planType.value = info.planType;
     if (info.lineName && elements.lineName) elements.lineName.value = info.lineName;
-    if (info.industry && elements.industrySelect) elements.industrySelect.value = info.industry;
     
     // 使用自訂下拉選單設定函式
+    if (info.planType) {
+        setCustomizableSelectValue('planType', 'planTypeCustom', ['大訂', '包場'], info.planType);
+    }
+    if (info.industry) {
+        // 產業別需要從 industryOptions 取得預設選項
+        const defaultIndustries = industryOptions.map(opt => opt.name);
+        setCustomizableSelectValue('industrySelect', 'industrySelectCustom', defaultIndustries, info.industry);
+    }
     if (info.venueScope) {
         setCustomizableSelectValue('venueScope', 'venueScopeCustom', ['全包', '叢林區', '蘆葦區'], info.venueScope);
     }
@@ -1228,8 +1234,12 @@ function setOrderInfo(info) {
         setCustomizableSelectValue('paymentMethod', 'paymentMethodCustom', ['匯款', '刷卡', '當天結帳'], info.paymentMethod);
     }
     
+    // 處理時間設定（包含自訂時間）
+    if (info.diningDateTime) {
+        setDiningDateTime(info.diningDateTime);
+    }
+    
     if (info.depositPaid !== undefined && elements.depositPaid) elements.depositPaid.value = info.depositPaid;
-    if (info.diningDateTime) setDiningDateTime(info.diningDateTime);
     if (info.tableCount) {
         tableCount = info.tableCount;
         if (elements.tableCountInput) elements.tableCountInput.value = tableCount;
@@ -1240,11 +1250,22 @@ function setOrderInfo(info) {
     }
 }
 
-// 取得組合的用餐日期時間
-function getDiningDateTime() {
+// 取得組合的用餐日期時間（支援自訂時間）
+function getDiningDateTime(customHour = null) {
     const date = elements.diningDate?.value || '';
-    const hour = elements.diningHour?.value || '';
+    let hour = customHour || elements.diningHour?.value || '';
     const minute = elements.diningMinute?.value || '';
+    
+    // 處理自訂時間
+    if (hour === '__CUSTOM__') {
+        const customHourInput = document.getElementById('diningHourCustom');
+        if (customHourInput && customHourInput.value) {
+            hour = String(parseInt(customHourInput.value)).padStart(2, '0');
+        } else {
+            hour = '';
+        }
+    }
+    
     if (date && hour && minute) {
         return `${date}T${hour}:${minute}`;
     }
@@ -1257,6 +1278,11 @@ function setDiningDateTime(dateTimeStr) {
         if (elements.diningDate) elements.diningDate.value = '';
         if (elements.diningHour) elements.diningHour.value = '';
         if (elements.diningMinute) elements.diningMinute.value = '';
+        const customHourInput = document.getElementById('diningHourCustom');
+        if (customHourInput) {
+            customHourInput.value = '';
+            customHourInput.style.display = 'none';
+        }
         return;
     }
     try {
@@ -1265,9 +1291,27 @@ function setDiningDateTime(dateTimeStr) {
         const year = dt.getFullYear();
         const month = String(dt.getMonth() + 1).padStart(2, '0');
         const day = String(dt.getDate()).padStart(2, '0');
-        const hour = String(dt.getHours()).padStart(2, '0');
+        const hour = dt.getHours();
+        const hourStr = String(hour).padStart(2, '0');
         const minute = String(Math.floor(dt.getMinutes() / 10) * 10).padStart(2, '0');
         if (elements.diningDate) elements.diningDate.value = `${year}-${month}-${day}`;
+        
+        // 處理時間：如果在 12-22 範圍內，直接選擇；否則使用自訂
+        const customHourInput = document.getElementById('diningHourCustom');
+        if (hour >= 12 && hour <= 22) {
+            if (elements.diningHour) elements.diningHour.value = hourStr;
+            if (customHourInput) {
+                customHourInput.style.display = 'none';
+                customHourInput.value = '';
+            }
+        } else {
+            // 不在範圍內，使用自訂輸入框
+            if (elements.diningHour) elements.diningHour.value = '__CUSTOM__';
+            if (customHourInput) {
+                customHourInput.value = hourStr;
+                customHourInput.style.display = 'block';
+            }
+        }
         if (elements.diningHour) elements.diningHour.value = hour;
         if (elements.diningMinute) elements.diningMinute.value = minute;
     } catch (e) {
@@ -3930,20 +3974,32 @@ function renderHistoryList() {
         return false;
     });
     
-    // 排序
+    // 排序（擴展支援所有欄位）
     filteredMenus.sort((a, b) => {
         let result = 0;
+        const orderInfoA = a.orderInfo || {};
+        const orderInfoB = b.orderInfo || {};
+        
         switch (sortBy) {
+            case 'pinned':
+                const pinnedA = a.isPinned ? 1 : 0;
+                const pinnedB = b.isPinned ? 1 : 0;
+                result = pinnedB - pinnedA;
+                break;
             case 'price':
+            case 'perPerson':
                 const aPrice = getHistoryMetrics(a).perPerson || 0;
                 const bPrice = getHistoryMetrics(b).perPerson || 0;
                 result = bPrice - aPrice;
                 break;
             case 'date':
-                result = new Date(b.savedAt) - new Date(a.savedAt);
+                const dateA = a.diningDateTime ? new Date(a.diningDateTime) : new Date(a.savedAt);
+                const dateB = b.diningDateTime ? new Date(b.diningDateTime) : new Date(b.savedAt);
+                result = dateB - dateA;
                 break;
             case 'name':
-                result = (a.name || '').localeCompare(b.name || '');
+            case 'companyName':
+                result = ((orderInfoA.companyName || a.name || '') || '').localeCompare((orderInfoB.companyName || b.name || '') || '');
                 break;
             case 'people':
                 result = (b.peopleCount || 1) - (a.peopleCount || 1);
@@ -3957,6 +4013,36 @@ function renderHistoryList() {
             case 'items':
                 result = (getHistoryMetrics(b).itemCount || 0) - (getHistoryMetrics(a).itemCount || 0);
                 break;
+            case 'planType':
+                result = (orderInfoA.planType || '').localeCompare(orderInfoB.planType || '');
+                break;
+            case 'lineName':
+                result = (orderInfoA.lineName || '').localeCompare(orderInfoB.lineName || '');
+                break;
+            case 'diningStyle':
+                result = (orderInfoA.diningStyle || '').localeCompare(orderInfoB.diningStyle || '');
+                break;
+            case 'venueScope':
+                result = (orderInfoA.venueScope || '').localeCompare(orderInfoB.venueScope || '');
+                break;
+            case 'paymentMethod':
+                result = (orderInfoA.paymentMethod || '').localeCompare(orderInfoB.paymentMethod || '');
+                break;
+            case 'contactName':
+                result = (orderInfoA.contactName || '').localeCompare(orderInfoB.contactName || '');
+                break;
+            case 'contactPhone':
+                result = (orderInfoA.contactPhone || '').localeCompare(orderInfoB.contactPhone || '');
+                break;
+            case 'industry':
+                result = (orderInfoA.industry || '').localeCompare(orderInfoB.industry || '');
+                break;
+            case 'taxId':
+                result = (orderInfoA.taxId || '').localeCompare(orderInfoB.taxId || '');
+                break;
+            case 'depositPaid':
+                result = (orderInfoB.depositPaid || 0) - (orderInfoA.depositPaid || 0);
+                break;
             default:
                 result = 0;
         }
@@ -3969,31 +4055,30 @@ function renderHistoryList() {
     }
     
     // 功能 C & D：完整的表格顯示，包含所有欄位和釘選功能
+    // 所有欄位都可排序，隱藏小計和服務費
     historyList.innerHTML = `
         <div class="history-table-wrapper">
-            <table class="history-table-full">
+            <table class="history-table-full" id="historyTable">
                 <thead>
                     <tr>
-                        <th class="pin-col" onclick="event.stopPropagation();">釘選</th>
+                        <th class="sortable pin-col ${historySort.field === 'pinned' ? 'sort-' + historySort.direction : ''}" onclick="event.stopPropagation(); sortHistoryBy('pinned')">釘選</th>
                         <th class="sortable ${historySort.field === 'date' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('date')">建立/用餐日期</th>
-                        <th class="sortable ${historySort.field === 'name' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('name')">客戶名稱</th>
-                        <th>方案</th>
-                        <th>LINE名稱</th>
-                        <th>人數/桌數</th>
-                        <th>用餐方式</th>
-                        <th class="sortable ${historySort.field === 'total' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('total')">小計</th>
-                        <th>服務費</th>
-                        <th>總額</th>
-                        <th>已付訂金</th>
-                        <th class="sortable ${historySort.field === 'price' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('price')">人均</th>
-                        <th>包場範圍</th>
-                        <th>付款方式</th>
-                        <th>聯絡人</th>
-                        <th>手機</th>
-                        <th>產業別</th>
-                        <th>公司名稱</th>
-                        <th>統編</th>
-                        <th>操作</th>
+                        <th class="sortable ${historySort.field === 'companyName' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('companyName')">客戶名稱</th>
+                        <th class="sortable ${historySort.field === 'planType' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('planType')">方案</th>
+                        <th class="sortable ${historySort.field === 'lineName' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('lineName')">LINE名稱</th>
+                        <th class="sortable ${historySort.field === 'people' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('people')">人數/桌數</th>
+                        <th class="sortable ${historySort.field === 'diningStyle' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('diningStyle')">用餐方式</th>
+                        <th class="sortable ${historySort.field === 'total' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('total')">總額</th>
+                        <th class="sortable ${historySort.field === 'depositPaid' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('depositPaid')">已付訂金</th>
+                        <th class="sortable ${historySort.field === 'perPerson' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('perPerson')">人均</th>
+                        <th class="sortable ${historySort.field === 'venueScope' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('venueScope')">包場範圍</th>
+                        <th class="sortable ${historySort.field === 'paymentMethod' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('paymentMethod')">付款方式</th>
+                        <th class="sortable ${historySort.field === 'contactName' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('contactName')">聯絡人</th>
+                        <th class="sortable ${historySort.field === 'contactPhone' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('contactPhone')">手機</th>
+                        <th class="sortable ${historySort.field === 'industry' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('industry')">產業別</th>
+                        <th class="sortable ${historySort.field === 'companyName' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('companyName')">公司名稱</th>
+                        <th class="sortable ${historySort.field === 'taxId' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('taxId')">統編</th>
+                        <th class="actions-col" onclick="event.stopPropagation();">操作</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -4001,8 +4086,6 @@ function renderHistoryList() {
                         const metrics = getHistoryMetrics(menu);
                         const total = metrics.total || 0;
                         const perPerson = metrics.perPerson || 0;
-                        const subtotal = menu.orderInfo?.subtotal || (total / 1.1);
-                        const serviceFee = total - subtotal;
                         
                         // 取得訂單資訊
                         const orderInfo = menu.orderInfo || {};
@@ -4040,8 +4123,6 @@ function renderHistoryList() {
                                 <td class="line-cell">${lineName || '--'}</td>
                                 <td class="people-cell">${menu.peopleCount || 1}人/${menu.tableCount || 1}桌</td>
                                 <td class="dining-style-cell">${diningStyle || '--'}</td>
-                                <td class="subtotal-cell">${typeof subtotal === 'number' ? '$' + Math.round(subtotal).toLocaleString() : '--'}</td>
-                                <td class="service-fee-cell">${typeof serviceFee === 'number' ? '$' + Math.round(serviceFee).toLocaleString() : '--'}</td>
                                 <td class="total-cell">${typeof total === 'number' ? '$' + Math.round(total).toLocaleString() : '--'}</td>
                                 <td class="deposit-cell">${depositPaid > 0 ? '$' + depositPaid.toLocaleString() : '--'}</td>
                                 <td class="perperson-cell">${typeof perPerson === 'number' ? '$' + Math.round(perPerson).toLocaleString() : '--'}</td>
@@ -4064,6 +4145,11 @@ function renderHistoryList() {
             </table>
         </div>
     `;
+    
+    // 自動調整欄位寬度（像試算表）
+    setTimeout(() => {
+        autoResizeTableColumns('historyTable');
+    }, 100);
     
     // 儲存當前過濾後的訂單列表供後續使用
     window._currentFilteredMenus = filteredMenus;
@@ -5274,12 +5360,13 @@ function calculateOrderStatistics(orders) {
 }
 
 /**
- * 渲染分析內容
+ * 渲染分析內容（加入圖表）
  * @param {HTMLElement} container - 容器元素
  * @param {Object} stats - 統計資料
  */
 function renderAnalysisContent(container, stats) {
     const industryRows = Object.entries(stats.industryStats)
+        .sort((a, b) => b[1].count - a[1].count) // 按訂單數排序
         .map(([industry, data]) => `
             <tr>
                 <td>${industry || '未分類'}</td>
@@ -5288,6 +5375,20 @@ function renderAnalysisContent(container, stats) {
                 <td>$${Math.round(data.total / data.count).toLocaleString()}</td>
             </tr>
         `).join('');
+    
+    // 準備圖表資料
+    const industryLabels = Object.keys(stats.industryStats);
+    const industryCounts = Object.values(stats.industryStats).map(d => d.count);
+    const industryTotals = Object.values(stats.industryStats).map(d => Math.round(d.total));
+    
+    const amountLabels = ['$0-$5K', '$5K-$10K', '$10K-$20K', '$20K-$30K', '$30K+'];
+    const amountCounts = [
+        stats.amountRanges['0-5000'],
+        stats.amountRanges['5001-10000'],
+        stats.amountRanges['10001-20000'],
+        stats.amountRanges['20001-30000'],
+        stats.amountRanges['30000+']
+    ];
     
     container.innerHTML = `
         <div class="analysis-sections">
@@ -5310,19 +5411,10 @@ function renderAnalysisContent(container, stats) {
             </div>
             
             <div class="analysis-section">
-                <h3><i class="fas fa-users"></i> 人均消費分析</h3>
-                <div class="per-person-analysis">
-                    <p>平均人均：<strong>$${Math.round(stats.averagePerPerson).toLocaleString()}</strong></p>
-                    ${stats.perPersonStats.length > 0 ? `
-                        <p>最低人均：$${Math.round(stats.perPersonStats[0]).toLocaleString()}</p>
-                        <p>最高人均：$${Math.round(stats.perPersonStats[stats.perPersonStats.length - 1]).toLocaleString()}</p>
-                        <p>中位數人均：$${Math.round(stats.perPersonStats[Math.floor(stats.perPersonStats.length / 2)]).toLocaleString()}</p>
-                    ` : '<p>無有效人均資料</p>'}
-                </div>
-            </div>
-            
-            <div class="analysis-section">
                 <h3><i class="fas fa-industry"></i> 產業別分布</h3>
+                <div class="chart-container">
+                    <canvas id="industryChart"></canvas>
+                </div>
                 <table class="analysis-table">
                     <thead>
                         <tr>
@@ -5340,6 +5432,9 @@ function renderAnalysisContent(container, stats) {
             
             <div class="analysis-section">
                 <h3><i class="fas fa-dollar-sign"></i> 消費金額分布</h3>
+                <div class="chart-container">
+                    <canvas id="amountChart"></canvas>
+                </div>
                 <table class="analysis-table">
                     <thead>
                         <tr>
@@ -5356,8 +5451,103 @@ function renderAnalysisContent(container, stats) {
                     </tbody>
                 </table>
             </div>
+            
+            <div class="analysis-section">
+                <h3><i class="fas fa-users"></i> 人均消費分析</h3>
+                <div class="per-person-analysis">
+                    <p>平均人均：<strong>$${Math.round(stats.averagePerPerson).toLocaleString()}</strong></p>
+                    ${stats.perPersonStats.length > 0 ? `
+                        <p>最低人均：$${Math.round(stats.perPersonStats[0]).toLocaleString()}</p>
+                        <p>最高人均：$${Math.round(stats.perPersonStats[stats.perPersonStats.length - 1]).toLocaleString()}</p>
+                        <p>中位數人均：$${Math.round(stats.perPersonStats[Math.floor(stats.perPersonStats.length / 2)]).toLocaleString()}</p>
+                    ` : '<p>無有效人均資料</p>'}
+                </div>
+            </div>
         </div>
     `;
+    
+    // 渲染圖表
+    setTimeout(() => {
+        renderCharts(industryLabels, industryCounts, industryTotals, amountLabels, amountCounts);
+    }, 100);
+}
+
+/**
+ * 渲染圖表
+ */
+function renderCharts(industryLabels, industryCounts, industryTotals, amountLabels, amountCounts) {
+    if (typeof Chart === 'undefined') {
+        console.warn('Chart.js 未載入，無法顯示圖表');
+        return;
+    }
+    
+    // 產業別圓餅圖（按訂單數）
+    const industryCtx = document.getElementById('industryChart');
+    if (industryCtx) {
+        new Chart(industryCtx, {
+            type: 'pie',
+            data: {
+                labels: industryLabels,
+                datasets: [{
+                    data: industryCounts,
+                    backgroundColor: [
+                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                        '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    },
+                    title: {
+                        display: true,
+                        text: '產業別訂單數分布'
+                    }
+                }
+            }
+        });
+    }
+    
+    // 消費金額分布直條圖
+    const amountCtx = document.getElementById('amountChart');
+    if (amountCtx) {
+        new Chart(amountCtx, {
+            type: 'bar',
+            data: {
+                labels: amountLabels,
+                datasets: [{
+                    label: '訂單數',
+                    data: amountCounts,
+                    backgroundColor: '#36A2EB'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: true,
+                        text: '消費金額分布'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
 }
 
 // ========== 功能 F：建立測試訂單 ==========
@@ -5366,36 +5556,58 @@ function renderAnalysisContent(container, stats) {
  */
 async function createTestOrders() {
     try {
+        console.log('開始建立測試訂單...');
+        
         const client = supabaseClient || await initSupabaseClient();
         if (!client) {
-            alert('無法連線到 Supabase');
+            console.error('Supabase 客戶端未初始化');
+            alert('無法連線到 Supabase，請檢查連線狀態');
             return;
         }
         
+        console.log('檢查是否已有測試訂單...');
         // 檢查是否已有測試訂單
-        const { data: existing } = await client
+        const { data: existing, error: checkError } = await client
             .from('menu_orders')
             .select('id')
             .like('company_name', '【測試】%')
             .limit(1);
         
+        if (checkError) {
+            console.error('檢查測試訂單失敗：', checkError);
+            alert('檢查失敗：' + checkError.message);
+            return;
+        }
+        
         if (existing && existing.length > 0) {
             if (!confirm('已存在測試訂單，是否要重新建立？這會刪除現有的測試訂單。')) {
+                console.log('用戶取消建立測試訂單');
                 return;
             }
             
+            console.log('刪除現有測試訂單...');
             // 刪除現有測試訂單
-            await client
+            const { error: deleteError } = await client
                 .from('menu_orders')
                 .delete()
                 .like('company_name', '【測試】%');
+            
+            if (deleteError) {
+                console.error('刪除測試訂單失敗：', deleteError);
+                alert('刪除舊測試訂單失敗：' + deleteError.message);
+                return;
+            }
+            console.log('已刪除現有測試訂單');
         }
         
         // 建立 20 筆測試訂單
+        console.log('生成測試訂單資料...');
         const testOrders = generateTestOrders();
+        console.log('生成的測試訂單數量:', testOrders.length);
+        console.log('第一筆測試訂單範例:', testOrders[0]);
         
-        console.log('準備建立測試訂單...', testOrders.length);
-        
+        // 批次插入（Supabase 一次最多插入 1000 筆，20 筆沒問題）
+        console.log('準備插入測試訂單到 Supabase...');
         const { data, error } = await client
             .from('menu_orders')
             .insert(testOrders)
@@ -5403,20 +5615,28 @@ async function createTestOrders() {
         
         if (error) {
             console.error('建立測試訂單失敗：', error);
-            alert('建立失敗：' + error.message);
+            console.error('錯誤詳情:', error.message, error.details, error.hint);
+            alert('建立失敗：' + error.message + '\n\n請查看 Console 查看詳細錯誤');
             return;
         }
         
-        console.log('✅ 已成功建立', data.length, '筆測試訂單');
-        alert(`已成功建立 ${data.length} 筆測試訂單！`);
+        console.log('✅ 已成功建立', data?.length || 0, '筆測試訂單');
+        console.log('建立的訂單 ID:', data?.map(o => o.id));
         
-        // 重新載入訂單列表
+        // 更新快取
+        await loadOrdersFromSupabase();
+        
+        alert(`✅ 已成功建立 ${data?.length || 0} 筆測試訂單！\n\n請重新開啟「載入菜單」查看結果。`);
+        
+        // 如果歷史訂單視窗已開啟，重新載入
         if (document.getElementById('historyModal')?.style.display === 'block') {
+            console.log('重新載入歷史訂單列表...');
             await showHistoryModal();
         }
     } catch (error) {
-        console.error('建立測試訂單失敗：', error);
-        alert('建立失敗：' + error.message);
+        console.error('建立測試訂單失敗（例外）：', error);
+        console.error('錯誤堆疊:', error.stack);
+        alert('建立失敗：' + (error.message || '未知錯誤') + '\n\n請查看 Console 查看詳細錯誤');
     }
 }
 
@@ -5483,13 +5703,106 @@ function generateTestOrders() {
     return orders;
 }
 
+/**
+ * 自動調整表格欄位寬度（像試算表）
+ * @param {string} tableId - 表格 ID
+ */
+function autoResizeTableColumns(tableId) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    
+    const thead = table.querySelector('thead');
+    const tbody = table.querySelector('tbody');
+    if (!thead || !tbody) return;
+    
+    const headerCells = thead.querySelectorAll('th');
+    const rows = tbody.querySelectorAll('tr');
+    
+    if (headerCells.length === 0 || rows.length === 0) return;
+    
+    // 為每個欄位計算最大寬度
+    headerCells.forEach((header, colIndex) => {
+        let maxWidth = 0;
+        
+        // 計算標題寬度
+        const headerText = header.textContent.trim();
+        const headerWidth = measureTextWidth(headerText, header);
+        maxWidth = Math.max(maxWidth, headerWidth);
+        
+        // 計算所有資料行的寬度
+        rows.forEach(row => {
+            const cell = row.cells[colIndex];
+            if (cell) {
+                const cellText = cell.textContent.trim();
+                const cellWidth = measureTextWidth(cellText, cell);
+                maxWidth = Math.max(maxWidth, cellWidth);
+            }
+        });
+        
+        // 設定最小和最大寬度
+        const minWidth = 60; // 最小寬度
+        const maxColWidth = 300; // 最大寬度（避免過寬）
+        const finalWidth = Math.min(Math.max(maxWidth + 20, minWidth), maxColWidth);
+        
+        header.style.width = finalWidth + 'px';
+        header.style.minWidth = finalWidth + 'px';
+        header.style.maxWidth = finalWidth + 'px';
+        
+        // 同步設定所有資料行
+        rows.forEach(row => {
+            const cell = row.cells[colIndex];
+            if (cell) {
+                cell.style.width = finalWidth + 'px';
+                cell.style.minWidth = finalWidth + 'px';
+                cell.style.maxWidth = finalWidth + 'px';
+            }
+        });
+    });
+}
+
+/**
+ * 測量文字寬度
+ * @param {string} text - 文字內容
+ * @param {HTMLElement} element - 參考元素（用於取得字體樣式）
+ * @returns {number} 寬度（像素）
+ */
+function measureTextWidth(text, element) {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    const style = window.getComputedStyle(element);
+    context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    return context.measureText(text).width;
+}
+
 // 在初始化時綁定自訂下拉選單和事件
 document.addEventListener('DOMContentLoaded', function() {
-    // 功能 A：初始化自訂下拉選單
+    // 功能 A：初始化所有自訂下拉選單
     setTimeout(() => {
         attachCustomizableSelect('venueScope', 'venueScopeCustom', ['全包', '叢林區', '蘆葦區']);
         attachCustomizableSelect('diningStyle', 'diningStyleCustom', ['自助', '桌菜']);
         attachCustomizableSelect('paymentMethod', 'paymentMethodCustom', ['匯款', '刷卡', '當天結帳']);
+        attachCustomizableSelect('planType', 'planTypeCustom', ['大訂', '包場']);
+        
+        // 產業別需要動態載入後再綁定
+        if (industryOptions && industryOptions.length > 0) {
+            const defaultIndustries = industryOptions.map(opt => opt.name);
+            attachCustomizableSelect('industrySelect', 'industrySelectCustom', defaultIndustries);
+        }
+        
+        // 時間選單的自訂處理
+        const diningHour = document.getElementById('diningHour');
+        const diningHourCustom = document.getElementById('diningHourCustom');
+        if (diningHour && diningHourCustom) {
+            diningHour.addEventListener('change', function() {
+                if (diningHour.value === '__CUSTOM__') {
+                    diningHourCustom.style.display = 'block';
+                    diningHourCustom.focus();
+                } else {
+                    diningHourCustom.style.display = 'none';
+                    diningHourCustom.value = '';
+                }
+            });
+        }
     }, 500);
     
     // 綁定刪除按鈕
@@ -5504,9 +5817,22 @@ document.addEventListener('DOMContentLoaded', function() {
         analysisButton.addEventListener('click', showAnalysisModal);
     }
     
+    // 綁定建立測試訂單按鈕
+    const createTestOrdersBtn = document.getElementById('createTestOrdersBtn');
+    if (createTestOrdersBtn) {
+        createTestOrdersBtn.addEventListener('click', async () => {
+            if (!confirm('確定要建立 20 筆測試訂單嗎？\n\n這將在資料庫中建立測試資料，可用於測試歷史訂單和分析功能。')) {
+                return;
+            }
+            await createTestOrders();
+        });
+    }
+    
     // 開發模式：在 Console 中提供建立測試訂單的函式
     if (typeof window !== 'undefined') {
         window.createTestOrders = createTestOrders;
-        console.log('💡 開發提示：可在 Console 中執行 createTestOrders() 來建立測試訂單');
+        console.log('💡 開發提示：');
+        console.log('   1. 可點擊「建立測試訂單（20筆）」按鈕');
+        console.log('   2. 或在 Console 中執行 createTestOrders()');
     }
 });
