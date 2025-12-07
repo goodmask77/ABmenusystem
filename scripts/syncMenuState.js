@@ -81,7 +81,7 @@ async function updateMenuState() {
     categoriesMap.get(catId).items.push({
       id: item.id,
       name: item.name,
-      enName: item.name_en || '',
+      nameEn: item.name_en || '',
       price: parseFloat(item.price),
       isNew: false,
       isHot: false

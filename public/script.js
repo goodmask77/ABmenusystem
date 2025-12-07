@@ -1882,7 +1882,7 @@ function addToCart(categoryId, itemId) {
         const cartItem = {
             id: itemId,
             name: item.name,
-            nameEn: item.nameEn,
+            nameEn: item.nameEn || item.enName || '',
             price: item.price,
             quantity: tableCount, // 使用桌數作為初始數量
             categoryId: categoryId
@@ -2904,6 +2904,7 @@ function renderMenu() {
 
 function renderMenuItem(categoryId, item) {
     const isInCart = cart.some(cartItem => cartItem.id === item.id);
+    const englishName = item.nameEn || item.enName || '';
     
     return `
         <div class="menu-item ${isInCart ? 'selected' : ''}" onclick="addToCart('${categoryId}', '${item.id}')">
@@ -2918,7 +2919,7 @@ function renderMenuItem(categoryId, item) {
             <div class="item-header">
                 <div>
                     <span class="item-name">${item.name}</span>
-                    ${item.nameEn ? `<span class="item-name-en">${item.nameEn}</span>` : ''}
+                    ${englishName ? `<span class="item-name-en">${englishName}</span>` : ''}
                 </div>
                 <div class="item-price">$${item.price}</div>
             </div>
@@ -2957,11 +2958,13 @@ function renderCart() {
             html += `
                 <div class="cart-category">
                     <div class="cart-category-header">${category.name} (${cartByCategory[categoryId].length}道)</div>
-                    ${cartByCategory[categoryId].map(item => `
+                    ${cartByCategory[categoryId].map(item => {
+                        const englishName = item.nameEn || item.enName || '';
+                        return `
                         <div class="cart-item-compact">
                             <div class="cart-item-info">
                                 <div class="cart-item-name-compact">${item.name} 單價 $${item.price}</div>
-                                <div class="cart-item-name-en-compact">${item.nameEn || ''}</div>
+                                <div class="cart-item-name-en-compact">${englishName}</div>
                             </div>
                             <div class="cart-item-controls-compact">
                                 <button class="btn-qty-compact" onclick="updateCartItemQuantity('${item.id}', ${item.quantity - 1})">-</button>
@@ -2970,7 +2973,7 @@ function renderCart() {
                             </div>
                             <div class="cart-item-price-compact">$${item.price * item.quantity}</div>
                         </div>
-                    `).join('')}
+                    `}).join('')}
                 </div>
             `;
         }
