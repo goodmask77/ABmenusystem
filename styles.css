@@ -1793,16 +1793,27 @@ body {
     text-align: left;
 }
 
-.history-table-full td {
-    text-align: left; /* 預設置左 */
-    padding: 0.5rem 0.4rem;
-    vertical-align: middle;
+/* 歷史訂單表格對齊 - 徹底修正 */
+.history-table-full {
+    table-layout: auto;
 }
 
 .history-table-full th {
-    text-align: left; /* 標題也置左 */
+    text-align: left !important; /* 強制標題置左 */
+    padding: 0.6rem 0.4rem;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+    white-space: nowrap;
 }
 
+.history-table-full td {
+    text-align: left !important; /* 預設所有內容置左 */
+    padding: 0.5rem 0.4rem;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+/* 文字欄位：置左對齊 */
 .history-table-full td.date-cell,
 .history-table-full td.menu-name-cell,
 .history-table-full td.plan-cell,
@@ -1816,14 +1827,30 @@ body {
 .history-table-full td.venue-cell,
 .history-table-full td.payment-cell,
 .history-table-full td.dining-style-cell {
-    text-align: left;
+    text-align: left !important;
 }
 
+/* 數字欄位：右對齊 */
 .history-table-full td.people-cell,
 .history-table-full td.total-cell,
 .history-table-full td.deposit-cell,
 .history-table-full td.perperson-cell {
-    text-align: right; /* 數字欄位保持右對齊 */
+    text-align: right !important;
+}
+
+/* 釘選和操作欄位：置中 */
+.history-table-full td.pin-col,
+.history-table-full td.actions-cell,
+.history-table-full th.pin-col,
+.history-table-full th.actions-col {
+    text-align: center !important;
+}
+
+/* 勾選欄位：置中 */
+.history-table-full td.checkbox-col,
+.history-table-full th.checkbox-col {
+    text-align: center !important;
+    width: 40px;
 }
 
 .menu-name-cell:hover {

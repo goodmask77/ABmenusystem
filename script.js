@@ -4248,12 +4248,23 @@ function renderHistoryList() {
     
     // 功能 C & D：完整的表格顯示，包含所有欄位和釘選功能
     // 所有欄位都可排序，隱藏小計和服務費
+    // 加入批量刪除功能：勾選和全選
     historyList.innerHTML = `
+        <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <button id="batchDeleteBtn" class="btn btn-danger" style="display: none; padding: 0.5rem 1rem;" onclick="batchDeleteOrders()">
+                    <i class="fas fa-trash"></i> 批量刪除 (<span id="selectedCount">0</span>)
+                </button>
+            </div>
+        </div>
         <div class="history-table-wrapper">
             <table class="history-table-full" id="historyTable">
             <thead>
                 <tr>
-                        <th class="sortable pin-col ${historySort.field === 'pinned' ? 'sort-' + historySort.direction : ''}" onclick="event.stopPropagation(); sortHistoryBy('pinned')">釘選</th>
+                    <th class="checkbox-col" onclick="event.stopPropagation();">
+                        <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" title="全選/取消全選">
+                    </th>
+                    <th class="sortable pin-col ${historySort.field === 'pinned' ? 'sort-' + historySort.direction : ''}" onclick="event.stopPropagation(); sortHistoryBy('pinned')">釘選</th>
                     <th class="sortable ${historySort.field === 'date' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('date')">用餐日期</th>
                         <th class="sortable ${historySort.field === 'companyName' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('companyName')">客戶名稱</th>
                         <th class="sortable ${historySort.field === 'planType' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('planType')">方案</th>
@@ -4305,6 +4316,9 @@ function renderHistoryList() {
                     
                     return `
                             <tr class="history-row ${isPinned ? 'pinned-row' : ''}" data-menu-id="${menuId}" data-idx="${menuIdx}" data-pinned="${isPinned}" onclick="loadHistoryMenuByData(this)" style="cursor: pointer;">
+                                <td class="checkbox-col" onclick="event.stopPropagation();">
+                                    <input type="checkbox" class="order-checkbox" data-menu-id="${menuId}" onchange="updateBatchDeleteButton()">
+                                </td>
                                 <td class="pin-col" onclick="event.stopPropagation();">
                                     <button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="toggleOrderPin('${menuId}', event)" title="${isPinned ? '取消釘選' : '釘選'}">
                                         <i class="fas fa-thumbtack"></i>
@@ -4347,6 +4361,127 @@ function renderHistoryList() {
     
     // 儲存當前過濾後的訂單列表供後續使用
     window._currentFilteredMenus = filteredMenus;
+    
+    // 初始化批量刪除按鈕狀態
+    updateBatchDeleteButton();
+}
+
+// ========== 批量刪除功能 ==========
+
+/**
+ * 全選/取消全選
+ */
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.order-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateBatchDeleteButton();
+}
+
+/**
+ * 更新批量刪除按鈕顯示狀態
+ */
+function updateBatchDeleteButton() {
+    const checkboxes = document.querySelectorAll('.order-checkbox:checked');
+    const selectedCount = checkboxes.length;
+    const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    
+    if (batchDeleteBtn) {
+        if (selectedCount > 0) {
+            batchDeleteBtn.style.display = 'inline-block';
+            if (selectedCountSpan) {
+                selectedCountSpan.textContent = selectedCount;
+            }
+        } else {
+            batchDeleteBtn.style.display = 'none';
+        }
+    }
+    
+    // 更新全選 checkbox 狀態
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    if (selectAllCheckbox) {
+        const allCheckboxes = document.querySelectorAll('.order-checkbox');
+        const allChecked = allCheckboxes.length > 0 && Array.from(allCheckboxes).every(cb => cb.checked);
+        selectAllCheckbox.checked = allChecked;
+        selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < allCheckboxes.length;
+    }
+}
+
+/**
+ * 批量刪除選中的訂單
+ */
+async function batchDeleteOrders() {
+    const checkboxes = document.querySelectorAll('.order-checkbox:checked');
+    if (checkboxes.length === 0) {
+        alert('請先選擇要刪除的訂單');
+        return;
+    }
+    
+    const selectedIds = Array.from(checkboxes).map(cb => cb.getAttribute('data-menu-id')).filter(id => id);
+    
+    if (selectedIds.length === 0) {
+        alert('沒有有效的訂單 ID');
+        return;
+    }
+    
+    if (!confirm(`確定要刪除 ${selectedIds.length} 筆訂單嗎？\n\n此動作無法復原！`)) {
+        return;
+    }
+    
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) {
+            alert('無法連線到 Supabase');
+            return;
+        }
+        
+        // 批量刪除
+        let successCount = 0;
+        let failCount = 0;
+        
+        for (const id of selectedIds) {
+            const { error } = await client
+                .from('menu_orders')
+                .delete()
+                .eq('id', id);
+            
+            if (error) {
+                console.error(`刪除訂單 ${id} 失敗：`, error);
+                failCount++;
+            } else {
+                successCount++;
+            }
+        }
+        
+        if (successCount > 0) {
+            showSyncStatus(`已成功刪除 ${successCount} 筆訂單${failCount > 0 ? `，${failCount} 筆失敗` : ''}`, failCount > 0 ? 'error' : 'success');
+            
+            // 重新載入訂單列表
+            await loadOrdersFromSupabase();
+            renderHistoryList();
+            
+            // 清空選中狀態
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+            }
+            updateBatchDeleteButton();
+        } else {
+            alert('刪除失敗，請查看 Console 了解詳情');
+        }
+    } catch (error) {
+        console.error('批量刪除訂單失敗：', error);
+        alert('批量刪除失敗：' + error.message);
+    }
+}
+
+// 將批量刪除相關函數暴露到全局
+if (typeof window !== 'undefined') {
+    window.toggleSelectAll = toggleSelectAll;
+    window.updateBatchDeleteButton = updateBatchDeleteButton;
+    window.batchDeleteOrders = batchDeleteOrders;
 }
 
 // 歷史紀錄排序函數
@@ -6353,6 +6488,31 @@ async function createTestOrders() {
 }
 
 /**
+ * 生成常態分布的隨機數（Box-Muller 轉換）
+ * @param {number} mean - 平均值
+ * @param {number} stdDev - 標準差
+ * @returns {number} 常態分布的隨機數
+ */
+function normalRandom(mean, stdDev) {
+    let u = 0, v = 0;
+    while(u === 0) u = Math.random(); // 轉換 [0,1) 到 (0,1)
+    while(v === 0) v = Math.random();
+    const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    return z * stdDev + mean;
+}
+
+/**
+ * 將常態分布值限制在指定範圍內
+ * @param {number} value - 原始值
+ * @param {number} min - 最小值
+ * @param {number} max - 最大值
+ * @returns {number} 限制後的值
+ */
+function clampNormal(value, min, max) {
+    return Math.max(min, Math.min(max, Math.round(value)));
+}
+
+/**
  * 生成測試訂單資料
  * @returns {Array} 測試訂單陣列
  */
@@ -6372,12 +6532,23 @@ function generateTestOrders() {
     const orders = [];
     const now = new Date();
     
+    // 金額範圍：3-40萬（300000-400000）
+    const amountMean = (300000 + 400000) / 2; // 平均值：35萬
+    const amountStdDev = (400000 - 300000) / 6; // 標準差：約16.7萬（3個標準差覆蓋範圍）
+    
+    // 人數範圍：20-180人
+    const peopleMean = (20 + 180) / 2; // 平均值：100人
+    const peopleStdDev = (180 - 20) / 6; // 標準差：約26.7人（3個標準差覆蓋範圍）
+    
     for (let i = 0; i < 20; i++) {
-        const peopleCount = [2, 4, 6, 8, 10, 12, 15, 20, 25, 30][i % 10];
+        // 使用常態分布生成人數（20-180人）
+        const peopleCount = clampNormal(normalRandom(peopleMean, peopleStdDev), 20, 180);
         const tableCount = Math.ceil(peopleCount / 6);
-        const subtotal = Math.floor(Math.random() * 25000) + 5000; // 5000-30000
-        const serviceFee = Math.round(subtotal * 0.1);
-        const total = subtotal + serviceFee;
+        
+        // 使用常態分布生成總金額（3-40萬）
+        const total = clampNormal(normalRandom(amountMean, amountStdDev), 300000, 400000);
+        const subtotal = Math.round(total / 1.1); // 扣除服務費
+        const serviceFee = total - subtotal;
         const perPerson = Math.round(total / peopleCount);
         
         const diningDate = new Date(now);
