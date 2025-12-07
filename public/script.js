@@ -5499,10 +5499,31 @@ function calculateOrderStatistics(orders) {
     let totalPeopleCount = 0;
     let validPeopleCount = 0;
     
-    orders.forEach(order => {
+    orders.forEach((order, orderIdx) => {
+        // 統一取得每張訂單的總金額（使用 order.total 欄位）
+        // 這是每張訂單的總金額，包含服務費
+        const orderTotal = parseFloat(order.total) || 0;
+        
+        // Debug: 只記錄第一筆訂單的資料，確認欄位正確
+        if (orderIdx === 0) {
+            console.log('📊 分析功能 - 第一筆訂單範例：', {
+                orderId: order.id,
+                orderTotal: orderTotal,
+                orderTotalRaw: order.total,
+                orderKeys: Object.keys(order),
+                orderSample: {
+                    total: order.total,
+                    subtotal: order.subtotal,
+                    service_fee: order.service_fee,
+                    per_person: order.per_person,
+                    people_count: order.people_count
+                }
+            });
+        }
+        
         // 總營收
-        if (order.total) {
-            stats.totalRevenue += parseFloat(order.total);
+        if (orderTotal > 0) {
+            stats.totalRevenue += orderTotal;
         }
         
         // 人數統計
@@ -5528,8 +5549,8 @@ function calculateOrderStatistics(orders) {
                 };
             }
             stats.industryStats[industry].count++;
-            if (order.total) {
-                stats.industryStats[industry].total += parseFloat(order.total);
+            if (orderTotal > 0) {
+                stats.industryStats[industry].total += orderTotal;
             }
         } else {
             // 統計未填寫的訂單
@@ -5540,8 +5561,8 @@ function calculateOrderStatistics(orders) {
                 };
             }
             stats.industryStats['未分類'].count++;
-            if (order.total) {
-                stats.industryStats['未分類'].total += parseFloat(order.total);
+            if (orderTotal > 0) {
+                stats.industryStats['未分類'].total += orderTotal;
             }
         }
         
@@ -5555,8 +5576,8 @@ function calculateOrderStatistics(orders) {
                 };
             }
             stats.venueContentStats[venueContent].count++;
-            if (order.total) {
-                stats.venueContentStats[venueContent].total += parseFloat(order.total);
+            if (orderTotal > 0) {
+                stats.venueContentStats[venueContent].total += orderTotal;
             }
         } else {
             // 統計未填寫的訂單
@@ -5567,13 +5588,13 @@ function calculateOrderStatistics(orders) {
                 };
             }
             stats.venueContentStats['未分類'].count++;
-            if (order.total) {
-                stats.venueContentStats['未分類'].total += parseFloat(order.total);
+            if (orderTotal > 0) {
+                stats.venueContentStats['未分類'].total += orderTotal;
             }
         }
         
         // 金額分布（使用自訂區間）- 基於「每張訂單的總金額」
-        // 明確使用 orderTotal（每張訂單的總金額），不是人均或其他金額
+        // 使用 orderTotal（每張訂單的總金額），不是人均或其他金額
         // 按順序檢查每個區間，找到第一個匹配的區間（避免重複計算）
         let rangeMatched = false;
         for (let i = 0; i < customRanges.length; i++) {
