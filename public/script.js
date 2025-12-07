@@ -5572,21 +5572,37 @@ function calculateOrderStatistics(orders) {
             }
         }
         
-        // 金額分布（使用自訂區間）
-        const total = parseFloat(order.total) || 0;
+        // 金額分布（使用自訂區間）- 基於「每張訂單的總金額」
+        // 明確使用 orderTotal（每張訂單的總金額），不是人均或其他金額
+        // 按順序檢查每個區間，找到第一個匹配的區間（避免重複計算）
         let rangeMatched = false;
-        customRanges.forEach(range => {
-            if (total >= range.min && (range.max === null || total <= range.max)) {
-                stats.amountRanges[range.label]++;
-                rangeMatched = true;
+        for (let i = 0; i < customRanges.length; i++) {
+            const range = customRanges[i];
+            const min = parseInt(range.min) || 0;
+            const max = range.max !== null && range.max !== undefined ? parseInt(range.max) : null;
+            
+            // 判斷是否在此區間內
+            if (orderTotal >= min) {
+                if (max === null) {
+                    // 無上限區間（最後一個區間）
+                    stats.amountRanges[range.label]++;
+                    rangeMatched = true;
+                    break;
+                } else if (orderTotal <= max) {
+                    // 有上限的區間
+                    stats.amountRanges[range.label]++;
+                    rangeMatched = true;
+                    break;
+                }
             }
-        });
-        // 如果沒有匹配任何區間，記錄到最後一個區間（通常是無上限區間）
+        }
+        
+        // 如果沒有匹配任何區間（理論上不應該發生，但為了安全）
         if (!rangeMatched && customRanges.length > 0) {
+            console.warn(`訂單總金額 $${orderTotal} 沒有匹配任何區間，訂單ID: ${order.id || 'N/A'}`);
+            // 歸類到最後一個區間（通常是無上限區間）
             const lastRange = customRanges[customRanges.length - 1];
-            if (lastRange.max === null) {
-                stats.amountRanges[lastRange.label]++;
-            }
+            stats.amountRanges[lastRange.label]++;
         }
     });
     
@@ -5789,11 +5805,14 @@ function renderAnalysisContent(container, stats) {
             </div>
             
             <div class="analysis-section">
-                <h3><i class="fas fa-dollar-sign"></i> 消費金額分布
+                <h3><i class="fas fa-dollar-sign"></i> 消費金額分布（每張訂單的總金額）
                     <button onclick="showCustomAmountRangesDialog()" class="btn btn-small" style="margin-left: 1rem; padding: 0.3rem 0.6rem; font-size: 0.85rem;" title="自訂金額區間">
                         <i class="fas fa-cog"></i> 自訂區間
                     </button>
                 </h3>
+                <p style="margin-bottom: 0.5rem; font-size: 0.85rem; color: #6c757d;">
+                    <i class="fas fa-info-circle"></i> 此分析基於每張訂單的總金額（包含服務費）
+                </p>
                 <div class="chart-container">
                     <canvas id="amountChart"></canvas>
                 </div>
