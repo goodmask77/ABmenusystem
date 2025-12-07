@@ -3402,9 +3402,19 @@ async function showHistoryModal() {
         });
     }
     
-    // 從 Supabase 載入訂單
-    await loadOrdersFromSupabase();
+    // 從 Supabase 載入訂單（強制重新載入）
+    try {
+        await loadOrdersFromSupabase();
+        console.log('已載入訂單數量:', supabaseOrders.length);
+    } catch (error) {
+        console.error('載入訂單失敗:', error);
+        if (historyList) {
+            historyList.innerHTML = '<div class="error-message">載入訂單失敗，請稍後再試</div>';
+        }
+        return;
+    }
     
+    // 渲染歷史列表
     renderHistoryList();
     
     // 確保Modal事件正確綁定
