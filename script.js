@@ -3495,6 +3495,12 @@ function renderHistoryList() {
     console.log('renderHistoryList - 總訂單數:', allOrders.length);
     console.log('renderHistoryList - 訂單資料:', allOrders);
     
+    // 先檢查是否有訂單
+    if (allOrders.length === 0) {
+        historyList.innerHTML = '<div class="empty-history">目前沒有任何歷史記錄<br><small>請先儲存一張菜單</small></div>';
+        return;
+    }
+    
     const searchTerm = document.getElementById('historySearch')?.value?.toLowerCase() || '';
     const industryFilter = document.getElementById('historyIndustryFilter')?.value || '';
     const sortBy = historySort.field;
