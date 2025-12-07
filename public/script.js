@@ -2943,56 +2943,79 @@ let supabaseOrders = []; // 快取 Supabase 訂單
 
 async function loadOrdersFromSupabase() {
     try {
+        console.log('開始從 Supabase 載入訂單...');
         const client = supabaseClient || await initSupabaseClient();
         if (!client) {
-            console.warn('無法載入訂單：Supabase 未連線');
+            console.error('無法載入訂單：Supabase 未連線');
+            supabaseOrders = [];
             return [];
         }
         
+        console.log('查詢 menu_orders 表...');
         const { data, error } = await client
             .from('menu_orders')
             .select('*')
             .order('created_at', { ascending: false })
             .limit(100);
         
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase 查詢錯誤：', error);
+            throw error;
+        }
+        
+        console.log(`Supabase 返回 ${data?.length || 0} 筆原始資料`);
+        
+        if (!data || data.length === 0) {
+            console.warn('Supabase 中沒有訂單資料');
+            supabaseOrders = [];
+            return [];
+        }
         
         // 轉換為歷史菜單格式
-        supabaseOrders = (data || []).map(order => ({
-            id: order.id,
-            name: order.company_name || '未命名',
-            customerName: order.company_name,
-            customerTaxId: order.tax_id,
-            diningDateTime: order.dining_datetime,
-            savedAt: order.created_at,
-            peopleCount: order.people_count || 1,
-            tableCount: order.table_count || 1,
-            cart: order.cart_items || [],
-            orderInfo: {
-                companyName: order.company_name,
-                taxId: order.tax_id,
-                contactName: order.contact_name,
-                contactPhone: order.contact_phone,
-                industry: order.industry,
-                venueScope: order.venue_scope,
-                diningStyle: order.dining_style,
-                paymentMethod: order.payment_method,
-                depositPaid: order.deposit_paid
-            },
-            meta: {
-                itemCount: order.cart_items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 0,
-                estimatedTotal: order.total,
-                estimatedPerPerson: order.per_person,
-                preview: order.cart_items?.slice(0, 3).map(i => i.name).join(', ') || '無品項',
-                createdBy: order.created_by
-            },
-            fromSupabase: true // 標記來源
-        }));
+        supabaseOrders = data.map(order => {
+            const cartItems = Array.isArray(order.cart_items) ? order.cart_items : [];
+            const itemCount = cartItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
+            const preview = cartItems.slice(0, 3).map(i => i.name || i.nameEn || '未知').join(', ') || '無品項';
+            
+            return {
+                id: order.id,
+                name: order.company_name || '未命名',
+                customerName: order.company_name,
+                customerTaxId: order.tax_id,
+                diningDateTime: order.dining_datetime,
+                savedAt: order.created_at,
+                peopleCount: order.people_count || 1,
+                tableCount: order.table_count || 1,
+                cart: cartItems,
+                orderInfo: {
+                    companyName: order.company_name,
+                    taxId: order.tax_id,
+                    contactName: order.contact_name,
+                    contactPhone: order.contact_phone,
+                    industry: order.industry,
+                    venueScope: order.venue_scope,
+                    diningStyle: order.dining_style,
+                    paymentMethod: order.payment_method,
+                    depositPaid: order.deposit_paid || 0
+                },
+                meta: {
+                    itemCount: itemCount,
+                    estimatedTotal: order.total || 0,
+                    estimatedPerPerson: order.per_person || 0,
+                    preview: preview,
+                    createdBy: order.created_by || '未知'
+                },
+                fromSupabase: true // 標記來源
+            };
+        });
         
-        console.log(`已從 Supabase 載入 ${supabaseOrders.length} 筆訂單`);
+        console.log(`✅ 已從 Supabase 載入 ${supabaseOrders.length} 筆訂單`);
+        console.log('訂單範例:', supabaseOrders[0]);
         return supabaseOrders;
     } catch (error) {
-        console.error('從 Supabase 載入訂單失敗：', error);
+        console.error('❌ 從 Supabase 載入訂單失敗：', error);
+        console.error('錯誤詳情:', error.message, error.details);
+        supabaseOrders = [];
         return [];
     }
 }
@@ -3404,17 +3427,27 @@ async function showHistoryModal() {
     
     // 從 Supabase 載入訂單（強制重新載入）
     try {
-        await loadOrdersFromSupabase();
-        console.log('已載入訂單數量:', supabaseOrders.length);
+        const loadedOrders = await loadOrdersFromSupabase();
+        console.log('載入完成，訂單數量:', loadedOrders.length);
+        console.log('supabaseOrders 快取數量:', supabaseOrders.length);
+        
+        if (loadedOrders.length === 0 && supabaseOrders.length === 0) {
+            console.warn('沒有載入到任何訂單');
+            if (historyList) {
+                historyList.innerHTML = '<div class="empty-history">目前沒有任何歷史記錄</div>';
+            }
+            return;
+        }
     } catch (error) {
         console.error('載入訂單失敗:', error);
         if (historyList) {
-            historyList.innerHTML = '<div class="error-message">載入訂單失敗，請稍後再試</div>';
+            historyList.innerHTML = '<div class="error-message">載入訂單失敗：' + (error.message || '未知錯誤') + '</div>';
         }
         return;
     }
     
     // 渲染歷史列表
+    console.log('開始渲染歷史列表，訂單數量:', getMergedOrders().length);
     renderHistoryList();
     
     // 確保Modal事件正確綁定
@@ -3425,6 +3458,15 @@ function renderHistoryList() {
     // 使用合併的訂單（本地 + Supabase）
     const allOrders = getMergedOrders();
     const historyList = document.getElementById('historyList');
+    
+    if (!historyList) {
+        console.error('找不到 historyList 元素');
+        return;
+    }
+    
+    console.log('renderHistoryList - 總訂單數:', allOrders.length);
+    console.log('renderHistoryList - 訂單資料:', allOrders);
+    
     const searchTerm = document.getElementById('historySearch')?.value?.toLowerCase() || '';
     const industryFilter = document.getElementById('historyIndustryFilter')?.value || '';
     const sortBy = historySort.field;
