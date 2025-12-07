@@ -2771,6 +2771,42 @@ function exportCartToExcel() {
     
     const workbook = XLSX.utils.book_new();
     
+    // 取得訂單資訊（除了產業別）
+    const orderInfo = getOrderInfo();
+    const companyName = orderInfo.companyName || '';
+    const taxId = orderInfo.taxId || '';
+    const contactName = orderInfo.contactName || '';
+    const contactPhone = orderInfo.contactPhone || '';
+    const planType = orderInfo.planType || '';
+    const lineName = orderInfo.lineName || '';
+    const venueContent = orderInfo.venueContent || '';
+    const venueScope = orderInfo.venueScope || '';
+    const diningStyle = orderInfo.diningStyle || '';
+    const paymentMethod = orderInfo.paymentMethod || '';
+    const depositPaid = orderInfo.depositPaid || 0;
+    const diningDateTime = getDiningDateTime();
+    const diningDateStr = diningDateTime ? formatDate(new Date(diningDateTime)) : '未設定';
+    
+    // 客戶資訊工作表
+    const customerInfo = [];
+    if (companyName) customerInfo.push({ '項目': '公司名稱', '內容': companyName });
+    if (taxId) customerInfo.push({ '項目': '統一編號', '內容': taxId });
+    if (contactName) customerInfo.push({ '項目': '姓名', '內容': contactName });
+    if (contactPhone) customerInfo.push({ '項目': '手機', '內容': contactPhone });
+    if (planType) customerInfo.push({ '項目': '方案', '內容': planType });
+    if (lineName) customerInfo.push({ '項目': 'LINE名稱', '內容': lineName });
+    if (venueContent) customerInfo.push({ '項目': '包場內容', '內容': venueContent });
+    if (diningDateStr !== '未設定') customerInfo.push({ '項目': '用餐日期時間', '內容': diningDateStr });
+    if (venueScope) customerInfo.push({ '項目': '包場範圍', '內容': venueScope });
+    if (diningStyle) customerInfo.push({ '項目': '用餐方式', '內容': diningStyle });
+    if (paymentMethod) customerInfo.push({ '項目': '付款', '內容': paymentMethod });
+    if (depositPaid > 0) customerInfo.push({ '項目': '已付訂金', '內容': depositPaid });
+    customerInfo.push({ '項目': '用餐人數', '內容': peopleCount });
+    customerInfo.push({ '項目': '桌數', '內容': tableCount });
+    
+    const customerSheet = XLSX.utils.json_to_sheet(customerInfo);
+    XLSX.utils.book_append_sheet(workbook, customerSheet, '客戶資訊');
+    
     // 使用按類別排序的購物車項目
     const sortedCart = getSortedCartByCategory();
     
@@ -2857,6 +2893,22 @@ function generateCartImageContent() {
     const perPerson = Math.round(total / peopleCount);
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
     
+    // 取得訂單資訊（除了產業別）
+    const orderInfo = getOrderInfo();
+    const companyName = orderInfo.companyName || '';
+    const taxId = orderInfo.taxId || '';
+    const contactName = orderInfo.contactName || '';
+    const contactPhone = orderInfo.contactPhone || '';
+    const planType = orderInfo.planType || '';
+    const lineName = orderInfo.lineName || '';
+    const venueContent = orderInfo.venueContent || '';
+    const venueScope = orderInfo.venueScope || '';
+    const diningStyle = orderInfo.diningStyle || '';
+    const paymentMethod = orderInfo.paymentMethod || '';
+    const depositPaid = orderInfo.depositPaid || 0;
+    const diningDateTime = getDiningDateTime();
+    const diningDateStr = diningDateTime ? formatDate(new Date(diningDateTime)) : '未設定';
+    
     let html = `
         <!-- 標題區塊 -->
         <div style="text-align: center; margin-bottom: 25px; border-bottom: 3px solid #2c3e50; padding-bottom: 15px;">
@@ -2865,20 +2917,39 @@ function generateCartImageContent() {
             <div style="color: #95a5a6; font-size: 1.0rem; margin-top: 6px;">訂單時間：${formatDate(new Date())} | 人數：${peopleCount}人 | 桌數：${tableCount}桌</div>
         </div>
 
+        <!-- 客戶資訊區塊 -->
+        <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #007bff;">
+            <h3 style="color: #2c3e50; font-size: 1.2rem; font-weight: 600; margin: 0 0 15px 0; border-bottom: 2px solid #dee2e6; padding-bottom: 8px;">客戶資訊</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 0.95rem;">
+                ${companyName ? `<div><strong style="color: #495057;">公司名稱：</strong><span style="color: #212529;">${companyName}</span></div>` : ''}
+                ${taxId ? `<div><strong style="color: #495057;">統一編號：</strong><span style="color: #212529;">${taxId}</span></div>` : ''}
+                ${contactName ? `<div><strong style="color: #495057;">姓名：</strong><span style="color: #212529;">${contactName}</span></div>` : ''}
+                ${contactPhone ? `<div><strong style="color: #495057;">手機：</strong><span style="color: #212529;">${contactPhone}</span></div>` : ''}
+                ${planType ? `<div><strong style="color: #495057;">方案：</strong><span style="color: #212529;">${planType}</span></div>` : ''}
+                ${lineName ? `<div><strong style="color: #495057;">LINE名稱：</strong><span style="color: #212529;">${lineName}</span></div>` : ''}
+                ${venueContent ? `<div><strong style="color: #495057;">包場內容：</strong><span style="color: #212529;">${venueContent}</span></div>` : ''}
+                ${diningDateStr !== '未設定' ? `<div><strong style="color: #495057;">用餐日期時間：</strong><span style="color: #212529;">${diningDateStr}</span></div>` : ''}
+                ${venueScope ? `<div><strong style="color: #495057;">包場範圍：</strong><span style="color: #212529;">${venueScope}</span></div>` : ''}
+                ${diningStyle ? `<div><strong style="color: #495057;">用餐方式：</strong><span style="color: #212529;">${diningStyle}</span></div>` : ''}
+                ${paymentMethod ? `<div><strong style="color: #495057;">付款：</strong><span style="color: #212529;">${paymentMethod}</span></div>` : ''}
+                ${depositPaid > 0 ? `<div><strong style="color: #495057;">已付訂金：</strong><span style="color: #28a745; font-weight: 600;">$${depositPaid.toLocaleString()}</span></div>` : ''}
+            </div>
+        </div>
+
         <!-- 訂單資訊卡片 -->
-        <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 18px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #007bff;">
+        <div style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); padding: 18px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #2196f3;">
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; text-align: center;">
                 <div>
-                    <div style="font-size: 1.6rem; font-weight: 700; color: #007bff;">${totalItems}</div>
-                    <div style="color: #6c757d; font-size: 0.9rem; margin-top: 2px;">總餐點數</div>
+                    <div style="font-size: 1.6rem; font-weight: 700; color: #1976d2;">${totalItems}</div>
+                    <div style="color: #546e7a; font-size: 0.9rem; margin-top: 2px;">總餐點數</div>
                 </div>
                 <div>
-                    <div style="font-size: 1.6rem; font-weight: 700; color: #28a745;">${peopleCount}</div>
-                    <div style="color: #6c757d; font-size: 0.9rem; margin-top: 2px;">用餐人數</div>
+                    <div style="font-size: 1.6rem; font-weight: 700; color: #1976d2;">${peopleCount}</div>
+                    <div style="color: #546e7a; font-size: 0.9rem; margin-top: 2px;">用餐人數</div>
                 </div>
                 <div>
-                    <div style="font-size: 1.6rem; font-weight: 700; color: #fd7e14;">${tableCount}</div>
-                    <div style="color: #6c757d; font-size: 0.9rem; margin-top: 2px;">桌數</div>
+                    <div style="font-size: 1.6rem; font-weight: 700; color: #1976d2;">${tableCount}</div>
+                    <div style="color: #546e7a; font-size: 0.9rem; margin-top: 2px;">桌數</div>
                 </div>
             </div>
         </div>
