@@ -2626,6 +2626,10 @@ function updateCartSummary() {
     if (elements.discountAmount) {
         elements.discountAmount.textContent = discountValue > 0 ? `-$${discountValue}` : '$0';
     }
+    if (elements.discountTotal) {
+        const discountedTotal = Math.max(totals.subtotal - discountValue + totals.serviceFee, 0);
+        elements.discountTotal.textContent = `$${discountedTotal}`;
+    }
     elements.serviceFee.textContent = `$${totals.serviceFee}`;
     elements.total.textContent = `$${totals.total}`;
     elements.perPerson.textContent = `$${totals.perPerson}`;
