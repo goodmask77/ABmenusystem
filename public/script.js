@@ -2874,17 +2874,21 @@ function exportCartToExcel() {
     
     // 加入摘要
     const totals = calculateTotalsWithoutDiscount(cart, peopleCount);
-    const { subtotal, serviceFee, total, perPerson } = totals;
+    const { subtotal, serviceFee, total } = totals;
     const discountValue = calculateDiscountValue(subtotal, discount);
+    const discountedTotal = Math.max(total - discountValue, 0);
+    const perPersonAfterDiscount = Math.round(discountedTotal / Math.max(peopleCount, 1));
     
     cartData_flat.push({});
     cartData_flat.push({ '品項名稱': '小計', '小計': subtotal });
     if (discountValue > 0) {
-        cartData_flat.push({ '品項名稱': '折扣(僅顯示，不影響總計)', '小計': -discountValue });
+        cartData_flat.push({ '品項名稱': '折扣', '小計': -discountValue });
+        cartData_flat.push({ '品項名稱': '折扣後總計', '小計': discountedTotal });
     }
     cartData_flat.push({ '品項名稱': '服務費 (10%)', '小計': serviceFee });
     cartData_flat.push({ '品項名稱': '總計', '小計': total });
-    cartData_flat.push({ '品項名稱': `人均 (${peopleCount}人)`, '小計': perPerson });
+    cartData_flat.push({ '品項名稱': '折扣後應付', '小計': discountedTotal });
+    cartData_flat.push({ '品項名稱': `人均 (${peopleCount}人)`, '小計': perPersonAfterDiscount });
     
     const cartSheet = XLSX.utils.json_to_sheet(cartData_flat);
     XLSX.utils.book_append_sheet(workbook, cartSheet, '購物車明細');
@@ -2943,8 +2947,10 @@ function exportCartToImage() {
 
 function generateCartImageContent() {
     const totals = calculateTotalsWithoutDiscount(cart, peopleCount);
-    const { subtotal, serviceFee, total, perPerson } = totals;
+    const { subtotal, serviceFee, total } = totals;
     const discountValue = calculateDiscountValue(subtotal, elements.discount?.value || '');
+    const discountedTotal = Math.max(total - discountValue, 0);
+    const perPersonAfterDiscount = Math.round(discountedTotal / Math.max(peopleCount, 1));
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
     
     // 取得訂單資訊（除了產業別）
@@ -3050,8 +3056,12 @@ function generateCartImageContent() {
                 </div>
                 ${discountValue > 0 ? `
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 1.2rem; color: #f39c12;">
-                    <span>折扣(僅顯示，不影響總計)</span>
+                    <span>折扣 Discount</span>
                     <span style="font-weight: 700;">-$${discountValue}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 1.2rem; color: #f39c12;">
+                    <span>折扣後總計 After Discount</span>
+                    <span style="font-weight: 700;">$${discountedTotal}</span>
                 </div>
                 ` : ''}
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 1.2rem; color: rgba(255, 255, 255, 0.8);">
@@ -3060,11 +3070,11 @@ function generateCartImageContent() {
                 </div>
                 <div style="border-top: 2px solid rgba(255, 255, 255, 0.3); padding-top: 10px; display: flex; justify-content: space-between; font-size: 1.5rem; font-weight: 700;">
                     <span>總計 Total Amount</span>
-                    <span style="color: #f39c12;">$${total}</span>
+                    <span style="color: #f39c12;">$${discountValue > 0 ? discountedTotal : total}</span>
                 </div>
                 <div style="border-top: 1px solid rgba(255, 255, 255, 0.2); margin-top: 10px; padding-top: 10px; display: flex; justify-content: space-between; font-size: 1.3rem; font-weight: 600; color: #3498db;">
                     <span>人均費用 Per Person (${peopleCount}人)</span>
-                    <span>$${perPerson}</span>
+                    <span>$${discountValue > 0 ? perPersonAfterDiscount : Math.round(total / Math.max(peopleCount, 1))}</span>
                 </div>
             </div>
         </div>
