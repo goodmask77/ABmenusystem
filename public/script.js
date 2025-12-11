@@ -1084,6 +1084,7 @@ const elements = {
     venueScope: document.getElementById('venueScope'),
     diningStyle: document.getElementById('diningStyle'),
     paymentMethod: document.getElementById('paymentMethod'),
+    discount: document.getElementById('discount'),
     depositPaid: document.getElementById('depositPaid')
 };
 
@@ -1202,6 +1203,7 @@ function getOrderInfo() {
         venueScope: getCustomizableSelectValue('venueScope', 'venueScopeCustom'),
         diningStyle: getCustomizableSelectValue('diningStyle', 'diningStyleCustom'),
         paymentMethod: getCustomizableSelectValue('paymentMethod', 'paymentMethodCustom'),
+        discount: elements.discount?.value?.trim() || '',
         depositPaid: parseFloat(elements.depositPaid?.value) || 0,
         diningDateTime: getDiningDateTime(),
         tableCount: tableCount,
@@ -1240,6 +1242,9 @@ function setOrderInfo(info) {
     }
     if (info.paymentMethod) {
         setCustomizableSelectValue('paymentMethod', 'paymentMethodCustom', ['匯款', '刷卡', '當天結帳'], info.paymentMethod);
+    }
+    if (info.discount !== undefined && elements.discount) {
+        elements.discount.value = info.discount;
     }
     
     // 處理時間設定（包含自訂時間）
@@ -1800,6 +1805,7 @@ function persistCartState() {
             venueScope: elements.venueScope?.value || '',
             diningStyle: elements.diningStyle?.value || '',
             paymentMethod: elements.paymentMethod?.value || '',
+            discount: elements.discount?.value || '',
             depositPaid: elements.depositPaid?.value || '',
             updatedAt: new Date().toISOString()
         };
@@ -1858,6 +1864,9 @@ function restoreCartState() {
         }
         if (payload?.paymentMethod && elements.paymentMethod) {
             elements.paymentMethod.value = payload.paymentMethod;
+        }
+        if (payload?.discount !== undefined && elements.discount) {
+            elements.discount.value = payload.discount;
         }
         if (payload?.depositPaid && elements.depositPaid) {
             elements.depositPaid.value = payload.depositPaid;
@@ -2058,6 +2067,9 @@ function bindEvents() {
     }
     if (elements.industrySelect) {
         elements.industrySelect.addEventListener('change', persistCartState);
+    }
+    if (elements.discount) {
+        elements.discount.addEventListener('change', persistCartState);
     }
     if (elements.depositPaid) {
         elements.depositPaid.addEventListener('change', persistCartState);
@@ -2783,6 +2795,7 @@ function exportCartToExcel() {
     const venueScope = orderInfo.venueScope || '';
     const diningStyle = orderInfo.diningStyle || '';
     const paymentMethod = orderInfo.paymentMethod || '';
+    const discount = orderInfo.discount || '';
     const depositPaid = orderInfo.depositPaid || 0;
     const diningDateTime = getDiningDateTime();
     const diningDateStr = diningDateTime ? formatDate(new Date(diningDateTime)) : '未設定';
@@ -2800,6 +2813,7 @@ function exportCartToExcel() {
     if (venueScope) customerInfo.push({ '項目': '包場範圍', '內容': venueScope });
     if (diningStyle) customerInfo.push({ '項目': '用餐方式', '內容': diningStyle });
     if (paymentMethod) customerInfo.push({ '項目': '付款', '內容': paymentMethod });
+    if (discount) customerInfo.push({ '項目': '折扣', '內容': discount });
     if (depositPaid > 0) customerInfo.push({ '項目': '已付訂金', '內容': depositPaid });
     customerInfo.push({ '項目': '用餐人數', '內容': peopleCount });
     customerInfo.push({ '項目': '桌數', '內容': tableCount });
@@ -2932,6 +2946,7 @@ function generateCartImageContent() {
                 ${venueScope ? `<div><strong style="color: #495057;">包場範圍：</strong><span style="color: #212529;">${venueScope}</span></div>` : ''}
                 ${diningStyle ? `<div><strong style="color: #495057;">用餐方式：</strong><span style="color: #212529;">${diningStyle}</span></div>` : ''}
                 ${paymentMethod ? `<div><strong style="color: #495057;">付款：</strong><span style="color: #212529;">${paymentMethod}</span></div>` : ''}
+                ${discount ? `<div><strong style="color: #495057;">折扣：</strong><span style="color: #d35400; font-weight: 600;">${discount}</span></div>` : ''}
                 ${depositPaid > 0 ? `<div><strong style="color: #495057;">已付訂金：</strong><span style="color: #28a745; font-weight: 600;">$${depositPaid.toLocaleString()}</span></div>` : ''}
             </div>
         </div>
@@ -3506,6 +3521,7 @@ async function loadOrdersFromSupabase() {
                 venueScope: order.venue_scope,
                 diningStyle: order.dining_style,
                 paymentMethod: order.payment_method,
+                discount: order.discount,
                     depositPaid: order.deposit_paid || 0
             },
             meta: {
@@ -3670,6 +3686,7 @@ async function syncLocalOrdersToSupabase() {
                 venue_scope: orderInfo.venueScope || '',
                 dining_style: orderInfo.diningStyle || '',
                 payment_method: orderInfo.paymentMethod || '',
+                discount: orderInfo.discount || '',
                 deposit_paid: orderInfo.depositPaid || 0,
                 dining_datetime: menu.diningDateTime || null,
                 table_count: menu.tableCount || 1,
