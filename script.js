@@ -1102,9 +1102,8 @@ function setRadioValue(name, value) {
     if (radio) radio.checked = true;
 }
 
-// 折扣計算：支援百分比（例如 "10%"）或固定金額（例如 "500"）
-function calculateTotalsWithDiscount(cartItems, people, discountInput) {
-    const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+// 折扣計算：支援百分比（例如 "10%"）或固定金額（例如 "500"），僅用於顯示，不影響小計/服務費/總計
+function calculateDiscountValue(subtotal, discountInput) {
     const parsed = (discountInput || '').toString().trim();
     let discountValue = 0;
     if (parsed.endsWith('%')) {
@@ -1118,18 +1117,15 @@ function calculateTotalsWithDiscount(cartItems, people, discountInput) {
             discountValue = Math.min(subtotal, amount);
         }
     }
-    const discountedSubtotal = Math.max(subtotal - discountValue, 0);
-    const serviceFee = Math.round(discountedSubtotal * 0.1);
-    const total = discountedSubtotal + serviceFee;
+    return discountValue;
+}
+
+function calculateTotalsWithoutDiscount(cartItems, people) {
+    const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const serviceFee = Math.round(subtotal * 0.1);
+    const total = subtotal + serviceFee;
     const perPerson = Math.round(total / Math.max(people, 1));
-    return {
-        subtotal,
-        discountValue,
-        discountedSubtotal,
-        serviceFee,
-        total,
-        perPerson
-    };
+    return { subtotal, serviceFee, total, perPerson };
 }
 
 // ========== 功能 A：可重複使用的自訂下拉選單函式 ==========
@@ -2620,14 +2616,15 @@ function removeInvalidCartItems() {
 
 // 計算購物車摘要
 function updateCartSummary() {
-    const totals = calculateTotalsWithDiscount(cart, peopleCount, elements.discount?.value || '');
+    const totals = calculateTotalsWithoutDiscount(cart, peopleCount);
+    const discountValue = calculateDiscountValue(totals.subtotal, elements.discount?.value || '');
     const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0); // 總餐點數量
     
-    console.log(`計算詳情 - 小計: $${totals.subtotal}, 折扣: $${totals.discountValue}, 折後小計: $${totals.discountedSubtotal}, 服務費: $${totals.serviceFee}, 總計: $${totals.total}, 人數: ${peopleCount}, 人均: $${totals.perPerson}`);
+    console.log(`計算詳情 - 小計: $${totals.subtotal}, 折扣(僅顯示): $${discountValue}, 服務費: $${totals.serviceFee}, 總計: $${totals.total}, 人數: ${peopleCount}, 人均: $${totals.perPerson}`);
     
     elements.subtotal.textContent = `$${totals.subtotal}`;
     if (elements.discountAmount) {
-        elements.discountAmount.textContent = totals.discountValue > 0 ? `-$${totals.discountValue}` : '$0';
+        elements.discountAmount.textContent = discountValue > 0 ? `-$${discountValue}` : '$0';
     }
     elements.serviceFee.textContent = `$${totals.serviceFee}`;
     elements.total.textContent = `$${totals.total}`;
@@ -2868,14 +2865,14 @@ function exportCartToExcel() {
     }));
     
     // 加入摘要
-    const totals = calculateTotalsWithDiscount(cart, peopleCount, discount);
-    const { subtotal, discountValue, discountedSubtotal, serviceFee, total, perPerson } = totals;
+    const totals = calculateTotalsWithoutDiscount(cart, peopleCount);
+    const { subtotal, serviceFee, total, perPerson } = totals;
+    const discountValue = calculateDiscountValue(subtotal, discount);
     
     cartData_flat.push({});
     cartData_flat.push({ '品項名稱': '小計', '小計': subtotal });
     if (discountValue > 0) {
-        cartData_flat.push({ '品項名稱': '折扣', '小計': -discountValue });
-        cartData_flat.push({ '品項名稱': '折後小計', '小計': discountedSubtotal });
+        cartData_flat.push({ '品項名稱': '折扣(僅顯示，不影響總計)', '小計': -discountValue });
     }
     cartData_flat.push({ '品項名稱': '服務費 (10%)', '小計': serviceFee });
     cartData_flat.push({ '品項名稱': '總計', '小計': total });
@@ -2937,8 +2934,9 @@ function exportCartToImage() {
 }
 
 function generateCartImageContent() {
-    const totals = calculateTotalsWithDiscount(cart, peopleCount, elements.discount?.value || '');
-    const { subtotal, discountValue, discountedSubtotal, serviceFee, total, perPerson } = totals;
+    const totals = calculateTotalsWithoutDiscount(cart, peopleCount);
+    const { subtotal, serviceFee, total, perPerson } = totals;
+    const discountValue = calculateDiscountValue(subtotal, elements.discount?.value || '');
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
     
     // 取得訂單資訊（除了產業別）
@@ -3044,12 +3042,8 @@ function generateCartImageContent() {
                 </div>
                 ${discountValue > 0 ? `
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 1.2rem; color: #f39c12;">
-                    <span>折扣 Discount</span>
+                    <span>折扣(僅顯示，不影響總計)</span>
                     <span style="font-weight: 700;">-$${discountValue}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 1.2rem;">
-                    <span>折後小計</span>
-                    <span style="font-weight: 600;">$${discountedSubtotal}</span>
                 </div>
                 ` : ''}
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 1.2rem; color: rgba(255, 255, 255, 0.8);">
@@ -3713,8 +3707,8 @@ async function syncLocalOrdersToSupabase() {
         try {
             const orderInfo = menu.orderInfo || {};
             const cartItems = menu.cart || [];
-            const totals = calculateTotalsWithDiscount(cartItems, menu.peopleCount || 1, orderInfo.discount || '');
-            const { subtotal, discountValue, discountedSubtotal, serviceFee, total, perPerson } = totals;
+            const totals = calculateTotalsWithoutDiscount(cartItems, menu.peopleCount || 1);
+            const { subtotal, serviceFee, total, perPerson } = totals;
             
             const orderData = {
                 company_name: orderInfo.companyName || menu.customerName || menu.name || '',
@@ -3769,8 +3763,8 @@ async function syncLocalOrdersToSupabase() {
 function saveMenuToStorage() {
     // 更新儲存模態框的資訊
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-    const totals = calculateTotalsWithDiscount(cart, peopleCount || 1, elements.discount?.value || '');
-    const total = totals.total; // 含服務費且含折扣
+    const totals = calculateTotalsWithoutDiscount(cart, peopleCount || 1);
+    const total = totals.total; // 含服務費，不含折扣
     
     document.getElementById('saveMenuItemCount').textContent = totalItems;
     document.getElementById('saveMenuTotal').textContent = Math.round(total);
@@ -3924,8 +3918,8 @@ async function confirmSaveMenu() {
     
     // 計算購物車中的餐點數量和金額
     const cartItemCount = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
-    const totalsForSave = calculateTotalsWithDiscount(cart, peopleCount || 1, orderInfo.discount || '');
-    const { subtotal, discountValue, discountedSubtotal, serviceFee, total: estimatedTotal, perPerson: estimatedPerPerson } = totalsForSave;
+    const totalsForSave = calculateTotalsWithoutDiscount(cart, peopleCount || 1);
+    const { subtotal, serviceFee, total: estimatedTotal, perPerson: estimatedPerPerson } = totalsForSave;
     
     // 建立購物車預覽
     const cartPreview = cart.slice(0, 3).map(item => item.name).join(', ') + (cart.length > 3 ? '...' : '');
