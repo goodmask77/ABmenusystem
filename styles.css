@@ -1061,7 +1061,8 @@ body {
 
 .summary-inline.discount-row {
     justify-content: center;
-    gap: 2rem;
+    gap: 3rem;
+    text-align: center;
 }
 
 .summary-item {
@@ -1073,9 +1074,10 @@ body {
 }
 
 .summary-inline.discount-row .summary-item {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 700;
     text-align: center;
+    color: #2c3e50;
 }
 
 .summary-inline.discount-row .summary-item span:first-child {
@@ -1085,6 +1087,10 @@ body {
 
 .summary-inline.discount-row .summary-item span:last-child {
     color: #d35400;
+    font-weight: 800;
+    text-shadow:
+        0 0 6px rgba(255, 140, 0, 0.45),
+        0 0 14px rgba(255, 140, 0, 0.35);
 }
 
 .summary-item.total {
