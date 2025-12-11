@@ -1059,12 +1059,32 @@ body {
     margin-bottom: 0.5rem;
 }
 
+.summary-inline.discount-row {
+    justify-content: center;
+    gap: 2rem;
+}
+
 .summary-item {
     display: flex;
     align-items: center;
     gap: 0.3rem;
     font-size: 0.85rem;
     color: #495057;
+}
+
+.summary-inline.discount-row .summary-item {
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.summary-inline.discount-row .summary-item span:first-child {
+    color: #34495e;
+    margin-right: 0.4rem;
+}
+
+.summary-inline.discount-row .summary-item span:last-child {
+    color: #d35400;
 }
 
 .summary-item.total {
