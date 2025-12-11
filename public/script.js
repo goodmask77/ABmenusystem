@@ -2626,13 +2626,16 @@ function updateCartSummary() {
     if (elements.discountAmount) {
         elements.discountAmount.textContent = discountValue > 0 ? `-$${discountValue}` : '$0';
     }
+    const discountedTotal = Math.max(totals.subtotal - discountValue + totals.serviceFee, 0);
     if (elements.discountTotal) {
-        const discountedTotal = Math.max(totals.subtotal - discountValue + totals.serviceFee, 0);
         elements.discountTotal.textContent = `$${discountedTotal}`;
     }
     elements.serviceFee.textContent = `$${totals.serviceFee}`;
     elements.total.textContent = `$${totals.total}`;
-    elements.perPerson.textContent = `$${totals.perPerson}`;
+    const perPersonDisplay = discountValue > 0
+        ? Math.round(discountedTotal / Math.max(peopleCount, 1))
+        : totals.perPerson;
+    elements.perPerson.textContent = `$${perPersonDisplay}`;
     elements.totalItems.textContent = totalItemsCount;
 }
 
