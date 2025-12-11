@@ -2993,7 +2993,6 @@ function generateCartImageContent() {
                 ${venueScope ? `<div><strong style="color: #495057;">包場範圍：</strong><span style="color: #212529;">${venueScope}</span></div>` : ''}
                 ${diningStyle ? `<div><strong style="color: #495057;">用餐方式：</strong><span style="color: #212529;">${diningStyle}</span></div>` : ''}
                 ${paymentMethod ? `<div><strong style="color: #495057;">付款：</strong><span style="color: #212529;">${paymentMethod}</span></div>` : ''}
-                ${discount ? `<div><strong style="color: #495057;">折扣：</strong><span style="color: #d35400; font-weight: 600;">${discount}</span></div>` : ''}
                 ${depositPaid > 0 ? `<div><strong style="color: #495057;">已付訂金：</strong><span style="color: #28a745; font-weight: 600;">$${depositPaid.toLocaleString()}</span></div>` : ''}
             </div>
         </div>
