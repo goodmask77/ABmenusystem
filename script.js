@@ -1371,6 +1371,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     await loadVenueContentOptions(); // 載入包場內容選項
     restoreCurrentUser();
     updateAuthUI();
+    initFillStateStyling();
 });
 
 function initializeApp() {
@@ -1414,6 +1415,22 @@ function initializeApp() {
             console.log('延遲綁定桌數控制按鈕成功');
         }
     }, 100);
+}
+
+// === 填寫狀態提示 ===
+function markFillState(field) {
+    const hasValue = field.value && field.value.toString().trim() !== '';
+    field.classList.toggle('input-filled', hasValue);
+    field.classList.toggle('input-empty', !hasValue);
+}
+
+function initFillStateStyling() {
+    const selector = 'input[type="text"], input[type="tel"], input[type="number"], input[type="date"], select, textarea';
+    document.querySelectorAll(selector).forEach(el => {
+        markFillState(el);
+        el.addEventListener('input', () => markFillState(el));
+        el.addEventListener('change', () => markFillState(el));
+    });
 }
 
 async function prepareInitialState() {
@@ -3903,15 +3920,6 @@ async function deleteOrderFromSupabaseById(orderId) {
 }
 
 async function confirmSaveMenu() {
-    // 驗證公司名稱
-    const companyName = elements.companyName?.value?.trim();
-    if (!companyName) {
-        alert('請輸入公司名稱');
-        elements.companyName?.focus();
-        document.getElementById('saveMenuModal').style.display = 'none';
-        return;
-    }
-    
     // 確保 Supabase 已初始化
     console.log('檢查 Supabase 連線狀態...');
     const client = supabaseClient || await initSupabaseClient();
@@ -3922,7 +3930,7 @@ async function confirmSaveMenu() {
         const retryClient = await initSupabaseClient();
         if (!retryClient) {
             alert('無法連線到 Supabase 雲端資料庫\n\n請檢查：\n1. 網路連線是否正常\n2. 瀏覽器 Console 是否有錯誤訊息\n3. 稍後再試');
-            return;
+        return;
         }
     }
     

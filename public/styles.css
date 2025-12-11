@@ -1128,6 +1128,16 @@ body {
         0 0 14px rgba(255, 140, 0, 0.35);
 }
 
+/* 填寫狀態提示 */
+.input-empty {
+    background-color: #fff9f0;
+    border-color: #f0a46b;
+}
+.input-filled {
+    background-color: #f6ffed;
+    border-color: #52c41a;
+}
+
 /* 模態對話框 */
 .modal {
     display: none;
