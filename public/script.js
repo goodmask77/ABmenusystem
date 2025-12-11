@@ -2948,7 +2948,8 @@ function exportCartToImage() {
 function generateCartImageContent() {
     const totals = calculateTotalsWithoutDiscount(cart, peopleCount);
     const { subtotal, serviceFee, total } = totals;
-    const discountValue = calculateDiscountValue(subtotal, elements.discount?.value || '');
+    const discountInput = elements.discount?.value || '';
+    const discountValue = calculateDiscountValue(subtotal, discountInput);
     const discountedTotal = Math.max(total - discountValue, 0);
     const perPersonAfterDiscount = Math.round(discountedTotal / Math.max(peopleCount, 1));
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -3054,27 +3055,29 @@ function generateCartImageContent() {
                     <span>餐點小計 Subtotal</span>
                     <span style="font-weight: 600;">$${subtotal}</span>
                 </div>
-                ${discountValue > 0 ? `
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 1.2rem; color: #f39c12;">
-                    <span>折扣 Discount</span>
-                    <span style="font-weight: 700;">-$${discountValue}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 1.2rem; color: #f39c12;">
-                    <span>折扣後總計 After Discount</span>
-                    <span style="font-weight: 700;">$${discountedTotal}</span>
-                </div>
-                ` : ''}
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 1.2rem; color: rgba(255, 255, 255, 0.8);">
                     <span>服務費 Service Fee (10%)</span>
                     <span style="font-weight: 600;">$${serviceFee}</span>
                 </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 1.2rem;">
+                    <span>總計 Total</span>
+                    <span style="font-weight: 700;">$${total}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 1.2rem; color: #f39c12;">
+                    <span>折扣 Discount</span>
+                    <span style="font-weight: 700;">-$${discountValue}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 1.3rem; color: #f39c12; font-weight: 800;">
+                    <span>折扣後總計 After Discount</span>
+                    <span>$${discountedTotal}</span>
+                </div>
                 <div style="border-top: 2px solid rgba(255, 255, 255, 0.3); padding-top: 10px; display: flex; justify-content: space-between; font-size: 1.5rem; font-weight: 700;">
-                    <span>總計 Total Amount</span>
-                    <span style="color: #f39c12;">$${discountValue > 0 ? discountedTotal : total}</span>
+                    <span>應付 Total Amount</span>
+                    <span style="color: #f39c12;">$${discountedTotal}</span>
                 </div>
                 <div style="border-top: 1px solid rgba(255, 255, 255, 0.2); margin-top: 10px; padding-top: 10px; display: flex; justify-content: space-between; font-size: 1.3rem; font-weight: 600; color: #3498db;">
                     <span>人均費用 Per Person (${peopleCount}人)</span>
-                    <span>$${discountValue > 0 ? perPersonAfterDiscount : Math.round(total / Math.max(peopleCount, 1))}</span>
+                    <span>$${perPersonAfterDiscount}</span>
                 </div>
             </div>
         </div>
