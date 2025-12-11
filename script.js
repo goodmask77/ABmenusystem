@@ -1086,7 +1086,8 @@ const elements = {
     paymentMethod: document.getElementById('paymentMethod'),
     discount: document.getElementById('discount'),
     depositPaid: document.getElementById('depositPaid'),
-    discountAmount: document.getElementById('discountAmount')
+    discountAmount: document.getElementById('discountAmount'),
+    discountTotal: document.getElementById('discountTotal')
 };
 
 // 取得 radio 選項值
