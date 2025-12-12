@@ -2529,7 +2529,25 @@ function bindEvents() {
     
     if (elements.peopleCountInput) {
         elements.peopleCountInput.addEventListener('change', updatePeopleCount);
+        elements.peopleCountInput.addEventListener('input', () => {
+            // 即時更新分析欄位
+            updateAnalysisPanel();
+        });
     }
+    
+    // 客戶預算輸入框事件監聽
+    document.addEventListener('input', (e) => {
+        if (e.target && e.target.id === 'customerBudget') {
+            updateAnalysisPanel();
+        }
+    });
+    
+    document.addEventListener('change', (e) => {
+        const id = e.target && e.target.id;
+        if (id === 'peopleCount' || id === 'diners' || id === 'diningPeople' || id === 'guestCount') {
+            updateAnalysisPanel();
+        }
+    });
     
     // 桌數控制
     if (elements.decreaseTable && elements.increaseTable) {
