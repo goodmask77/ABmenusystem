@@ -4596,7 +4596,8 @@ async function confirmSaveMenu(isNewOrder = false) {
             hour: document.getElementById('diningHour')?.value === elements.diningHour?.value,
             minute: document.getElementById('diningMinute')?.value === elements.diningMinute?.value
         },
-        isUpdate: currentEditingOrderId !== null,
+        isUpdate: currentEditingOrderId !== null && !isNewOrder,
+        isNewOrder: isNewOrder,
         orderId: currentEditingOrderId
     });
     
