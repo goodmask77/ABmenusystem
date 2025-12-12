@@ -809,14 +809,38 @@ body {
     justify-content: center;
 }
 
-/* 統一按鈕高度：更新訂單、儲存菜單、刪除按鈕 */
-#updateOrder,
-#saveMenu,
-#deleteOrder {
-    padding: 0.8rem;
-    font-size: 1rem;
+/* ====== Action Buttons: 統一高度（更新 / 儲存 / 刪除）====== */
+.action-btn {
+    height: 72px;              /* 先用固定高度；如果你要更高/更矮改這裡 */
+    min-height: 72px;
+    padding: 0 20px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 10px;
+    line-height: 1;            /* 避免文字把高度撐開 */
+    white-space: nowrap;       /* 避免換行導致變高 */
+}
+
+.action-btn i,
+.action-btn svg {
+    flex: 0 0 auto;
+}
+
+/* 刪除按鈕通常比較窄，寬度你可選擇要不要固定 */
+.action-btn--danger {
+    min-width: 140px;          /* 可調整或刪掉 */
+}
+
+/* 三顆按鈕那一排：讓每顆都等高 */
+.action-row {
+    display: flex;
+    align-items: stretch;  /* 重要：stretch 才會等高 */
+    gap: 12px;
+}
+
+.action-row .action-btn {
+    flex: 1 1 auto;
 }
 
 /* 購物車控制區域 */
