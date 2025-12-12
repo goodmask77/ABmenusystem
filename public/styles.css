@@ -2585,7 +2585,8 @@ body {
 
 .analysis-row {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    /* 第一欄（客戶預算）使用自動寬度，其他兩欄平均分配剩餘空間 */
+    grid-template-columns: auto 1fr 1fr;
     gap: 18px;
     align-items: center;
 }
@@ -2598,24 +2599,50 @@ body {
     white-space: nowrap;
 }
 
+/* 第一欄（客戶預算）不允許擴展，保持緊湊 */
+.analysis-row .analysis-item:first-child {
+    flex-shrink: 0;
+    min-width: 0;
+    max-width: fit-content;
+}
+
 .analysis-item label,
 .analysis-label {
     opacity: 0.95;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .analysis-value {
     font-weight: 700;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* 確保金額資訊欄位有足夠空間顯示，不被擠壓 */
+.analysis-row .analysis-item:not(:first-child) {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.analysis-row .analysis-item:not(:first-child) .analysis-label,
+.analysis-row .analysis-item:not(:first-child) .analysis-value {
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 
 #customerBudget {
-    width: 140px;
-    max-width: 100%;
+    width: 120px;
+    min-width: 100px;
+    max-width: 150px;
     padding: 6px 10px;
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.25);
     background: rgba(255, 255, 255, 0.08);
     color: #fff;
     outline: none;
+    flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 #customerBudget::placeholder {
