@@ -5221,42 +5221,39 @@ function renderHistoryCell(col, menu, metrics, idx) {
                 </button>
             </td>`;
         case 'date':
-            // 【步驟 5】單一真實資料來源：只使用 orderInfo.diningDateTime，不得 fallback 到舊欄位
-            // 如果 orderInfo.diningDateTime 不存在，才使用 menu.diningDateTime，最後才用 savedAt
-            const dateTimeToDisplay = orderInfo.diningDateTime || menu.diningDateTime || menu.savedAt;
-            const displayDate = dateTimeToDisplay ? formatDate(new Date(dateTimeToDisplay)) : '--';
+            // ✅ 歷史列表顯示時間：只信 Supabase
+            // 停止使用 menu.diningDateTime 和 orderInfo.diningDateTime（如果它不是來自 Supabase）
+            // 唯一資料來源：Supabase 回傳的 dining_datetime
+            const rawDiningDateTime = 
+                menu.dining_datetime ||  // 直接從 Supabase 原始資料（如果保存了）
+                menu.diningDateTime ||   // 從轉換後的 menu 物件（來自 order.dining_datetime）
+                null;
             
-            // 調試 4：渲染該筆時實際拿來顯示的值（記錄所有訂單，不只是當前編輯的）
-            // 特別標記最近更新的訂單（通過檢查 updated_at 是否很新）
+            if (!rawDiningDateTime) {
+                console.warn('[History] 無 dining_datetime，orderId:', menu.id);
+            }
+            
+            const dateTimeToDisplay = rawDiningDateTime
+                ? formatDate(new Date(rawDiningDateTime))
+                : '--';
+            
+            // 調試：確認使用的資料來源
             const isRecentlyUpdated = menu.savedAt && (new Date() - new Date(menu.savedAt)) < 5000; // 5秒內更新的
             if (isRecentlyUpdated || menuId) {
-                console.log('📋 [Debug 4] renderHistoryList 渲染該筆時 - 實際拿來顯示的值:', {
+                console.log('📋 [History] 渲染日期 - 只使用 Supabase 資料:', {
                     orderId: menuId,
-                    orderInfoDiningDateTime: orderInfo.diningDateTime,
-                    menuDiningDateTime: menu.diningDateTime,
-                    savedAt: menu.savedAt,
+                    rawDiningDateTime,
                     dateTimeToDisplay,
-                    displayDate,
-                    source: orderInfo.diningDateTime ? 'orderInfo.diningDateTime（優先）' : 
-                           (menu.diningDateTime ? 'menu.diningDateTime（備援）' : 'menu.savedAt（最後備援）'),
-                    // 驗證：確保使用 orderInfo.diningDateTime
-                    usingCorrectSource: !!orderInfo.diningDateTime,
-                    fullMenuObject: {
-                        id: menu.id,
-                        diningDateTime: menu.diningDateTime,
-                        savedAt: menu.savedAt
-                    },
-                    fullOrderInfo: {
-                        diningDateTime: orderInfo.diningDateTime
-                    }
+                    source: menu.dining_datetime ? 'menu.dining_datetime（Supabase原始）' : 
+                           (menu.diningDateTime ? 'menu.diningDateTime（來自Supabase轉換）' : '無資料'),
+                    fromSupabase: menu.fromSupabase,
+                    // 驗證：不應該使用 orderInfo.diningDateTime（除非它來自 Supabase）
+                    orderInfoDiningDateTime: orderInfo.diningDateTime,
+                    menuDiningDateTime: menu.diningDateTime
                 });
-                
-                // 如果沒有使用 orderInfo.diningDateTime，發出警告
-                if (!orderInfo.diningDateTime && menu.diningDateTime) {
-                    console.warn('⚠️ [Debug 4] 警告：未使用 orderInfo.diningDateTime，fallback 到 menu.diningDateTime');
-                }
             }
-            return `<td class="date-cell">${displayDate}</td>`;
+            
+            return `<td class="date-cell">${dateTimeToDisplay}</td>`;
         case 'company':
             return `<td class="menu-name-cell" title="${companyName}">${companyName || '--'}</td>`;
         case 'taxId':
