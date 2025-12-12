@@ -493,13 +493,15 @@ body {
 }
 
 /* 功能 C & D：歷史訂單表格樣式 */
+/* 表格容器必須跟著 modal 變寬 */
 .history-table-wrapper {
     max-height: 600px;
-    overflow-x: hidden; /* 禁止水平滾動 */
     overflow-y: auto; /* 只允許垂直滾動 */
+    overflow-x: visible; /* 不要硬蓋，讓表格自然顯示 */
     border: 1px solid #dee2e6;
     border-radius: 4px;
-    width: 100%;
+    width: 100%; /* 確保填滿容器 */
+    min-width: 100%; /* 至少填滿容器 */
 }
 
 .history-table-full {
@@ -1244,13 +1246,13 @@ body {
 }
 
 .modal-content.extra-large {
-    max-width: calc(100vw - 20px); /* 使用視窗寬度，只留最小邊距 */
-    width: calc(100vw - 20px);
-    max-height: calc(100vh - 20px); /* 使用視窗高度，只留最小邊距 */
-    overflow-y: auto;
-    overflow-x: hidden; /* 禁止水平滾動 */
-    margin: 10px auto; /* 最小邊距 */
-    padding: 1.2rem; /* 適度內距 */
+    width: min(96vw, 1800px); /* 接近全視窗，但最大不超過 1800px */
+    max-width: 96vw; /* 確保不會超過視窗 */
+    max-height: 90vh; /* 高度限制，內容可垂直滾動 */
+    overflow-y: auto; /* 允許垂直滾動 */
+    overflow-x: visible; /* 不要硬蓋水平內容，讓內容自然顯示 */
+    margin: 5vh auto; /* 置中，上下留 5vh 邊距 */
+    padding: 1.5rem; /* 適度內距 */
 }
 
 @keyframes modalSlideIn {
@@ -2316,13 +2318,18 @@ body {
   --shadow:    0 6px 24px rgba(0,0,0,.12);
 }
 
-/* 外層彈窗容器 */
+/* 外層彈窗容器 - 優先：先把 modal 變寬（接近全視窗） */
 .history-modal .modal-content {
-  max-width: 1200px;
+  width: min(96vw, 1800px); /* 接近全視窗，但最大不超過 1800px */
+  max-width: 96vw; /* 確保不會超過視窗 */
+  max-height: 90vh; /* 高度限制，內容可垂直滾動 */
   padding: var(--space-lg);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow);
   border: var(--border);
+  margin: 5vh auto; /* 置中，上下留 5vh 邊距 */
+  overflow-y: auto; /* 允許垂直滾動 */
+  overflow-x: visible; /* 不要硬蓋水平內容 */
 }
 
 /* 標題區域 */
