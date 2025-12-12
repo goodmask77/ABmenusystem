@@ -550,6 +550,40 @@ body {
     opacity: 1;
 }
 
+/* 歷史欄位設定 */
+.column-setting-list {
+    max-height: 400px;
+    overflow: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.column-setting-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 0.45rem 0.6rem;
+}
+.column-setting-item input[type="checkbox"] {
+    transform: scale(1.05);
+}
+.column-setting-item .column-label {
+    font-weight: 600;
+    color: #495057;
+}
+.column-setting-item .drag-handle {
+    cursor: grab;
+    color: #6c757d;
+    font-weight: 700;
+    user-select: none;
+}
+
 .history-table-full td {
     padding: 0.5rem 0.4rem;
     border-bottom: 1px solid #e9ecef;

@@ -4639,6 +4639,212 @@ async function showHistoryModal() {
     bindModalEvents();
 }
 
+// ========== 歷史列表欄位設定 ==========
+const HISTORY_COLUMN_KEY = 'history_columns_config_v2';
+const historyColumnDefinitions = [
+    { id: 'select', label: '勾選欄位', sortable: false },
+    { id: 'pin', label: '釘選', sortable: false, sortField: 'pinned' },
+    { id: 'company', label: '公司名稱', sortable: true, sortField: 'companyName' },
+    { id: 'taxId', label: '統編', sortable: true, sortField: 'taxId' },
+    { id: 'contact', label: '聯絡人', sortable: true, sortField: 'contactName' },
+    { id: 'line', label: 'LINE', sortable: true, sortField: 'lineName' },
+    { id: 'plan', label: '方案', sortable: true, sortField: 'planType' },
+    { id: 'venueScope', label: '包場範圍', sortable: true, sortField: 'venueScope' },
+    { id: 'venueContent', label: '包場內容', sortable: true, sortField: 'venueContent' },
+    { id: 'diningStyle', label: '用餐方式', sortable: true, sortField: 'diningStyle' },
+    { id: 'people', label: '人數/桌數', sortable: true, sortField: 'people' },
+    { id: 'total', label: '總額', sortable: true, sortField: 'total' },
+    { id: 'perPerson', label: '人均', sortable: true, sortField: 'perPerson' },
+    { id: 'depositPaid', label: '已付訂金', sortable: true, sortField: 'depositPaid' },
+    { id: 'industry', label: '產業別', sortable: true, sortField: 'industry' },
+    { id: 'actions', label: '操作', sortable: false }
+];
+
+function getDefaultHistoryColumnConfig() {
+    return historyColumnDefinitions.map(col => ({ id: col.id, visible: true }));
+}
+
+function getHistoryColumnConfig() {
+    try {
+        const saved = localStorage.getItem(HISTORY_COLUMN_KEY);
+        if (!saved) return getDefaultHistoryColumnConfig();
+        const parsed = JSON.parse(saved);
+        const validIds = new Set(historyColumnDefinitions.map(c => c.id));
+        // 過濾已不存在的欄位，並補上新增欄位
+        const filtered = parsed.filter(c => validIds.has(c.id));
+        const existingIds = new Set(filtered.map(c => c.id));
+        historyColumnDefinitions.forEach(def => {
+            if (!existingIds.has(def.id)) {
+                filtered.push({ id: def.id, visible: true });
+            }
+        });
+        return filtered;
+    } catch (e) {
+        console.warn('讀取欄位設定失敗，使用預設', e);
+        return getDefaultHistoryColumnConfig();
+    }
+}
+
+function saveHistoryColumnConfig(config) {
+    localStorage.setItem(HISTORY_COLUMN_KEY, JSON.stringify(config));
+}
+
+function getActiveHistoryColumns() {
+    const config = getHistoryColumnConfig();
+    const defMap = Object.fromEntries(historyColumnDefinitions.map(d => [d.id, d]));
+    return config
+        .filter(c => c.visible && defMap[c.id])
+        .map(c => defMap[c.id]);
+}
+
+function ensureHistoryColumnSettingsModal() {
+    if (document.getElementById('historyColumnSettingsModal')) return;
+    const modal = document.createElement('div');
+    modal.id = 'historyColumnSettingsModal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content medium">
+            <button class="close" onclick="closeModal('historyColumnSettingsModal')">&times;</button>
+            <h3>欄位設定</h3>
+            <p class="modal-description">勾選顯示、拖曳排序（置頂欄位除外）。</p>
+            <div id="historyColumnList" class="column-setting-list"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="resetHistoryColumns">恢復預設</button>
+                <div style="flex:1"></div>
+                <button class="btn btn-primary" id="saveHistoryColumns">套用</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function openHistoryColumnSettings() {
+    ensureHistoryColumnSettingsModal();
+    const list = document.getElementById('historyColumnList');
+    const config = getHistoryColumnConfig();
+    const defMap = Object.fromEntries(historyColumnDefinitions.map(d => [d.id, d]));
+    list.innerHTML = config.map(colCfg => {
+        const def = defMap[colCfg.id];
+        if (!def) return '';
+        const handle = '<span class="drag-handle" title="拖曳排序">☰</span>';
+        const checkbox = `<input type="checkbox" class="column-visible" data-id="${def.id}" ${colCfg.visible ? 'checked' : ''}>`;
+        return `<div class="column-setting-item" data-id="${def.id}">${handle}${checkbox}<span class="column-label">${def.label}</span></div>`;
+    }).join('');
+
+    if (window.Sortable && list) {
+        Sortable.create(list, {
+            animation: 150,
+            handle: '.drag-handle'
+        });
+    }
+
+    const saveBtn = document.getElementById('saveHistoryColumns');
+    saveBtn.onclick = () => {
+        const items = Array.from(list.querySelectorAll('.column-setting-item'));
+        const newConfig = items.map(item => {
+            const id = item.getAttribute('data-id');
+            const checked = item.querySelector('.column-visible').checked;
+            return { id, visible: checked };
+        });
+        saveHistoryColumnConfig(newConfig);
+        closeModal('historyColumnSettingsModal');
+        renderHistoryList();
+    };
+
+    const resetBtn = document.getElementById('resetHistoryColumns');
+    resetBtn.onclick = () => {
+        saveHistoryColumnConfig(getDefaultHistoryColumnConfig());
+        closeModal('historyColumnSettingsModal');
+        renderHistoryList();
+    };
+
+    openModal('historyColumnSettingsModal');
+}
+
+function renderHistoryHeaderCell(col) {
+    const sortField = col.sortField;
+    const isSortable = !!sortField;
+    const sortClass = isSortable && historySort.field === sortField ? 'sort-' + historySort.direction : '';
+    switch (col.id) {
+        case 'select':
+            return `<th class="checkbox-col" onclick="event.stopPropagation();">
+                <input type="checkbox" id="selectAllCheckbox" title="全選/取消全選">
+            </th>`;
+        case 'pin':
+            return `<th class="pin-col ${sortClass}" onclick="event.stopPropagation(); ${isSortable ? `sortHistoryBy('${sortField}')` : ''}">釘選</th>`;
+        case 'actions':
+            return `<th class="actions-col" onclick="event.stopPropagation();">操作</th>`;
+        default:
+            return `<th class="sortable ${sortClass}" onclick="sortHistoryBy('${sortField || ''}')">${col.label}</th>`;
+    }
+}
+
+function renderHistoryCell(col, menu, metrics, idx) {
+    const orderInfo = menu.orderInfo || {};
+    const total = metrics.total || 0;
+    const perPerson = metrics.perPerson || 0;
+    const depositPaid = orderInfo.depositPaid || 0;
+    const companyName = orderInfo.companyName || menu.name || '';
+    const taxId = orderInfo.taxId || '';
+    const contactName = orderInfo.contactName || '';
+    const lineName = orderInfo.lineName || '';
+    const planType = orderInfo.planType || '';
+    const venueScope = orderInfo.venueScope || '';
+    const venueContent = orderInfo.venueContent || '';
+    const diningStyle = orderInfo.diningStyle || '';
+    const industry = orderInfo.industry || '';
+    const paymentMethod = orderInfo.paymentMethod || '';
+    const menuId = menu.id || '';
+    const menuIdx = idx;
+    const isPinned = menu.isPinned || false;
+    switch (col.id) {
+        case 'select':
+            return `<td class="checkbox-col" onclick="event.stopPropagation();">
+                <input type="checkbox" class="order-checkbox" data-menu-id="${menuId}">
+            </td>`;
+        case 'pin':
+            return `<td class="pin-col" onclick="event.stopPropagation();">
+                <button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="toggleOrderPin('${menuId}', event)" title="${isPinned ? '取消釘選' : '釘選'}">
+                    <i class="fas fa-thumbtack"></i>
+                </button>
+            </td>`;
+        case 'company':
+            return `<td class="menu-name-cell" title="${companyName}">${companyName || '--'}</td>`;
+        case 'taxId':
+            return `<td class="tax-cell">${taxId || '--'}</td>`;
+        case 'contact':
+            return `<td class="contact-cell">${contactName || '--'}</td>`;
+        case 'line':
+            return `<td class="line-cell">${lineName || '--'}</td>`;
+        case 'plan':
+            return `<td class="plan-cell">${planType || '--'}</td>`;
+        case 'venueScope':
+            return `<td class="venue-cell">${venueScope || '--'}</td>`;
+        case 'venueContent':
+            return `<td class="venue-content-cell">${venueContent || '--'}</td>`;
+        case 'diningStyle':
+            return `<td class="dining-style-cell">${diningStyle || '--'}</td>`;
+        case 'people':
+            return `<td class="people-cell">${menu.peopleCount || 1}人/${menu.tableCount || 1}桌</td>`;
+        case 'total':
+            return `<td class="total-cell">${typeof total === 'number' ? '$' + Math.round(total).toLocaleString() : '--'}</td>`;
+        case 'perPerson':
+            return `<td class="perperson-cell">${typeof perPerson === 'number' ? '$' + Math.round(perPerson).toLocaleString() : '--'}</td>`;
+        case 'depositPaid':
+            return `<td class="deposit-cell">${depositPaid > 0 ? '$' + depositPaid.toLocaleString() : '--'}</td>`;
+        case 'industry':
+            return `<td class="industry-cell">${industry || '--'}</td>`;
+        case 'actions':
+            return `<td class="actions-cell" onclick="event.stopPropagation();">
+                <button class="btn-small btn-delete" onclick="deleteHistoryMenuByData(this.closest('tr'))" title="刪除">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>`;
+        default:
+            return `<td>--</td>`;
+    }
+}
+
 function renderHistoryList() {
     // 使用合併的訂單（本地 + Supabase）
     const allOrders = getMergedOrders();
@@ -4817,9 +5023,23 @@ function renderHistoryList() {
         return;
     }
     
+    const activeColumns = getActiveHistoryColumns();
+    const defMap = Object.fromEntries(historyColumnDefinitions.map(d => [d.id, d]));
+    const headerCells = activeColumns.map(col => renderHistoryHeaderCell(col)).join('');
+    const rowsHtml = filteredMenus.map((menu, idx) => {
+        const metrics = getHistoryMetrics(menu);
+        const menuId = menu.id || '';
+        const menuIdx = idx;
+        const isPinned = menu.isPinned || false;
+        const rowCells = activeColumns.map(col => renderHistoryCell(col, menu, metrics, idx)).join('');
+        return `
+            <tr class="history-row ${isPinned ? 'pinned-row' : ''}" data-menu-id="${menuId}" data-idx="${menuIdx}" data-pinned="${isPinned}" onclick="loadHistoryMenuByData(this)" style="cursor: pointer;">
+                ${rowCells}
+            </tr>
+        `;
+    }).join('');
+
     // 功能 C & D：完整的表格顯示，包含所有欄位和釘選功能
-    // 所有欄位都可排序，隱藏小計和服務費
-    // 加入批量刪除功能：勾選和全選
     historyList.innerHTML = `
         <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
             <div>
@@ -4827,99 +5047,19 @@ function renderHistoryList() {
                     <i class="fas fa-trash"></i> 批量刪除 (<span id="selectedCount">0</span>)
                 </button>
             </div>
+            <div>
+                <button class="btn btn-secondary" onclick="openHistoryColumnSettings()">欄位設定</button>
+            </div>
         </div>
         <div class="history-table-wrapper">
             <table class="history-table-full" id="historyTable">
             <thead>
                 <tr>
-                    <th class="checkbox-col" onclick="event.stopPropagation();">
-                        <input type="checkbox" id="selectAllCheckbox" title="全選/取消全選">
-                    </th>
-                    <th class="sortable pin-col ${historySort.field === 'pinned' ? 'sort-' + historySort.direction : ''}" onclick="event.stopPropagation(); sortHistoryBy('pinned')">釘選</th>
-                    <th class="sortable ${historySort.field === 'date' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('date')">用餐日期</th>
-                        <th class="sortable ${historySort.field === 'companyName' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('companyName')">客戶名稱</th>
-                        <th class="sortable ${historySort.field === 'planType' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('planType')">方案</th>
-                        <th class="sortable ${historySort.field === 'lineName' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('lineName')">LINE名稱</th>
-                        <th class="sortable ${historySort.field === 'people' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('people')">人數/桌數</th>
-                        <th class="sortable ${historySort.field === 'diningStyle' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('diningStyle')">用餐方式</th>
-                        <th class="sortable ${historySort.field === 'total' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('total')">總額</th>
-                        <th class="sortable ${historySort.field === 'depositPaid' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('depositPaid')">已付訂金</th>
-                        <th class="sortable ${historySort.field === 'perPerson' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('perPerson')">人均</th>
-                        <th class="sortable ${historySort.field === 'venueContent' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('venueContent')">包場內容</th>
-                        <th class="sortable ${historySort.field === 'venueScope' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('venueScope')">包場範圍</th>
-                        <th class="sortable ${historySort.field === 'paymentMethod' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('paymentMethod')">付款方式</th>
-                        <th class="sortable ${historySort.field === 'contactName' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('contactName')">聯絡人</th>
-                        <th class="sortable ${historySort.field === 'contactPhone' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('contactPhone')">手機</th>
-                        <th class="sortable ${historySort.field === 'industry' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('industry')">產業別</th>
-                        <th class="sortable ${historySort.field === 'companyName' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('companyName')">公司名稱</th>
-                        <th class="sortable ${historySort.field === 'taxId' ? 'sort-' + historySort.direction : ''}" onclick="sortHistoryBy('taxId')">統編</th>
-                        <th class="actions-col" onclick="event.stopPropagation();">操作</th>
+                    ${headerCells}
                 </tr>
             </thead>
             <tbody>
-                ${filteredMenus.map((menu, idx) => {
-                    const metrics = getHistoryMetrics(menu);
-                        const total = metrics.total || 0;
-                        const perPerson = metrics.perPerson || 0;
-                    
-                    // 取得訂單資訊
-                    const orderInfo = menu.orderInfo || {};
-                        const contactName = orderInfo.contactName || '';
-                        const contactPhone = orderInfo.contactPhone || '';
-                    const industry = orderInfo.industry || '';
-                        const planType = orderInfo.planType || '';
-                        const lineName = orderInfo.lineName || '';
-                        const venueContent = orderInfo.venueContent || '';
-                        const venueScope = orderInfo.venueScope || '';
-                        const diningStyle = orderInfo.diningStyle || '';
-                        const paymentMethod = orderInfo.paymentMethod || '';
-                        const depositPaid = orderInfo.depositPaid || 0;
-                        const companyName = orderInfo.companyName || menu.name || '';
-                        const taxId = orderInfo.taxId || '';
-                    
-                    // 優先使用用餐日期時間，如果沒有則使用儲存時間
-                    const displayDate = menu.diningDateTime ? formatDate(new Date(menu.diningDateTime)) : formatDate(new Date(menu.savedAt));
-                    
-                    // 使用 data 屬性傳遞訂單資訊
-                    const menuId = menu.id || '';
-                    const menuIdx = idx;
-                        const isPinned = menu.isPinned || false;
-                    
-                    return `
-                            <tr class="history-row ${isPinned ? 'pinned-row' : ''}" data-menu-id="${menuId}" data-idx="${menuIdx}" data-pinned="${isPinned}" onclick="loadHistoryMenuByData(this)" style="cursor: pointer;">
-                                <td class="checkbox-col" onclick="event.stopPropagation();">
-                                    <input type="checkbox" class="order-checkbox" data-menu-id="${menuId}">
-                                </td>
-                                <td class="pin-col" onclick="event.stopPropagation();">
-                                    <button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="toggleOrderPin('${menuId}', event)" title="${isPinned ? '取消釘選' : '釘選'}">
-                                        <i class="fas fa-thumbtack"></i>
-                                    </button>
-                                </td>
-                            <td class="date-cell">${displayDate}</td>
-                                <td class="menu-name-cell" title="${companyName}">${companyName}</td>
-                                <td class="plan-cell">${planType || '--'}</td>
-                                <td class="line-cell">${lineName || '--'}</td>
-                            <td class="people-cell">${menu.peopleCount || 1}人/${menu.tableCount || 1}桌</td>
-                                <td class="dining-style-cell">${diningStyle || '--'}</td>
-                                <td class="total-cell">${typeof total === 'number' ? '$' + Math.round(total).toLocaleString() : '--'}</td>
-                                <td class="deposit-cell">${depositPaid > 0 ? '$' + depositPaid.toLocaleString() : '--'}</td>
-                                <td class="perperson-cell">${typeof perPerson === 'number' ? '$' + Math.round(perPerson).toLocaleString() : '--'}</td>
-                                <td class="venue-content-cell">${venueContent || '--'}</td>
-                                <td class="venue-cell">${venueScope || '--'}</td>
-                                <td class="payment-cell">${paymentMethod || '--'}</td>
-                                <td class="contact-cell">${contactName || '--'}</td>
-                                <td class="phone-cell">${contactPhone || '--'}</td>
-                                <td class="industry-cell">${industry || '--'}</td>
-                                <td class="company-cell">${companyName || '--'}</td>
-                                <td class="tax-cell">${taxId || '--'}</td>
-                            <td class="actions-cell" onclick="event.stopPropagation();">
-                                <button class="btn-small btn-delete" onclick="deleteHistoryMenuByData(this.closest('tr'))" title="刪除">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('')}
+                ${rowsHtml}
             </tbody>
         </table>
         </div>
@@ -5077,6 +5217,7 @@ if (typeof window !== 'undefined') {
     window.toggleSelectAll = toggleSelectAll;
     window.updateBatchDeleteButton = updateBatchDeleteButton;
     window.batchDeleteOrders = batchDeleteOrders;
+    window.openHistoryColumnSettings = openHistoryColumnSettings;
 }
 
 // 歷史紀錄排序函數
