@@ -1095,14 +1095,48 @@ body {
 
 /* 填寫狀態提示 */
 .input-empty {
-    background-color: #fff9f0;
-    border-color: #f0a46b;
-    box-shadow: 0 0 0 1px rgba(240, 164, 107, 0.6);
+    background-color: #fff3cd;
+    border-color: #f59f00;
+    color: #8b4a00;
+    box-shadow: 0 0 0 2px rgba(245, 159, 0, 0.45);
 }
 .input-filled {
-    background-color: #f6ffed;
-    border-color: #52c41a;
-    box-shadow: 0 0 0 1px rgba(82, 196, 26, 0.6);
+    background-color: #e6ffed;
+    border-color: #2f9e44;
+    color: #0f5132;
+    box-shadow: 0 0 0 2px rgba(47, 158, 68, 0.45);
+}
+
+/* 選項管理列表樣式 */
+.option-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.option-row {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 0.45rem 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+.option-row .option-text {
+    flex: 1;
+    font-weight: 600;
+    color: #2c3e50;
+}
+.option-actions {
+    display: flex;
+    gap: 0.35rem;
+}
+.drag-handle {
+    cursor: grab;
+    color: #888;
+}
+.drag-handle:active {
+    cursor: grabbing;
 }
 
 .summary-item.total {

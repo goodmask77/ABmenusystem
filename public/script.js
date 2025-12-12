@@ -500,6 +500,197 @@ let editingCategory = null;
 // Sortable 實例追蹤
 let sortableInstances = [];
 
+// ========== 本地下拉選項（方案/包場範圍/用餐方式/付款） ==========
+const localOptionDefaults = {
+    planType: ['大訂', '包場'],
+    venueScope: ['全包', '叢林區', '蘆葦區'],
+    diningStyle: ['自助', '桌菜'],
+    paymentMethod: ['匯款', '刷卡', '當天結帳']
+};
+
+const localOptionTitles = {
+    planType: '方案',
+    venueScope: '包場範圍',
+    diningStyle: '用餐方式',
+    paymentMethod: '付款方式'
+};
+
+let localOptions = {
+    planType: [...localOptionDefaults.planType],
+    venueScope: [...localOptionDefaults.venueScope],
+    diningStyle: [...localOptionDefaults.diningStyle],
+    paymentMethod: [...localOptionDefaults.paymentMethod]
+};
+
+function loadLocalOptions(type) {
+    try {
+        const stored = localStorage.getItem(`localOptions-${type}`);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length) {
+                localOptions[type] = parsed;
+            }
+        }
+    } catch (err) {
+        console.warn(`讀取 ${type} 選項失敗`, err);
+    }
+    if (!Array.isArray(localOptions[type]) || localOptions[type].length === 0) {
+        localOptions[type] = [...localOptionDefaults[type]];
+    }
+    return localOptions[type];
+}
+
+function saveLocalOptions(type, options) {
+    localOptions[type] = options;
+    localStorage.setItem(`localOptions-${type}`, JSON.stringify(options));
+    renderLocalSelect(type);
+}
+
+function renderLocalSelect(type) {
+    const map = {
+        planType: elements.planType,
+        venueScope: elements.venueScope,
+        diningStyle: elements.diningStyle,
+        paymentMethod: elements.paymentMethod
+    };
+    const select = map[type];
+    if (!select) return;
+    const options = loadLocalOptions(type);
+    const current = select.value;
+    select.innerHTML = '<option value=\"\">請選擇</option>' + options.map(opt => `<option value=\"${opt}\">${opt}</option>`).join('');
+    if (current && options.includes(current)) {
+        select.value = current;
+    } else {
+        select.value = '';
+    }
+    markFillState(select);
+}
+
+function initLocalOptionSelects() {
+    Object.keys(localOptionDefaults).forEach(type => {
+        loadLocalOptions(type);
+        renderLocalSelect(type);
+    });
+}
+
+function showLocalOptionManager(type) {
+    const title = localOptionTitles[type] || '選項';
+    let modal = document.getElementById(`optionModal-${type}`);
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = `optionModal-${type}`;
+        modal.className = 'modal';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+        <div class=\"modal-content\" style=\"max-width: 420px;\">
+            <div class=\"modal-header\">
+                <h3><i class=\"fas fa-list\"></i> ${title}管理</h3>
+                <button class=\"close-modal\" onclick=\"closeLocalOptionModal('${type}')\">&times;</button>
+            </div>
+            <div class=\"modal-body\">
+                <div id=\"optionList-${type}\" class=\"option-list\"></div>
+                <div style=\"display: flex; gap: 0.5rem; margin-top: 0.8rem;\">
+                    <input type=\"text\" id=\"newOption-${type}\" placeholder=\"新增${title}\" class=\"input-field\" style=\"flex: 1;\">
+                    <button class=\"btn btn-primary\" onclick=\"addLocalOption('${type}')\"><i class=\"fas fa-plus\"></i> 新增</button>
+                </div>
+            </div>
+        </div>
+    `;
+    modal.style.display = 'block';
+    renderLocalOptionList(type);
+}
+
+function closeLocalOptionModal(type) {
+    const modal = document.getElementById(`optionModal-${type}`);
+    if (modal) modal.style.display = 'none';
+}
+
+function renderLocalOptionList(type) {
+    const list = document.getElementById(`optionList-${type}`);
+    if (!list) return;
+    const options = loadLocalOptions(type);
+    list.innerHTML = options.map((opt, idx) => `
+        <div class=\"option-row\" data-idx=\"${idx}\">
+            <span class=\"drag-handle\" title=\"拖曳排序\"><i class=\"fas fa-grip-vertical\"></i></span>
+            <span class=\"option-text\">${opt}</span>
+            <div class=\"option-actions\">
+                <button class=\"btn btn-small btn-secondary\" onclick=\"editLocalOption('${type}', ${idx})\"><i class=\"fas fa-edit\"></i></button>
+                <button class=\"btn btn-small btn-danger\" onclick=\"deleteLocalOption('${type}', ${idx})\"><i class=\"fas fa-trash\"></i></button>
+            </div>
+        </div>
+    `).join('');
+    if (list._sortable) {
+        list._sortable.destroy();
+    }
+    list._sortable = new Sortable(list, {
+        animation: 150,
+        handle: '.drag-handle',
+        onEnd: () => {
+            const newOrder = Array.from(list.querySelectorAll('.option-row')).map(row => {
+                const idx = parseInt(row.dataset.idx, 10);
+                return options[idx];
+            }).filter(Boolean);
+            saveLocalOptions(type, newOrder);
+            renderLocalOptionList(type);
+            renderLocalSelect(type);
+        }
+    });
+}
+
+function addLocalOption(type) {
+    const input = document.getElementById(`newOption-${type}`);
+    const text = input?.value?.trim() || '';
+    if (!text) {
+        alert('請輸入內容');
+        return;
+    }
+    const options = loadLocalOptions(type);
+    if (options.includes(text)) {
+        alert('已存在相同選項');
+        return;
+    }
+    options.push(text);
+    saveLocalOptions(type, options);
+    renderLocalOptionList(type);
+    input.value = '';
+    renderLocalSelect(type);
+}
+
+function editLocalOption(type, idx) {
+    const options = loadLocalOptions(type);
+    const current = options[idx];
+    const text = prompt('修改內容', current);
+    if (!text) return;
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    if (options.some((opt, i) => i !== idx && opt === trimmed)) {
+        alert('已存在相同選項');
+        return;
+    }
+    options[idx] = trimmed;
+    saveLocalOptions(type, options);
+    renderLocalOptionList(type);
+    renderLocalSelect(type);
+}
+
+function deleteLocalOption(type, idx) {
+    const options = loadLocalOptions(type);
+    options.splice(idx, 1);
+    saveLocalOptions(type, options);
+    renderLocalOptionList(type);
+    renderLocalSelect(type);
+}
+
+if (typeof window !== 'undefined') {
+    window.showLocalOptionManager = showLocalOptionManager;
+    window.closeLocalOptionModal = closeLocalOptionModal;
+    window.addLocalOption = addLocalOption;
+    window.editLocalOption = editLocalOption;
+    window.deleteLocalOption = deleteLocalOption;
+}
+
+
 // 歷史紀錄排序狀態
 let historySort = {
     field: 'date',
@@ -1079,6 +1270,10 @@ const elements = {
     lineName: document.getElementById('lineName'),
     industrySelect: document.getElementById('industrySelect'),
     manageIndustry: document.getElementById('manageIndustry'),
+    managePlanType: document.getElementById('managePlanType'),
+    manageVenueScope: document.getElementById('manageVenueScope'),
+    manageDiningStyle: document.getElementById('manageDiningStyle'),
+    managePaymentMethod: document.getElementById('managePaymentMethod'),
     venueContentSelect: document.getElementById('venueContentSelect'),
     manageVenueContent: document.getElementById('manageVenueContent'),
     venueScope: document.getElementById('venueScope'),
@@ -1226,11 +1421,11 @@ function getOrderInfo() {
         contactPhone: elements.contactPhone?.value?.trim() || '',
         planType: elements.planType?.value || '',
         lineName: elements.lineName?.value?.trim() || '',
-        industry: getCustomizableSelectValue('industrySelect', 'industrySelectCustom'),
-        venueContent: getCustomizableSelectValue('venueContentSelect', 'venueContentSelectCustom'),
-        venueScope: getCustomizableSelectValue('venueScope', 'venueScopeCustom'),
-        diningStyle: getCustomizableSelectValue('diningStyle', 'diningStyleCustom'),
-        paymentMethod: getCustomizableSelectValue('paymentMethod', 'paymentMethodCustom'),
+        industry: elements.industrySelect?.value || '',
+        venueContent: elements.venueContentSelect?.value || '',
+        venueScope: elements.venueScope?.value || '',
+        diningStyle: elements.diningStyle?.value || '',
+        paymentMethod: elements.paymentMethod?.value || '',
         discount: elements.discount?.value?.trim() || '',
         depositPaid: parseFloat(elements.depositPaid?.value) || 0,
         diningDateTime: getDiningDateTime(),
@@ -1248,28 +1443,29 @@ function setOrderInfo(info) {
     if (info.contactPhone && elements.contactPhone) elements.contactPhone.value = info.contactPhone;
     if (info.lineName && elements.lineName) elements.lineName.value = info.lineName;
     
-    // 使用自訂下拉選單設定函式
-    if (info.planType) {
-        setCustomizableSelectValue('planType', 'planTypeCustom', ['大訂', '包場'], info.planType);
+    if (info.planType && elements.planType) {
+        ensureOptionExists(elements.planType, info.planType);
+        elements.planType.value = info.planType;
     }
-    if (info.industry) {
-        // 產業別需要從 industryOptions 取得預設選項
-        const defaultIndustries = industryOptions.map(opt => opt.name);
-        setCustomizableSelectValue('industrySelect', 'industrySelectCustom', defaultIndustries, info.industry);
+    if (info.industry && elements.industrySelect) {
+        ensureOptionExists(elements.industrySelect, info.industry);
+        elements.industrySelect.value = info.industry;
     }
-    if (info.venueContent) {
-        // 包場內容需要從 venueContentOptions 取得預設選項
-        const defaultVenueContents = venueContentOptions.map(opt => opt.name ?? opt.label ?? '');
-        setCustomizableSelectValue('venueContentSelect', 'venueContentSelectCustom', defaultVenueContents, info.venueContent);
+    if (info.venueContent && elements.venueContentSelect) {
+        ensureOptionExists(elements.venueContentSelect, info.venueContent);
+        elements.venueContentSelect.value = info.venueContent;
     }
-    if (info.venueScope) {
-        setCustomizableSelectValue('venueScope', 'venueScopeCustom', ['全包', '叢林區', '蘆葦區'], info.venueScope);
+    if (info.venueScope && elements.venueScope) {
+        ensureOptionExists(elements.venueScope, info.venueScope);
+        elements.venueScope.value = info.venueScope;
     }
-    if (info.diningStyle) {
-        setCustomizableSelectValue('diningStyle', 'diningStyleCustom', ['自助', '桌菜'], info.diningStyle);
+    if (info.diningStyle && elements.diningStyle) {
+        ensureOptionExists(elements.diningStyle, info.diningStyle);
+        elements.diningStyle.value = info.diningStyle;
     }
-    if (info.paymentMethod) {
-        setCustomizableSelectValue('paymentMethod', 'paymentMethodCustom', ['匯款', '刷卡', '當天結帳'], info.paymentMethod);
+    if (info.paymentMethod && elements.paymentMethod) {
+        ensureOptionExists(elements.paymentMethod, info.paymentMethod);
+        elements.paymentMethod.value = info.paymentMethod;
     }
     if (info.discount !== undefined && elements.discount) {
         elements.discount.value = info.discount;
@@ -1288,6 +1484,18 @@ function setOrderInfo(info) {
     if (info.peopleCount) {
         peopleCount = info.peopleCount;
         if (elements.peopleCountInput) elements.peopleCountInput.value = peopleCount;
+    }
+}
+
+// 確保選項存在（載入歷史資料時若值不在當前列表，會先補上一筆）
+function ensureOptionExists(selectEl, value) {
+    if (!selectEl || !value) return;
+    const exists = Array.from(selectEl.options).some(opt => opt.value === value);
+    if (!exists) {
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = value;
+        selectEl.appendChild(opt);
     }
 }
 
@@ -1364,6 +1572,7 @@ function setDiningDateTime(dateTimeStr) {
 document.addEventListener('DOMContentLoaded', async function() {
     await prepareInitialState();
     initializeApp();
+    initLocalOptionSelects();
     bindEvents();
     await initAccounts();
     await initChangeLog();
@@ -2139,6 +2348,18 @@ function bindEvents() {
     // 產業管理按鈕
     if (elements.manageIndustry) {
         elements.manageIndustry.addEventListener('click', showIndustryManager);
+    }
+    if (elements.managePlanType) {
+        elements.managePlanType.addEventListener('click', () => showLocalOptionManager('planType'));
+    }
+    if (elements.manageVenueScope) {
+        elements.manageVenueScope.addEventListener('click', () => showLocalOptionManager('venueScope'));
+    }
+    if (elements.manageDiningStyle) {
+        elements.manageDiningStyle.addEventListener('click', () => showLocalOptionManager('diningStyle'));
+    }
+    if (elements.managePaymentMethod) {
+        elements.managePaymentMethod.addEventListener('click', () => showLocalOptionManager('paymentMethod'));
     }
     
     // 清除購物車
@@ -3191,6 +3412,7 @@ function renderIndustrySelect() {
     });
     
     if (currentValue) select.value = currentValue;
+    markFillState(select);
 }
 
 async function showIndustryManager() {
@@ -3234,6 +3456,7 @@ if (typeof window !== 'undefined') {
     window.closeIndustryModal = closeIndustryModal;
     window.addIndustryOption = addIndustryOption;
     window.deleteIndustryOption = deleteIndustryOption;
+    window.editIndustryOption = editIndustryOption;
 }
 
 function renderIndustryList() {
@@ -3245,14 +3468,28 @@ function renderIndustryList() {
         return;
     }
     
-    list.innerHTML = industryOptions.map(opt => `
-        <div style="display: flex; align-items: center; padding: 0.5rem; border-bottom: 1px solid #eee;">
+    list.innerHTML = industryOptions.map((opt, idx) => `
+        <div class="option-row" data-id="${opt.id}" data-idx="${idx}" style="display: flex; align-items: center; padding: 0.5rem; border-bottom: 1px solid #eee; gap: 0.4rem;">
+            <span class="drag-handle" title="拖曳排序" style="cursor: grab; color: #888;"><i class="fas fa-grip-vertical"></i></span>
             <span style="flex: 1;">${opt.name}</span>
-            <button onclick="deleteIndustryOption(${opt.id}, '${opt.name}')" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+            <button onclick="editIndustryOption(${opt.id}, '${opt.name.replace(/'/g, "\\'")}')" class="btn btn-small btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button onclick="deleteIndustryOption(${opt.id}, '${opt.name.replace(/'/g, "\\'")}')" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
     `).join('');
+    
+    if (list._sortable) list._sortable.destroy();
+    list._sortable = new Sortable(list, {
+        animation: 150,
+        handle: '.drag-handle',
+        onEnd: () => {
+            const newOrderIds = Array.from(list.querySelectorAll('.option-row')).map(row => parseInt(row.dataset.id, 10));
+            reorderIndustryOptions(newOrderIds);
+        }
+    });
 }
 
 async function addIndustryOption() {
@@ -3285,6 +3522,46 @@ async function addIndustryOption() {
     } catch (error) {
         console.error('新增產業選項失敗：', error);
         alert('新增失敗：' + error.message);
+    }
+}
+
+async function editIndustryOption(id, name) {
+    const next = prompt('修改產業名稱', name);
+    if (!next) return;
+    const trimmed = next.trim();
+    if (!trimmed) return;
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) throw new Error('Supabase 未連線');
+        const { data, error } = await client
+            .from('industry_options')
+            .update({ name: trimmed })
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        industryOptions = industryOptions.map(opt => opt.id === id ? data : opt);
+        renderIndustrySelect();
+        renderIndustryList();
+        showSyncStatus('產業選項已更新', 'success');
+    } catch (error) {
+        console.error('更新產業選項失敗：', error);
+        alert('更新失敗：' + error.message);
+    }
+}
+
+async function reorderIndustryOptions(idOrder) {
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) throw new Error('Supabase 未連線');
+        const updates = idOrder.map((id, idx) => client.from('industry_options').update({ sort_order: idx + 1 }).eq('id', id));
+        await Promise.all(updates);
+        industryOptions.sort((a, b) => idOrder.indexOf(a.id) - idOrder.indexOf(b.id));
+        renderIndustrySelect();
+        renderIndustryList();
+    } catch (error) {
+        console.error('排序產業選項失敗：', error);
+        alert('排序失敗：' + error.message);
     }
 }
 
@@ -3372,17 +3649,9 @@ function renderVenueContentSelect() {
         option.textContent = displayText;
         select.appendChild(option);
     });
-    
-    // 確保有「其他（自訂）」選項
-    const hasCustomOption = Array.from(select.options).some(opt => opt.value === '__CUSTOM__');
-    if (!hasCustomOption) {
-        const customOption = document.createElement('option');
-        customOption.value = '__CUSTOM__';
-        customOption.textContent = '其他（自訂）';
-        select.appendChild(customOption);
-    }
-    
+
     if (currentValue) select.value = currentValue;
+    markFillState(select);
 }
 
 async function showVenueContentManager() {
@@ -3426,6 +3695,7 @@ if (typeof window !== 'undefined') {
     window.showVenueContentManager = showVenueContentManager;
     window.addVenueContentOption = addVenueContentOption;
     window.deleteVenueContentOption = deleteVenueContentOption;
+    window.editVenueContentOption = editVenueContentOption;
 }
 
 function renderVenueContentList() {
@@ -3442,14 +3712,28 @@ function renderVenueContentList() {
         const displayText = opt.name ?? opt.label ?? '';
         const safeDisplayText = displayText.replace(/'/g, "\\'"); // 轉義單引號，避免 onclick 中的字串問題
         return `
-        <div style="display: flex; align-items: center; padding: 0.5rem; border-bottom: 1px solid #eee;">
+        <div class="option-row" data-id="${opt.id}" style="display: flex; align-items: center; padding: 0.5rem; border-bottom: 1px solid #eee; gap: 0.4rem;">
+            <span class="drag-handle" title="拖曳排序" style="cursor: grab; color: #888;"><i class="fas fa-grip-vertical"></i></span>
             <span style="flex: 1;">${displayText}</span>
+            <button onclick="editVenueContentOption(${opt.id}, '${safeDisplayText}')" class="btn btn-small btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                <i class="fas fa-edit"></i>
+            </button>
             <button onclick="deleteVenueContentOption(${opt.id}, '${safeDisplayText}')" class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
     `;
     }).join('');
+    
+    if (list._sortable) list._sortable.destroy();
+    list._sortable = new Sortable(list, {
+        animation: 150,
+        handle: '.drag-handle',
+        onEnd: () => {
+            const newOrderIds = Array.from(list.querySelectorAll('.option-row')).map(row => parseInt(row.dataset.id, 10));
+            reorderVenueContentOptions(newOrderIds);
+        }
+    });
 }
 
 async function addVenueContentOption() {
@@ -3539,6 +3823,46 @@ async function deleteVenueContentOption(id, name) {
     } catch (error) {
         console.error('刪除包場內容選項失敗：', error);
         alert('刪除失敗：' + error.message);
+    }
+}
+
+async function editVenueContentOption(id, name) {
+    const next = prompt('修改包場內容', name);
+    if (!next) return;
+    const trimmed = next.trim();
+    if (!trimmed) return;
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) throw new Error('Supabase 未連線');
+        const { data, error } = await client
+            .from('venue_content_options')
+            .update({ name: trimmed, label: trimmed, value: trimmed })
+            .eq('id', id)
+            .select('id, name, label, sort_order, value, is_active')
+            .single();
+        if (error) throw error;
+        venueContentOptions = venueContentOptions.map(opt => opt.id === id ? data : opt);
+        renderVenueContentSelect();
+        renderVenueContentList();
+        showSyncStatus('包場內容已更新', 'success');
+    } catch (error) {
+        console.error('更新包場內容選項失敗：', error);
+        alert('更新失敗：' + error.message);
+    }
+}
+
+async function reorderVenueContentOptions(idOrder) {
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) throw new Error('Supabase 未連線');
+        const updates = idOrder.map((id, idx) => client.from('venue_content_options').update({ sort_order: idx + 1 }).eq('id', id));
+        await Promise.all(updates);
+        venueContentOptions.sort((a, b) => idOrder.indexOf(a.id) - idOrder.indexOf(b.id));
+        renderVenueContentSelect();
+        renderVenueContentList();
+    } catch (error) {
+        console.error('排序包場內容選項失敗：', error);
+        alert('排序失敗：' + error.message);
     }
 }
 
@@ -7027,28 +7351,9 @@ function measureTextWidth(text, element) {
     return context.measureText(text).width;
 }
 
-// 在初始化時綁定自訂下拉選單和事件
+// 在初始化時綁定事件（時間自訂與刪除按鈕等）
 document.addEventListener('DOMContentLoaded', function() {
-    // 功能 A：初始化所有自訂下拉選單
     setTimeout(() => {
-        attachCustomizableSelect('venueScope', 'venueScopeCustom', ['全包', '叢林區', '蘆葦區']);
-        attachCustomizableSelect('diningStyle', 'diningStyleCustom', ['自助', '桌菜']);
-        attachCustomizableSelect('paymentMethod', 'paymentMethodCustom', ['匯款', '刷卡', '當天結帳']);
-        attachCustomizableSelect('planType', 'planTypeCustom', ['大訂', '包場']);
-        
-        // 產業別需要動態載入後再綁定
-        if (industryOptions && industryOptions.length > 0) {
-            const defaultIndustries = industryOptions.map(opt => opt.name);
-            attachCustomizableSelect('industrySelect', 'industrySelectCustom', defaultIndustries);
-        }
-        
-        // 包場內容需要動態載入後再綁定
-        if (venueContentOptions && venueContentOptions.length > 0) {
-            const defaultVenueContents = venueContentOptions.map(opt => opt.name ?? opt.label ?? '');
-            attachCustomizableSelect('venueContentSelect', 'venueContentSelectCustom', defaultVenueContents);
-        }
-        
-        // 時間選單的自訂處理
         const diningHour = document.getElementById('diningHour');
         const diningHourCustom = document.getElementById('diningHourCustom');
         if (diningHour && diningHourCustom) {
