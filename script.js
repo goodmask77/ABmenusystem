@@ -1481,14 +1481,24 @@ function setOrderInfo(info) {
         }
     }
     
-    // Supabase 管理的選單：允許添加歷史選項
+    // Supabase 管理的選單：只設置存在於當前選項列表中的值
     if (info.industry && elements.industrySelect) {
-        ensureOptionExists(elements.industrySelect, info.industry);
-        elements.industrySelect.value = info.industry;
+        const industryNames = industryOptions.map(opt => opt.name);
+        if (industryNames.includes(info.industry)) {
+            elements.industrySelect.value = info.industry;
+        } else {
+            console.warn(`產業別選項 "${info.industry}" 已從管理選單中刪除，不設置值`);
+            elements.industrySelect.value = '';
+        }
     }
     if (info.venueContent && elements.venueContentSelect) {
-        ensureOptionExists(elements.venueContentSelect, info.venueContent);
-        elements.venueContentSelect.value = info.venueContent;
+        const venueContentNames = venueContentOptions.map(opt => opt.name ?? opt.label ?? '');
+        if (venueContentNames.includes(info.venueContent)) {
+            elements.venueContentSelect.value = info.venueContent;
+        } else {
+            console.warn(`包場內容選項 "${info.venueContent}" 已從管理選單中刪除，不設置值`);
+            elements.venueContentSelect.value = '';
+        }
     }
     
     if (info.discount !== undefined && elements.discount) {
@@ -1519,8 +1529,9 @@ function ensureOptionExists(selectEl, value) {
     if (!selectEl || !value) return;
     const exists = Array.from(selectEl.options).some(opt => opt.value === value);
     if (!exists) {
-        // 檢查是否為本地管理的選項（planType, venueScope, diningStyle, paymentMethod）
         const selectId = selectEl.id;
+        
+        // 檢查是否為本地管理的選項（planType, venueScope, diningStyle, paymentMethod）
         const isLocalManaged = selectId === 'planType' || 
                               selectId === 'venueScope' || 
                               selectId === 'diningStyle' || 
@@ -1539,7 +1550,28 @@ function ensureOptionExists(selectEl, value) {
             }
         }
         
-        // 對於 Supabase 管理的選項（industry, venueContent）或值存在於選項列表中，允許添加
+        // 檢查是否為 Supabase 管理的選項（industry, venueContent）
+        const isSupabaseManaged = selectId === 'industrySelect' || selectId === 'venueContentSelect';
+        
+        if (isSupabaseManaged) {
+            if (selectId === 'industrySelect') {
+                // 檢查產業別選項是否存在於當前列表中
+                const industryNames = industryOptions.map(opt => opt.name);
+                if (!industryNames.includes(value)) {
+                    console.warn(`產業別選項 "${value}" 已從管理選單中刪除，不會自動添加`);
+                    return;
+                }
+            } else if (selectId === 'venueContentSelect') {
+                // 檢查包場內容選項是否存在於當前列表中
+                const venueContentNames = venueContentOptions.map(opt => opt.name ?? opt.label ?? '');
+                if (!venueContentNames.includes(value)) {
+                    console.warn(`包場內容選項 "${value}" 已從管理選單中刪除，不會自動添加`);
+                    return;
+                }
+            }
+        }
+        
+        // 只有當選項存在於當前列表中時，才添加它
         const opt = document.createElement('option');
         opt.value = value;
         opt.textContent = value;
