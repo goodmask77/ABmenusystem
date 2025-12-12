@@ -257,6 +257,43 @@
                         </div>
                     </div>
 
+                    <!-- 分析欄位：插入在「費用資訊」與「匯出」按鈕區之間 -->
+                    <section class="analysis-panel" id="analysisPanel">
+                        <div class="analysis-row">
+                            <div class="analysis-item">
+                                <label for="customerBudget">客戶預算：</label>
+                                <input id="customerBudget" type="number" min="0" step="1" placeholder="輸入數字" />
+                            </div>
+
+                            <div class="analysis-item">
+                                <span class="analysis-label">餐點金額：</span>
+                                <span class="analysis-value" id="foodTotal">$0</span>
+                            </div>
+
+                            <div class="analysis-item">
+                                <span class="analysis-label">餐點人均：</span>
+                                <span class="analysis-value" id="foodPerPerson">$0</span>
+                            </div>
+                        </div>
+
+                        <div class="analysis-row">
+                            <div class="analysis-item">
+                                <span class="analysis-label">剩餘金額：</span>
+                                <span class="analysis-value" id="remainingBudget">$0</span>
+                            </div>
+
+                            <div class="analysis-item">
+                                <span class="analysis-label">酒水金額：</span>
+                                <span class="analysis-value" id="drinkTotal">$0</span>
+                            </div>
+
+                            <div class="analysis-item">
+                                <span class="analysis-label">酒水人均：</span>
+                                <span class="analysis-value" id="drinkPerPerson">$0</span>
+                            </div>
+                        </div>
+                    </section>
+
                     <!-- 新的控制區域 -->
                     <div class="cart-controls">
                         <div class="control-row">

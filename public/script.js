@@ -1753,8 +1753,8 @@ function setDiningDateTime(dateTimeStr) {
         // 如果字串解析失敗，回退到 Date 物件（但這會導致時區轉換）
         if (!year || !month || !day || hour === undefined || minute === undefined) {
             console.warn('⚠️ 無法直接解析 ISO 字串，回退到 Date 物件（可能會有時區轉換）:', dateTimeStr);
-            const dt = new Date(dateTimeStr);
-            if (isNaN(dt.getTime())) return;
+        const dt = new Date(dateTimeStr);
+        if (isNaN(dt.getTime())) return;
             year = dt.getFullYear();
             month = dt.getMonth() + 1;
             day = dt.getDate();
@@ -2982,6 +2982,8 @@ function addToCart(categoryId, itemId) {
         renderCart();
         renderMenu(); // 重新渲染菜單以更新選中狀態
         updateCartSummary();
+        // 更新分析欄位
+        updateAnalysisPanel();
     }
 }
 
@@ -2995,6 +2997,8 @@ function removeFromCart(itemId) {
     renderMenu(); // 重新渲染菜單以更新選中狀態
     updateCartSummary();
     persistCartState();
+    // 更新分析欄位
+    updateAnalysisPanel();
 }
 
 function updateCartItemQuantity(itemId, quantity) {
@@ -3028,6 +3032,8 @@ function changePeopleCount(delta) {
         console.log(`人數已更改為: ${peopleCount}`);
         updateCartSummary();
         persistCartState();
+        // 更新分析欄位
+        updateAnalysisPanel();
     }
 }
 
@@ -3041,6 +3047,8 @@ function updatePeopleCount() {
         peopleCount = count;
         updateCartSummary();
         persistCartState();
+        // 更新分析欄位
+        updateAnalysisPanel();
     } else {
         elements.peopleCountInput.value = peopleCount;
     }
@@ -3186,6 +3194,9 @@ function updateCartSummary() {
         : totals.perPerson;
     elements.perPerson.textContent = `$${perPersonDisplay}`;
     elements.totalItems.textContent = totalItemsCount;
+    
+    // 更新分析欄位
+    updateAnalysisPanel();
 }
 
 // 排序功能
