@@ -4483,21 +4483,18 @@ async function confirmSaveMenu() {
         orderInfo: supabaseOrder
     });
     
+    // 調試 1：更新送出前的表單值（只針對當前編輯的訂單）
+    if (currentEditingOrderId) {
+        console.log('📋 [Debug 1] 更新送出前 - 表單值:', {
+            orderId: currentEditingOrderId,
+            orderInfoDiningDateTime: orderInfo.diningDateTime,
+            diningDateTime: diningDateTime
+        });
+    }
+    
     // 儲存或更新訂單
     const savedOrder = await saveOrUpdateOrderToSupabase(supabaseOrder, currentEditingOrderId);
     
-    // 調試：確認保存後的值
-    if (savedOrder) {
-        console.log('✅ 保存後的訂單資料:', {
-            id: savedOrder.id,
-            dining_datetime: savedOrder.dining_datetime,
-            company_name: savedOrder.company_name,
-            orderInfo: {
-                companyName: savedOrder.company_name,
-                diningDateTime: savedOrder.dining_datetime
-            }
-        });
-    }
     if (!savedOrder) {
         console.error('儲存/更新訂單失敗');
         alert('儲存失敗，請檢查 Supabase 連線\n\n請開啟瀏覽器 Console (F12) 查看詳細錯誤訊息');
@@ -4506,67 +4503,90 @@ async function confirmSaveMenu() {
     
     console.log(`訂單已成功${isUpdate ? '更新' : '儲存'}到 Supabase，ID:`, savedOrder.id);
     
-    // 更新快取（確保使用最新的 savedOrder 資料）
-    const orderIndex = supabaseOrders.findIndex(o => o.id === savedOrder.id);
+    // 【關鍵修復】更新成功後，立即從 Supabase 重新讀取完整 row，確保拿到最新資料
+    let finalOrderData = savedOrder;
+    if (isUpdate && savedOrder.id) {
+        try {
+            const client = supabaseClient || await initSupabaseClient();
+            if (client) {
+                const { data: refreshedOrder, error: refreshError } = await client
+                    .from('menu_orders')
+                    .select('*')
+                    .eq('id', savedOrder.id)
+                    .single();
+                
+                if (!refreshError && refreshedOrder) {
+                    finalOrderData = refreshedOrder;
+                    console.log('🔄 已從 Supabase 重新讀取最新資料:', finalOrderData);
+                }
+            }
+        } catch (refreshErr) {
+            console.warn('重新讀取訂單失敗，使用回傳值:', refreshErr);
+        }
+    }
     
-    // 調試：確認 savedOrder 的資料
-    console.log('🔍 準備更新快取的資料:', {
-        savedOrderId: savedOrder.id,
-        savedOrderDiningDatetime: savedOrder.dining_datetime,
-        savedOrderCompanyName: savedOrder.company_name
-    });
+    // 調試 2：Supabase 回傳後的值（只針對當前編輯的訂單）
+    if (currentEditingOrderId && finalOrderData) {
+        console.log('📋 [Debug 2] Supabase 回傳後 - 資料庫回來的值:', {
+            orderId: currentEditingOrderId,
+            dining_datetime: finalOrderData.dining_datetime,
+            updated_at: finalOrderData.updated_at
+        });
+    }
     
+    // 更新快取（確保使用最新的 finalOrderData 資料）
+    const orderIndex = supabaseOrders.findIndex(o => o.id === finalOrderData.id);
+    
+    // 【單一真實資料來源】建立更新後的訂單物件，優先順序固定為：
+    // orderInfo.diningDateTime → diningDateTime → savedAt/createdAt
     const updatedOrder = {
-        id: savedOrder.id,
-        name: savedOrder.company_name || menuName,
-        customerName: savedOrder.company_name,
-        customerTaxId: savedOrder.tax_id,
-        diningDateTime: savedOrder.dining_datetime || null, // 確保使用最新的值
-        savedAt: savedOrder.updated_at || savedOrder.created_at,
-        peopleCount: savedOrder.people_count || peopleCount,
-        tableCount: savedOrder.table_count || tableCount,
-        cart: Array.isArray(savedOrder.cart_items) ? savedOrder.cart_items : cart,
+        id: finalOrderData.id,
+        name: finalOrderData.company_name || menuName,
+        customerName: finalOrderData.company_name,
+        customerTaxId: finalOrderData.tax_id,
+        // 單一資料來源：diningDateTime 直接來自 Supabase 回傳值
+        diningDateTime: finalOrderData.dining_datetime || null,
+        savedAt: finalOrderData.updated_at || finalOrderData.created_at,
+        peopleCount: finalOrderData.people_count || peopleCount,
+        tableCount: finalOrderData.table_count || tableCount,
+        cart: Array.isArray(finalOrderData.cart_items) ? finalOrderData.cart_items : cart,
         orderInfo: {
-            companyName: savedOrder.company_name,
-            taxId: savedOrder.tax_id,
-            contactName: savedOrder.contact_name,
-            contactPhone: savedOrder.contact_phone,
-            planType: savedOrder.plan_type,
-            lineName: savedOrder.line_name,
-            industry: savedOrder.industry,
-            venueContent: savedOrder.venue_content,
-            venueScope: savedOrder.venue_scope,
-            diningStyle: savedOrder.dining_style,
-            paymentMethod: savedOrder.payment_method,
-            discount: savedOrder.discount || '',
-            depositPaid: savedOrder.deposit_paid || 0,
-            diningDateTime: savedOrder.dining_datetime || null // 確保使用最新的值
+            companyName: finalOrderData.company_name,
+            taxId: finalOrderData.tax_id,
+            contactName: finalOrderData.contact_name,
+            contactPhone: finalOrderData.contact_phone,
+            planType: finalOrderData.plan_type,
+            lineName: finalOrderData.line_name,
+            industry: finalOrderData.industry,
+            venueContent: finalOrderData.venue_content,
+            venueScope: finalOrderData.venue_scope,
+            diningStyle: finalOrderData.dining_style,
+            paymentMethod: finalOrderData.payment_method,
+            discount: finalOrderData.discount || '',
+            depositPaid: finalOrderData.deposit_paid || 0,
+            // 單一資料來源：orderInfo.diningDateTime 也直接來自 Supabase 回傳值
+            diningDateTime: finalOrderData.dining_datetime || null
         },
         meta: {
             itemCount: cartItemCount,
             estimatedTotal: estimatedTotal,
             estimatedPerPerson: estimatedPerPerson,
             preview: cartPreview || '無品項',
-            createdBy: savedOrder.created_by || createdBy
+            createdBy: finalOrderData.created_by || createdBy
         },
         fromSupabase: true,
-        isPinned: savedOrder.is_pinned || false
+        isPinned: finalOrderData.is_pinned || false
     };
     
-    // 調試：確認更新後的訂單資料
-    console.log('🔍 更新後的訂單物件:', {
-        id: updatedOrder.id,
-        diningDateTime: updatedOrder.diningDateTime,
-        orderInfoDiningDateTime: updatedOrder.orderInfo.diningDateTime,
-        companyName: updatedOrder.orderInfo.companyName
-    });
-    
+    // 【關鍵修復】直接更新 supabaseOrders 陣列中的對應項目（確保是同一份陣列引用）
     if (orderIndex >= 0) {
-        // 更新現有訂單
+        // 完全覆蓋現有訂單物件（不能只改部分欄位）
         supabaseOrders[orderIndex] = updatedOrder;
+        console.log(`✅ 已更新快取中索引 ${orderIndex} 的訂單`);
     } else {
         // 新增訂單（放在最前面）
         supabaseOrders.unshift(updatedOrder);
+        console.log('✅ 已新增訂單到快取');
     }
     
     // 限制快取數量
@@ -4574,13 +4594,19 @@ async function confirmSaveMenu() {
         supabaseOrders = supabaseOrders.slice(0, 100);
     }
     
+    // 調試 3：寫入快取後的值（只針對當前編輯的訂單）
+    if (currentEditingOrderId && orderIndex >= 0) {
+        const cachedOrder = supabaseOrders[orderIndex];
+        console.log('📋 [Debug 3] 寫入快取後 - 快取中的值:', {
+            orderId: currentEditingOrderId,
+            cacheIndex: orderIndex,
+            diningDateTime: cachedOrder.diningDateTime,
+            orderInfoDiningDateTime: cachedOrder.orderInfo.diningDateTime,
+            isSameObject: cachedOrder === updatedOrder
+        });
+    }
+    
     console.log('快取已更新，目前訂單數量:', supabaseOrders.length);
-    console.log('🔍 更新後的快取訂單資料:', {
-        id: updatedOrder.id,
-        diningDateTime: updatedOrder.diningDateTime,
-        orderInfoDiningDateTime: updatedOrder.orderInfo.diningDateTime,
-        companyName: updatedOrder.orderInfo.companyName
-    });
     
     // 重新渲染歷史列表（確保顯示最新資料）
     const historyModal = document.getElementById('historyModal');
@@ -5022,18 +5048,22 @@ function renderHistoryCell(col, menu, metrics, idx) {
                 </button>
             </td>`;
         case 'date':
-            // 優先使用 orderInfo.diningDateTime，其次使用 menu.diningDateTime，最後使用 savedAt
+            // 【單一真實資料來源】優先順序固定為：
+            // orderInfo.diningDateTime → menu.diningDateTime → menu.savedAt（最後備援）
             const dateTimeToDisplay = orderInfo.diningDateTime || menu.diningDateTime || menu.savedAt;
             const displayDate = dateTimeToDisplay ? formatDate(new Date(dateTimeToDisplay)) : '--';
-            // 調試：確認日期顯示
-            if (menuId && menuId === currentEditingOrderId) {
-                console.log('📅 渲染日期欄位:', {
-                    menuId,
+            
+            // 調試 4：渲染該筆時實際拿來顯示的值（只針對當前編輯的訂單）
+            if (menuId && currentEditingOrderId && menuId === currentEditingOrderId) {
+                console.log('📋 [Debug 4] renderHistoryList 渲染該筆時 - 實際拿來顯示的值:', {
+                    orderId: menuId,
                     orderInfoDiningDateTime: orderInfo.diningDateTime,
                     menuDiningDateTime: menu.diningDateTime,
                     savedAt: menu.savedAt,
                     dateTimeToDisplay,
-                    displayDate
+                    displayDate,
+                    source: orderInfo.diningDateTime ? 'orderInfo.diningDateTime' : 
+                           (menu.diningDateTime ? 'menu.diningDateTime' : 'menu.savedAt')
                 });
             }
             return `<td class="date-cell">${displayDate}</td>`;
@@ -5075,8 +5105,9 @@ function renderHistoryCell(col, menu, metrics, idx) {
 }
 
 function renderHistoryList() {
-    // 使用合併的訂單（本地 + Supabase）
-    const allOrders = getMergedOrders();
+    // 【關鍵修復】必須使用最新的 supabaseOrders 陣列，禁止使用舊的 cached copy
+    // 每次渲染都重新生成 filtered/sorted，不 reuse 舊的 filteredOrders
+    const allOrders = getMergedOrders(); // getMergedOrders() 內部使用最新的 supabaseOrders
     const historyList = document.getElementById('historyList');
     
     if (!historyList) {
@@ -5085,7 +5116,7 @@ function renderHistoryList() {
     }
     
     console.log('renderHistoryList - 總訂單數:', allOrders.length);
-    console.log('renderHistoryList - 訂單資料:', allOrders);
+    console.log('renderHistoryList - 使用最新的 supabaseOrders 陣列，長度:', supabaseOrders.length);
     
     // 先檢查是否有訂單
     if (allOrders.length === 0) {
