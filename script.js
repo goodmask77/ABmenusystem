@@ -2034,7 +2034,8 @@ function setupRealtimeSync() {
                 const isInputFocused = activeElement && (
                     activeElement.tagName === 'INPUT' ||
                     activeElement.tagName === 'TEXTAREA' ||
-                    activeElement.isContentEditable
+                    activeElement.isContentEditable ||
+                    activeElement.closest('.modal') // 如果有模態框打開，可能正在編輯
                 );
                 
                 // 檢查是否有拖曳操作正在進行（Sortable 會設置特定 class）
@@ -2042,19 +2043,38 @@ function setupRealtimeSync() {
                 
                 // 如果用戶正在編輯或拖曳，延遲同步
                 if (isInputFocused || isDragging || isUserEditing) {
-                    console.log('用戶正在編輯/拖曳，延遲同步');
+                    console.log('用戶正在編輯/拖曳，延遲同步', { isInputFocused, isDragging, isUserEditing });
                     pendingMenuSync = async () => {
+                        // 再次檢查是否仍在編輯
+                        const stillEditing = (document.activeElement && (
+                            document.activeElement.tagName === 'INPUT' ||
+                            document.activeElement.tagName === 'TEXTAREA' ||
+                            document.activeElement.isContentEditable ||
+                            document.activeElement.closest('.modal')
+                        )) || document.querySelector('.sortable-ghost, .sortable-drag') || isUserEditing;
+                        
+                        if (stillEditing) {
+                            console.log('仍在編輯中，繼續延遲');
+                            // 再等 1.5 秒
+                            setTimeout(() => {
+                                if (pendingMenuSync) {
+                                    pendingMenuSync();
+                                }
+                            }, 1500);
+                            return;
+                        }
+                        
                         await loadStateFromSupabase();
                         renderMenu();
                         showSyncStatus('已同步菜單變更', 'success');
                         pendingMenuSync = null;
                     };
-                    // 等待 1 秒後再嘗試同步
+                    // 等待 1.5 秒後再嘗試同步
                     setTimeout(() => {
-                        if (pendingMenuSync && !isInputFocused && !isDragging && !isUserEditing) {
+                        if (pendingMenuSync) {
                             pendingMenuSync();
                         }
-                    }, 1000);
+                    }, 1500);
                     return;
                 }
                 
