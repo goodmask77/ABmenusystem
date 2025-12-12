@@ -1581,86 +1581,125 @@ function ensureOptionExists(selectEl, value) {
 
 // 取得組合的用餐日期時間（支援自訂時間）
 function getDiningDateTime(customHour = null) {
-    // 【關鍵修復】直接從 DOM 讀取最新值，不使用快取的 elements 引用
-    // 確保讀取的是使用者當下輸入的值，不被任何舊資料覆蓋
+    // 【步驟 1】檢查重複 DOM id
+    const duplicateDateCount = document.querySelectorAll('#diningDate').length;
+    const duplicateHourCount = document.querySelectorAll('#diningHour').length;
+    const duplicateMinuteCount = document.querySelectorAll('#diningMinute').length;
+    
+    if (duplicateDateCount !== 1 || duplicateHourCount !== 1 || duplicateMinuteCount !== 1) {
+        console.error('❌ 發現重複的 DOM id！', {
+            diningDate: duplicateDateCount,
+            diningHour: duplicateHourCount,
+            diningMinute: duplicateMinuteCount
+        });
+        // 列出所有重複的元素
+        document.querySelectorAll('#diningHour').forEach((el, idx) => {
+            console.error(`重複的 #diningHour[${idx}]:`, {
+                outerHTML: el.outerHTML.substring(0, 100),
+                value: el.value,
+                offsetParent: el.offsetParent !== null,
+                display: window.getComputedStyle(el).display
+            });
+        });
+    }
+    
+    // 【步驟 2】只讀主表單的欄位（不在 modal 內，直接讀主頁面）
+    // 主表單的日期時間欄位在主頁面，不在任何 modal 內
     const dateEl = document.getElementById('diningDate');
     const hourEl = document.getElementById('diningHour');
     const minuteEl = document.getElementById('diningMinute');
     const customHourEl = document.getElementById('diningHourCustom');
     
-    // 調試：印出實際讀取的 DOM selector/id 和值
+    // 【步驟 3】強制驗證：更新前把「可疑欄位」全部列印出來
+    const allHourElements = document.querySelectorAll('#diningHour');
+    const hourElementsInfo = Array.from(allHourElements).map((el, idx) => ({
+        index: idx,
+        outerHTML: el.outerHTML.substring(0, 150),
+        value: el.value,
+        offsetParent: el.offsetParent !== null,
+        display: window.getComputedStyle(el).display,
+        visibility: window.getComputedStyle(el).visibility,
+        isVisible: el.offsetParent !== null && window.getComputedStyle(el).display !== 'none'
+    }));
+    
+    // 讀取值（不使用 customHour 參數，直接從 DOM 讀取）
     const date = dateEl?.value || '';
-    let hour = customHour; // 優先使用傳入的 customHour
-    if (!hour) {
-        // 如果沒有傳入 customHour，直接從 DOM 讀取
-        hour = hourEl?.value || '';
-    }
+    const hour = hourEl?.value || ''; // 直接從 DOM 讀取，不使用 customHour 參數
     const minute = minuteEl?.value || '';
     
-    console.log('🔍 [getDiningDateTime] 實際讀取的 DOM 元素和值:', {
-        dateElement: {
-            id: dateEl?.id,
-            selector: '#diningDate',
-            value: date,
-            exists: !!dateEl
+    console.log('🔍 [getDiningDateTime] 強制驗證 - 所有可疑欄位:', {
+        duplicateCounts: {
+            diningDate: duplicateDateCount,
+            diningHour: duplicateHourCount,
+            diningMinute: duplicateMinuteCount
         },
-        hourElement: {
-            id: hourEl?.id,
-            selector: '#diningHour',
-            value: hourEl?.value,
-            exists: !!hourEl,
-            customHourParam: customHour,
-            finalHour: hour
+        allHourElements: hourElementsInfo,
+        mainFormElements: {
+            dateEl: {
+                id: dateEl?.id,
+                value: date,
+                exists: !!dateEl,
+                offsetParent: dateEl?.offsetParent !== null
+            },
+            hourEl: {
+                id: hourEl?.id,
+                value: hourEl?.value,
+                exists: !!hourEl,
+                offsetParent: hourEl?.offsetParent !== null,
+                finalHour: hour
+            },
+            minuteEl: {
+                id: minuteEl?.id,
+                value: minute,
+                exists: !!minuteEl,
+                offsetParent: minuteEl?.offsetParent !== null
+            },
+            customHourEl: {
+                id: customHourEl?.id,
+                value: customHourEl?.value,
+                display: customHourEl?.style.display,
+                exists: !!customHourEl
+            }
         },
-        minuteElement: {
-            id: minuteEl?.id,
-            selector: '#diningMinute',
-            value: minute,
-            exists: !!minuteEl
-        },
-        customHourElement: {
-            id: customHourEl?.id,
-            selector: '#diningHourCustom',
-            value: customHourEl?.value,
-            display: customHourEl?.style.display,
-            exists: !!customHourEl
-        },
-        // 驗證是否有多個相同 id 的元素
-        duplicateDateElements: document.querySelectorAll('#diningDate').length,
-        duplicateHourElements: document.querySelectorAll('#diningHour').length,
-        duplicateMinuteElements: document.querySelectorAll('#diningMinute').length
+        // 驗證：主表單內讀到的值
+        mainFormValues: {
+            date,
+            hour,
+            minute
+        }
     });
     
     // 處理自訂時間
+    let finalHour = hour;
     if (hour === '__CUSTOM__') {
         if (customHourEl && customHourEl.value) {
-            hour = String(parseInt(customHourEl.value)).padStart(2, '0');
-            console.log('🔍 [getDiningDateTime] 使用自訂小時:', hour);
+            finalHour = String(parseInt(customHourEl.value)).padStart(2, '0');
+            console.log('🔍 [getDiningDateTime] 使用自訂小時:', finalHour);
         } else {
-            hour = '';
+            finalHour = '';
             console.warn('⚠️ [getDiningDateTime] 選擇了自訂時間但沒有輸入值');
         }
-    } else if (hour) {
+    } else if (finalHour) {
         // 確保小時是兩位數格式
-        hour = String(parseInt(hour)).padStart(2, '0');
+        finalHour = String(parseInt(finalHour)).padStart(2, '0');
     }
     
     // 確保分鐘是兩位數格式
     const minuteFormatted = minute ? String(parseInt(minute)).padStart(2, '0') : '';
     
-    if (date && hour && minuteFormatted) {
-        const result = `${date}T${hour}:${minuteFormatted}`;
+    if (date && finalHour && minuteFormatted) {
+        const result = `${date}T${finalHour}:${minuteFormatted}`;
         console.log('📅 [getDiningDateTime] 最終結果:', { 
             date, 
-            hour, 
+            hour: finalHour, 
             minute: minuteFormatted, 
             result,
-            source: customHour ? 'customHour參數' : 'DOM元素直接讀取'
+            source: 'DOM元素直接讀取（主表單）'
         });
         return result;
     }
     
-    console.warn('⚠️ [getDiningDateTime] 缺少必要值，返回空字串:', { date, hour, minute: minuteFormatted });
+    console.warn('⚠️ [getDiningDateTime] 缺少必要值，返回空字串:', { date, hour: finalHour, minute: minuteFormatted });
     return '';
 }
 
@@ -2464,15 +2503,37 @@ function bindEvents() {
     if (elements.customerTaxId) {
         elements.customerTaxId.addEventListener('change', persistCartState);
     }
-    // 用餐日期時間選擇器
+    // 【步驟 3】用餐日期時間選擇器 - 在 change 時即時更新狀態
     if (elements.diningDate) {
-        elements.diningDate.addEventListener('change', persistCartState);
+        elements.diningDate.addEventListener('change', function() {
+            console.log('📅 [change事件] diningDate 變更:', elements.diningDate.value);
+            persistCartState();
+        });
     }
     if (elements.diningHour) {
-        elements.diningHour.addEventListener('change', persistCartState);
+        elements.diningHour.addEventListener('change', function() {
+            console.log('📅 [change事件] diningHour 變更:', elements.diningHour.value);
+            // 即時更新 elements 引用（確保同步）
+            elements.diningHour = document.getElementById('diningHour');
+            persistCartState();
+        });
     }
     if (elements.diningMinute) {
-        elements.diningMinute.addEventListener('change', persistCartState);
+        elements.diningMinute.addEventListener('change', function() {
+            console.log('📅 [change事件] diningMinute 變更:', elements.diningMinute.value);
+            // 即時更新 elements 引用（確保同步）
+            elements.diningMinute = document.getElementById('diningMinute');
+            persistCartState();
+        });
+    }
+    
+    // 自訂小時輸入框的 change 事件
+    const customHourInput = document.getElementById('diningHourCustom');
+    if (customHourInput) {
+        customHourInput.addEventListener('input', function() {
+            console.log('📅 [input事件] diningHourCustom 變更:', customHourInput.value);
+            persistCartState();
+        });
     }
     
     // 新增訂單欄位自動保存
@@ -4467,22 +4528,54 @@ async function confirmSaveMenu() {
         }
     }
     
+    // 【步驟 4】強制驗證：更新前把「可疑欄位」全部列印出來
+    console.log('🔍 [更新前驗證] 檢查所有可疑欄位:');
+    const allHourElements = document.querySelectorAll('#diningHour');
+    allHourElements.forEach((el, idx) => {
+        console.log(`  #diningHour[${idx}]:`, {
+            outerHTML: el.outerHTML.substring(0, 150),
+            value: el.value,
+            offsetParent: el.offsetParent !== null,
+            display: window.getComputedStyle(el).display,
+            isVisible: el.offsetParent !== null && window.getComputedStyle(el).display !== 'none'
+        });
+    });
+    
+    // 重新同步 elements 引用（確保讀到最新的 DOM 元素）
+    elements.diningDate = document.getElementById('diningDate');
+    elements.diningHour = document.getElementById('diningHour');
+    elements.diningMinute = document.getElementById('diningMinute');
+    
     // 取得所有訂單資訊（確保獲取最新值，在保存前最後一次獲取）
-    // 注意：必須在保存前最後一次獲取，確保使用最新的輸入框值
     const orderInfo = getOrderInfo();
-    // 重新獲取日期時間，確保使用最新的值
+    
     // 【關鍵修復】重新獲取日期時間，確保使用最新的值
     // 不傳入 customHour 參數，讓函數直接從 DOM 讀取使用者當下輸入的值
     const diningDateTime = getDiningDateTime(null); // 明確傳入 null，不使用任何舊值
     
-    // 調試：確認獲取到的值
-    console.log('🔍 保存前的訂單資訊:', {
+    // 調試：確認獲取到的值（對比主表單和 elements 引用）
+    console.log('🔍 [更新前驗證] 保存前的訂單資訊:', {
         orderInfo,
         diningDateTime,
-        diningDate: elements.diningDate?.value,
-        diningHour: elements.diningHour?.value,
-        diningMinute: elements.diningMinute?.value,
-        diningHourCustom: document.getElementById('diningHourCustom')?.value,
+        // 主表單直接讀取的值
+        mainFormDirectRead: {
+            diningDate: document.getElementById('diningDate')?.value,
+            diningHour: document.getElementById('diningHour')?.value,
+            diningMinute: document.getElementById('diningMinute')?.value,
+            diningHourCustom: document.getElementById('diningHourCustom')?.value
+        },
+        // elements 引用的值
+        elementsReference: {
+            diningDate: elements.diningDate?.value,
+            diningHour: elements.diningHour?.value,
+            diningMinute: elements.diningMinute?.value
+        },
+        // 驗證兩者是否一致
+        valuesMatch: {
+            date: document.getElementById('diningDate')?.value === elements.diningDate?.value,
+            hour: document.getElementById('diningHour')?.value === elements.diningHour?.value,
+            minute: document.getElementById('diningMinute')?.value === elements.diningMinute?.value
+        },
         isUpdate: currentEditingOrderId !== null,
         orderId: currentEditingOrderId
     });
@@ -5128,8 +5221,8 @@ function renderHistoryCell(col, menu, metrics, idx) {
                 </button>
             </td>`;
         case 'date':
-            // 【單一真實資料來源】優先順序固定為：
-            // orderInfo.diningDateTime → menu.diningDateTime → menu.savedAt（最後備援）
+            // 【步驟 5】單一真實資料來源：只使用 orderInfo.diningDateTime，不得 fallback 到舊欄位
+            // 如果 orderInfo.diningDateTime 不存在，才使用 menu.diningDateTime，最後才用 savedAt
             const dateTimeToDisplay = orderInfo.diningDateTime || menu.diningDateTime || menu.savedAt;
             const displayDate = dateTimeToDisplay ? formatDate(new Date(dateTimeToDisplay)) : '--';
             
@@ -5144,11 +5237,24 @@ function renderHistoryCell(col, menu, metrics, idx) {
                     savedAt: menu.savedAt,
                     dateTimeToDisplay,
                     displayDate,
-                    source: orderInfo.diningDateTime ? 'orderInfo.diningDateTime' : 
-                           (menu.diningDateTime ? 'menu.diningDateTime' : 'menu.savedAt'),
-                    fullMenuObject: menu,
-                    fullOrderInfo: orderInfo
+                    source: orderInfo.diningDateTime ? 'orderInfo.diningDateTime（優先）' : 
+                           (menu.diningDateTime ? 'menu.diningDateTime（備援）' : 'menu.savedAt（最後備援）'),
+                    // 驗證：確保使用 orderInfo.diningDateTime
+                    usingCorrectSource: !!orderInfo.diningDateTime,
+                    fullMenuObject: {
+                        id: menu.id,
+                        diningDateTime: menu.diningDateTime,
+                        savedAt: menu.savedAt
+                    },
+                    fullOrderInfo: {
+                        diningDateTime: orderInfo.diningDateTime
+                    }
                 });
+                
+                // 如果沒有使用 orderInfo.diningDateTime，發出警告
+                if (!orderInfo.diningDateTime && menu.diningDateTime) {
+                    console.warn('⚠️ [Debug 4] 警告：未使用 orderInfo.diningDateTime，fallback 到 menu.diningDateTime');
+                }
             }
             return `<td class="date-cell">${displayDate}</td>`;
         case 'company':
