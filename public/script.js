@@ -4856,6 +4856,9 @@ function clearOrderForm() {
     cart = [];
     renderCart();
     
+    // 更新填寫狀態顏色（清空後所有欄位應該是空的）
+    initFillStateStyling();
+    
     // 重置人數和桌數
     tableCount = 1;
     peopleCount = 1;
@@ -5918,21 +5921,28 @@ function loadHistoryMenuByData(row) {
         initFillStateStyling();
     }
     
-    // 設定用餐日期時間（如果 orderInfo 中沒有，使用 menu.diningDateTime）
-    if (menu.diningDateTime && (!menu.orderInfo || !menu.orderInfo.diningDateTime)) {
-        setDiningDateTime(menu.diningDateTime);
+    // 設定用餐日期時間（優先使用 dining_datetime，然後是 diningDateTime）
+    // 【關鍵修復】優先使用 Supabase 的 dining_datetime（ISO 字串），避免時區轉換
+    const rawDiningDateTime = menu.dining_datetime || menu.orderInfo?.dining_datetime || menu.diningDateTime || menu.orderInfo?.diningDateTime;
+    if (rawDiningDateTime) {
+        setDiningDateTime(rawDiningDateTime);
     }
     
     // 調試：確認載入的值
     console.log('🔍 載入訂單後的資料:', {
         menuId: menu.id,
-        diningDateTime: menu.diningDateTime || menu.orderInfo?.diningDateTime,
+        rawDiningDateTime: rawDiningDateTime,
+        dining_datetime: menu.dining_datetime,
+        diningDateTime: menu.diningDateTime,
         orderInfo: menu.orderInfo,
         currentDiningDate: elements.diningDate?.value,
         currentDiningHour: elements.diningHour?.value,
         currentDiningMinute: elements.diningMinute?.value,
         currentDiningHourCustom: document.getElementById('diningHourCustom')?.value
     });
+    
+    // 更新填寫狀態顏色（確保所有欄位顏色正確）
+    initFillStateStyling();
     
     // 更新介面
     renderCart();
