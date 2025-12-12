@@ -4735,6 +4735,7 @@ const HISTORY_COLUMN_KEY = 'history_columns_config_v2';
 const historyColumnDefinitions = [
     { id: 'select', label: '勾選欄位', sortable: false },
     { id: 'pin', label: '釘選', sortable: false, sortField: 'pinned' },
+    { id: 'date', label: '用餐日期', sortable: true, sortField: 'date' },
     { id: 'company', label: '公司名稱', sortable: true, sortField: 'companyName' },
     { id: 'taxId', label: '統編', sortable: true, sortField: 'taxId' },
     { id: 'contact', label: '聯絡人', sortable: true, sortField: 'contactName' },
@@ -4856,6 +4857,7 @@ function getHistoryColumnClass(id) {
     switch (id) {
         case 'select': return 'checkbox-col';
         case 'pin': return 'pin-col';
+        case 'date': return 'date-col';
         case 'actions': return 'actions-col';
         case 'people': return 'people-col';
         case 'total': return 'total-col';
@@ -4928,6 +4930,9 @@ function renderHistoryCell(col, menu, metrics, idx) {
                     <i class="fas fa-thumbtack"></i>
                 </button>
             </td>`;
+        case 'date':
+            const displayDate = menu.diningDateTime ? formatDate(new Date(menu.diningDateTime)) : formatDate(new Date(menu.savedAt));
+            return `<td class="date-cell">${displayDate}</td>`;
         case 'company':
             return `<td class="menu-name-cell" title="${companyName}">${companyName || '--'}</td>`;
         case 'taxId':

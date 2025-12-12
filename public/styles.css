@@ -495,9 +495,9 @@ body {
 /* 功能 C & D：歷史訂單表格樣式 */
 /* 表格容器必須跟著 modal 變寬 */
 .history-table-wrapper {
-    max-height: 600px;
+    max-height: calc(95vh - 200px); /* 自適應 modal 高度，留出控制區域空間 */
     overflow-y: auto; /* 只允許垂直滾動 */
-    overflow-x: visible; /* 不要硬蓋，讓表格自然顯示 */
+    overflow-x: hidden; /* 禁止水平滾動，讓內容自適應 */
     border: 1px solid #dee2e6;
     border-radius: 4px;
     width: 100%; /* 確保填滿容器 */
@@ -520,7 +520,7 @@ body {
 }
 
 .history-table-full th {
-    padding: 0.4rem 0.3rem; /* 減少 padding */
+    padding: 0.35rem 0.25rem; /* 進一步減少 padding，減少空白 */
     text-align: left;
     font-weight: 600;
     border-bottom: 2px solid #dee2e6;
@@ -528,7 +528,7 @@ body {
     cursor: pointer;
     user-select: none;
     position: relative;
-    font-size: 0.8rem; /* 稍微縮小字體 */
+    font-size: 0.75rem; /* 稍微縮小字體 */
 }
 
 .history-table-full th.sortable:hover {
@@ -593,10 +593,10 @@ body {
 }
 
 .history-table-full td {
-    padding: 0.4rem 0.3rem; /* 減少 padding */
+    padding: 0.35rem 0.25rem; /* 進一步減少 padding，減少空白 */
     border-bottom: 1px solid #e9ecef;
     white-space: nowrap;
-    font-size: 0.8rem; /* 稍微縮小字體 */
+    font-size: 0.75rem; /* 稍微縮小字體 */
 }
 
 .history-table-full tbody tr:hover {
@@ -1246,13 +1246,13 @@ body {
 }
 
 .modal-content.extra-large {
-    width: min(96vw, 1800px); /* 接近全視窗，但最大不超過 1800px */
-    max-width: 96vw; /* 確保不會超過視窗 */
-    max-height: 90vh; /* 高度限制，內容可垂直滾動 */
+    width: min(98vw, 1900px); /* 接近全視窗，但最大不超過 1900px */
+    max-width: 98vw; /* 確保不會超過視窗 */
+    max-height: 95vh; /* 增加高度，內容可垂直滾動 */
     overflow-y: auto; /* 允許垂直滾動 */
-    overflow-x: visible; /* 不要硬蓋水平內容，讓內容自然顯示 */
-    margin: 5vh auto; /* 置中，上下留 5vh 邊距 */
-    padding: 1.5rem; /* 適度內距 */
+    overflow-x: hidden; /* 禁止水平滾動，讓內容自適應 */
+    margin: 2.5vh auto; /* 減少邊距，增加可用空間 */
+    padding: 1rem; /* 減少內距，增加內容空間 */
 }
 
 @keyframes modalSlideIn {
@@ -1931,6 +1931,8 @@ body {
 }
 
 /* 文字欄位：置左對齊 */
+.history-table-full th.date-col,
+.history-table-full td.date-cell,
 .history-table-full th.company-col,
 .history-table-full td.menu-name-cell,
 .history-table-full th.contact-col,
@@ -1997,6 +1999,11 @@ body {
 .history-table-full td.deposit-cell {
     min-width: 75px;
     max-width: 100px; /* 進一步縮小 */
+}
+.history-table-full th.date-col,
+.history-table-full td.date-cell {
+    min-width: 100px;
+    max-width: 140px; /* 日期欄位 */
 }
 .history-table-full th.tax-col,
 .history-table-full td.tax-cell {
