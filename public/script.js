@@ -4594,28 +4594,45 @@ async function confirmSaveMenu() {
         supabaseOrders = supabaseOrders.slice(0, 100);
     }
     
-    // 調試 3：寫入快取後的值（只針對當前編輯的訂單）
-    if (currentEditingOrderId && orderIndex >= 0) {
+    // 調試 3：寫入快取後的值（在清空 currentEditingOrderId 之前記錄）
+    const editingOrderId = currentEditingOrderId; // 保存當前編輯的訂單 ID
+    if (editingOrderId && orderIndex >= 0) {
         const cachedOrder = supabaseOrders[orderIndex];
         console.log('📋 [Debug 3] 寫入快取後 - 快取中的值:', {
-            orderId: currentEditingOrderId,
+            orderId: editingOrderId,
             cacheIndex: orderIndex,
             diningDateTime: cachedOrder.diningDateTime,
             orderInfoDiningDateTime: cachedOrder.orderInfo.diningDateTime,
-            isSameObject: cachedOrder === updatedOrder
+            isSameObject: cachedOrder === updatedOrder,
+            cachedOrderFull: cachedOrder
         });
+        
+        // 驗證快取中的值是否正確
+        if (cachedOrder.diningDateTime !== finalOrderData.dining_datetime) {
+            console.error('❌ 快取更新失敗！快取中的值與 Supabase 回傳值不一致:', {
+                cached: cachedOrder.diningDateTime,
+                supabase: finalOrderData.dining_datetime
+            });
+        } else {
+            console.log('✅ 快取更新成功，值一致');
+        }
     }
     
     console.log('快取已更新，目前訂單數量:', supabaseOrders.length);
     
-    // 重新渲染歷史列表（確保顯示最新資料）
-    const historyModal = document.getElementById('historyModal');
-    if (historyModal && historyModal.style.display === 'block') {
-        console.log('🔄 歷史列表 modal 已開啟，重新渲染列表...');
-        renderHistoryList();
-    }
+    // 【關鍵修復】強制重新渲染歷史列表（無論 modal 是否開啟）
+    // 使用 setTimeout 確保 DOM 更新完成後再渲染
+    setTimeout(() => {
+        const historyModal = document.getElementById('historyModal');
+        if (historyModal && historyModal.style.display === 'block') {
+            console.log('🔄 歷史列表 modal 已開啟，強制重新渲染列表...');
+            // 清除可能的快取
+            window._currentFilteredMenus = null;
+            renderHistoryList();
+        }
+    }, 100);
     
-    // 重置編輯狀態
+    // 重置編輯狀態（在記錄完所有調試信息後）
     currentEditingOrderId = null;
     updateSaveButtonState();
     clearOrderForm();
@@ -5053,8 +5070,10 @@ function renderHistoryCell(col, menu, metrics, idx) {
             const dateTimeToDisplay = orderInfo.diningDateTime || menu.diningDateTime || menu.savedAt;
             const displayDate = dateTimeToDisplay ? formatDate(new Date(dateTimeToDisplay)) : '--';
             
-            // 調試 4：渲染該筆時實際拿來顯示的值（只針對當前編輯的訂單）
-            if (menuId && currentEditingOrderId && menuId === currentEditingOrderId) {
+            // 調試 4：渲染該筆時實際拿來顯示的值（記錄所有訂單，不只是當前編輯的）
+            // 特別標記最近更新的訂單（通過檢查 updated_at 是否很新）
+            const isRecentlyUpdated = menu.savedAt && (new Date() - new Date(menu.savedAt)) < 5000; // 5秒內更新的
+            if (isRecentlyUpdated || menuId) {
                 console.log('📋 [Debug 4] renderHistoryList 渲染該筆時 - 實際拿來顯示的值:', {
                     orderId: menuId,
                     orderInfoDiningDateTime: orderInfo.diningDateTime,
@@ -5063,7 +5082,9 @@ function renderHistoryCell(col, menu, metrics, idx) {
                     dateTimeToDisplay,
                     displayDate,
                     source: orderInfo.diningDateTime ? 'orderInfo.diningDateTime' : 
-                           (menu.diningDateTime ? 'menu.diningDateTime' : 'menu.savedAt')
+                           (menu.diningDateTime ? 'menu.diningDateTime' : 'menu.savedAt'),
+                    fullMenuObject: menu,
+                    fullOrderInfo: orderInfo
                 });
             }
             return `<td class="date-cell">${displayDate}</td>`;
