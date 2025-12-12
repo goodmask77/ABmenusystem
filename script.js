@@ -1612,6 +1612,10 @@ function setDiningDateTime(dateTimeStr) {
             customHourInput.value = '';
             customHourInput.style.display = 'none';
         }
+        // 更新顏色狀態
+        if (elements.diningDate) markFillState(elements.diningDate);
+        if (elements.diningHour) markFillState(elements.diningHour);
+        if (elements.diningMinute) markFillState(elements.diningMinute);
         return;
     }
     try {
@@ -1641,8 +1645,15 @@ function setDiningDateTime(dateTimeStr) {
                 customHourInput.style.display = 'block';
             }
         }
-        if (elements.diningHour) elements.diningHour.value = hour;
         if (elements.diningMinute) elements.diningMinute.value = minute;
+        
+        // 更新所有日期時間欄位的顏色狀態
+        if (elements.diningDate) markFillState(elements.diningDate);
+        if (elements.diningHour) markFillState(elements.diningHour);
+        if (elements.diningMinute) markFillState(elements.diningMinute);
+        if (customHourInput && customHourInput.style.display === 'block') {
+            markFillState(customHourInput);
+        }
     } catch (e) {
         console.warn('設定用餐時間失敗：', e);
     }
