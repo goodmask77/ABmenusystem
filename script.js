@@ -2440,11 +2440,27 @@ function bindEvents() {
     elements.exportCartImage.addEventListener('click', exportCartToImage);
     
     // 儲存載入
+    // 儲存菜單按鈕（新菜單或儲存成新菜單）
     elements.saveMenu.addEventListener('click', () => {
         if (!ensureEditorAccess()) return;
+        // 如果是載入的菜單，儲存時會儲存成新菜單（不更新現有訂單）
         saveMenuToStorage();
     });
     elements.loadMenu.addEventListener('click', showHistoryModal);
+    
+    // 功能 B：更新訂單按鈕（只更新現有訂單）
+    const updateOrderBtn = document.getElementById('updateOrder');
+    if (updateOrderBtn) {
+        updateOrderBtn.addEventListener('click', () => {
+            if (!ensureEditorAccess()) return;
+            if (!currentEditingOrderId) {
+                alert('目前沒有正在編輯的訂單，請先載入一個訂單');
+                return;
+            }
+            // 直接調用 confirmSaveMenu，它會根據 currentEditingOrderId 判斷是更新還是新增
+            confirmSaveMenu();
+        });
+    }
     
     // 功能 B：刪除訂單按鈕
     const deleteOrderBtn = document.getElementById('deleteOrder');
@@ -4634,10 +4650,14 @@ async function confirmSaveMenu() {
     });
     
     // 判斷是新增還是更新
-    const isUpdate = currentEditingOrderId !== null;
+    // 如果 isNewOrder 為 true，強制新增（即使有 currentEditingOrderId）
+    const isUpdate = currentEditingOrderId !== null && !isNewOrder;
+    const actualOrderId = isUpdate ? currentEditingOrderId : null;
     console.log(isUpdate ? '準備更新訂單到 Supabase...' : '準備儲存訂單到 Supabase...', {
         isUpdate,
-        orderId: currentEditingOrderId,
+        isNewOrder,
+        orderId: actualOrderId,
+        originalOrderId: currentEditingOrderId,
         supabaseOrder,
         diningDateTime: supabaseOrder.dining_datetime,
         orderInfo: supabaseOrder
@@ -4652,8 +4672,8 @@ async function confirmSaveMenu() {
         });
     }
     
-    // 儲存或更新訂單
-    const savedOrder = await saveOrUpdateOrderToSupabase(supabaseOrder, currentEditingOrderId);
+    // 儲存或更新訂單（如果是新訂單，傳入 null 強制新增）
+    const savedOrder = await saveOrUpdateOrderToSupabase(supabaseOrder, actualOrderId);
     
     if (!savedOrder) {
         console.error('儲存/更新訂單失敗');
@@ -4843,12 +4863,19 @@ function clearOrderForm() {
 function updateSaveButtonState() {
     const saveButton = document.getElementById('saveMenu');
     const saveButtonText = document.getElementById('saveMenuButtonText');
+    const updateButton = document.getElementById('updateOrder');
     const deleteButton = document.getElementById('deleteOrder');
     
     if (currentEditingOrderId) {
-        if (saveButtonText) saveButtonText.textContent = '更新訂單';
+        // 載入菜單：顯示「更新訂單」和「儲存菜單」按鈕
+        if (updateButton) updateButton.style.display = 'inline-flex';
+        if (saveButton) saveButton.style.display = 'inline-flex';
+        if (saveButtonText) saveButtonText.textContent = '儲存菜單';
         if (deleteButton) deleteButton.style.display = 'inline-flex';
     } else {
+        // 新菜單：只顯示「儲存菜單」按鈕
+        if (updateButton) updateButton.style.display = 'none';
+        if (saveButton) saveButton.style.display = 'inline-flex';
         if (saveButtonText) saveButtonText.textContent = '儲存菜單';
         if (deleteButton) deleteButton.style.display = 'none';
     }
@@ -6146,7 +6173,13 @@ function bindModalEvents() {
     document.getElementById('processImportBtn').addEventListener('click', processImport);
     
     // 確認儲存菜單按鈕
-    document.getElementById('confirmSaveMenu').addEventListener('click', confirmSaveMenu);
+    // 確認儲存按鈕：根據是否為載入的菜單決定行為
+    document.getElementById('confirmSaveMenu').addEventListener('click', () => {
+        // 如果 saveMenuToStorage 是從「儲存菜單」按鈕觸發的，且目前有載入的訂單
+        // 則儲存成新訂單（isNewOrder = true）
+        const isNewOrder = currentEditingOrderId !== null;
+        confirmSaveMenu(isNewOrder);
+    });
     
     // 歷史搜尋和排序
     document.getElementById('historySearch').addEventListener('input', debounce(renderHistoryList, 300));
