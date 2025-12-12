@@ -1132,10 +1132,12 @@ body {
 .input-empty {
     background-color: #fff9f0;
     border-color: #f0a46b;
+    box-shadow: 0 0 0 1px rgba(240, 164, 107, 0.6);
 }
 .input-filled {
     background-color: #f6ffed;
     border-color: #52c41a;
+    box-shadow: 0 0 0 1px rgba(82, 196, 26, 0.6);
 }
 
 /* 模態對話框 */

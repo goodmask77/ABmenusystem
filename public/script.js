@@ -3196,6 +3196,22 @@ function closeIndustryModal() {
     if (modal) modal.style.display = 'none';
 }
 
+// 將產業管理函式暴露到全局，以便 HTML 中的 onclick 可以調用
+if (typeof window !== 'undefined') {
+    window.showIndustryManager = showIndustryManager;
+    window.closeIndustryModal = closeIndustryModal;
+    window.addIndustryOption = addIndustryOption;
+    window.deleteIndustryOption = deleteIndustryOption;
+}
+
+// 將產業管理函式暴露到全局，以便 HTML 中的 onclick 可以調用
+if (typeof window !== 'undefined') {
+    window.showIndustryManager = showIndustryManager;
+    window.closeIndustryModal = closeIndustryModal;
+    window.addIndustryOption = addIndustryOption;
+    window.deleteIndustryOption = deleteIndustryOption;
+}
+
 function renderIndustryList() {
     const list = document.getElementById('industryList');
     if (!list) return;
