@@ -1443,10 +1443,45 @@ function setOrderInfo(info) {
     if (info.contactPhone && elements.contactPhone) elements.contactPhone.value = info.contactPhone;
     if (info.lineName && elements.lineName) elements.lineName.value = info.lineName;
     
+    // 本地管理的選單：只設置存在於當前選項列表中的值
     if (info.planType && elements.planType) {
-        ensureOptionExists(elements.planType, info.planType);
-        elements.planType.value = info.planType;
+        const planOptions = loadLocalOptions('planType');
+        if (planOptions.includes(info.planType)) {
+            elements.planType.value = info.planType;
+        } else {
+            console.warn(`方案選項 "${info.planType}" 已從管理選單中刪除，不設置值`);
+            elements.planType.value = '';
+        }
     }
+    if (info.venueScope && elements.venueScope) {
+        const venueScopeOptions = loadLocalOptions('venueScope');
+        if (venueScopeOptions.includes(info.venueScope)) {
+            elements.venueScope.value = info.venueScope;
+        } else {
+            console.warn(`包場範圍選項 "${info.venueScope}" 已從管理選單中刪除，不設置值`);
+            elements.venueScope.value = '';
+        }
+    }
+    if (info.diningStyle && elements.diningStyle) {
+        const diningStyleOptions = loadLocalOptions('diningStyle');
+        if (diningStyleOptions.includes(info.diningStyle)) {
+            elements.diningStyle.value = info.diningStyle;
+        } else {
+            console.warn(`用餐方式選項 "${info.diningStyle}" 已從管理選單中刪除，不設置值`);
+            elements.diningStyle.value = '';
+        }
+    }
+    if (info.paymentMethod && elements.paymentMethod) {
+        const paymentOptions = loadLocalOptions('paymentMethod');
+        if (paymentOptions.includes(info.paymentMethod)) {
+            elements.paymentMethod.value = info.paymentMethod;
+        } else {
+            console.warn(`付款方式選項 "${info.paymentMethod}" 已從管理選單中刪除，不設置值`);
+            elements.paymentMethod.value = '';
+        }
+    }
+    
+    // Supabase 管理的選單：允許添加歷史選項
     if (info.industry && elements.industrySelect) {
         ensureOptionExists(elements.industrySelect, info.industry);
         elements.industrySelect.value = info.industry;
@@ -1455,18 +1490,7 @@ function setOrderInfo(info) {
         ensureOptionExists(elements.venueContentSelect, info.venueContent);
         elements.venueContentSelect.value = info.venueContent;
     }
-    if (info.venueScope && elements.venueScope) {
-        ensureOptionExists(elements.venueScope, info.venueScope);
-        elements.venueScope.value = info.venueScope;
-    }
-    if (info.diningStyle && elements.diningStyle) {
-        ensureOptionExists(elements.diningStyle, info.diningStyle);
-        elements.diningStyle.value = info.diningStyle;
-    }
-    if (info.paymentMethod && elements.paymentMethod) {
-        ensureOptionExists(elements.paymentMethod, info.paymentMethod);
-        elements.paymentMethod.value = info.paymentMethod;
-    }
+    
     if (info.discount !== undefined && elements.discount) {
         elements.discount.value = info.discount;
     }
@@ -1485,6 +1509,9 @@ function setOrderInfo(info) {
         peopleCount = info.peopleCount;
         if (elements.peopleCountInput) elements.peopleCountInput.value = peopleCount;
     }
+    
+    // 更新所有欄位的填寫狀態顏色
+    initFillStateStyling();
 }
 
 // 確保選項存在（載入歷史資料時若值不在當前列表，會先補上一筆）
@@ -1492,6 +1519,27 @@ function ensureOptionExists(selectEl, value) {
     if (!selectEl || !value) return;
     const exists = Array.from(selectEl.options).some(opt => opt.value === value);
     if (!exists) {
+        // 檢查是否為本地管理的選項（planType, venueScope, diningStyle, paymentMethod）
+        const selectId = selectEl.id;
+        const isLocalManaged = selectId === 'planType' || 
+                              selectId === 'venueScope' || 
+                              selectId === 'diningStyle' || 
+                              selectId === 'paymentMethod';
+        
+        if (isLocalManaged) {
+            // 對於本地管理的選項，檢查該值是否存在於當前的選項列表中
+            const currentOptions = loadLocalOptions(selectId === 'planType' ? 'planType' :
+                                                   selectId === 'venueScope' ? 'venueScope' :
+                                                   selectId === 'diningStyle' ? 'diningStyle' :
+                                                   'paymentMethod');
+            if (!currentOptions.includes(value)) {
+                // 如果該選項已經從管理選單中刪除，不添加它
+                console.warn(`選項 "${value}" 已從 ${selectId} 的管理選單中刪除，不會自動添加`);
+                return;
+            }
+        }
+        
+        // 對於 Supabase 管理的選項（industry, venueContent）或值存在於選項列表中，允許添加
         const opt = document.createElement('option');
         opt.value = value;
         opt.textContent = value;
@@ -5469,6 +5517,8 @@ function loadHistoryMenuByData(row) {
         // 兼容舊格式
         if (menu.customerName && elements.companyName) elements.companyName.value = menu.customerName;
         if (menu.customerTaxId && elements.customerTaxId) elements.customerTaxId.value = menu.customerTaxId;
+        // 更新填寫狀態顏色
+        initFillStateStyling();
     }
     
     // 設定用餐日期時間
