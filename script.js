@@ -4533,7 +4533,7 @@ async function deleteOrderFromSupabaseById(orderId) {
     }
 }
 
-async function confirmSaveMenu() {
+async function confirmSaveMenu(isNewOrder = false) {
     // 確保 Supabase 已初始化
     console.log('檢查 Supabase 連線狀態...');
     const client = supabaseClient || await initSupabaseClient();
@@ -4812,10 +4812,16 @@ async function confirmSaveMenu() {
         }
     }, 100);
     
-    // 重置編輯狀態（在記錄完所有調試信息後）
-    currentEditingOrderId = null;
+    // 重置編輯狀態（只有在新增時才清空，更新時保留 currentEditingOrderId）
+    if (!isUpdate) {
+        // 新增訂單：清空編輯狀態
+        currentEditingOrderId = null;
+        clearOrderForm();
+    } else {
+        // 更新訂單：保留 currentEditingOrderId，不清空表單
+        console.log('✅ 訂單已更新，保留編輯狀態');
+    }
     updateSaveButtonState();
-    clearOrderForm();
     
     // 關閉模態框
     document.getElementById('saveMenuModal').style.display = 'none';
