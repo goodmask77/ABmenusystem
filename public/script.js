@@ -2457,8 +2457,8 @@ function bindEvents() {
                 alert('目前沒有正在編輯的訂單，請先載入一個訂單');
                 return;
             }
-            // 直接調用 confirmSaveMenu，它會根據 currentEditingOrderId 判斷是更新還是新增
-            confirmSaveMenu();
+            // 直接調用 confirmSaveMenu，傳入 isNewOrder = false 強制更新
+            confirmSaveMenu(false);
         });
     }
     
