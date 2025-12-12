@@ -505,7 +505,7 @@ body {
 .history-table-full {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.85rem;
+    font-size: 0.8rem; /* 稍微縮小基礎字體 */
     table-layout: auto; /* 內容自適應 */
     min-width: 100%; /* 確保表格至少填滿容器 */
 }
@@ -518,7 +518,7 @@ body {
 }
 
 .history-table-full th {
-    padding: 0.45rem 0.35rem;
+    padding: 0.4rem 0.3rem; /* 減少 padding */
     text-align: left;
     font-weight: 600;
     border-bottom: 2px solid #dee2e6;
@@ -526,6 +526,7 @@ body {
     cursor: pointer;
     user-select: none;
     position: relative;
+    font-size: 0.8rem; /* 稍微縮小字體 */
 }
 
 .history-table-full th.sortable:hover {
@@ -590,9 +591,10 @@ body {
 }
 
 .history-table-full td {
-    padding: 0.45rem 0.35rem;
+    padding: 0.4rem 0.3rem; /* 減少 padding */
     border-bottom: 1px solid #e9ecef;
     white-space: nowrap;
+    font-size: 0.8rem; /* 稍微縮小字體 */
 }
 
 .history-table-full tbody tr:hover {
@@ -1242,13 +1244,13 @@ body {
 }
 
 .modal-content.extra-large {
-    max-width: calc(100% - 40px); /* 稍微增加寬度 */
-    width: calc(100% - 40px);
-    max-height: calc(100vh - 40px); /* 增加高度 */
+    max-width: calc(100vw - 20px); /* 使用視窗寬度，只留最小邊距 */
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px); /* 使用視窗高度，只留最小邊距 */
     overflow-y: auto;
     overflow-x: hidden; /* 禁止水平滾動 */
-    margin: 20px auto; /* 簡化邊距 */
-    padding: 1.5rem; /* 增加內距 */
+    margin: 10px auto; /* 最小邊距 */
+    padding: 1.2rem; /* 適度內距 */
 }
 
 @keyframes modalSlideIn {
@@ -1982,8 +1984,8 @@ body {
 }
 .history-table-full th.people-col,
 .history-table-full td.people-cell {
-    min-width: 85px;
-    max-width: 120px; /* 稍微縮小 */
+    min-width: 75px;
+    max-width: 100px; /* 進一步縮小 */
 }
 .history-table-full th.total-col,
 .history-table-full td.total-cell,
@@ -1991,11 +1993,14 @@ body {
 .history-table-full td.perperson-cell,
 .history-table-full th.deposit-col,
 .history-table-full td.deposit-cell {
-    min-width: 85px;
-    max-width: 120px; /* 稍微縮小 */
+    min-width: 75px;
+    max-width: 100px; /* 進一步縮小 */
 }
 .history-table-full th.tax-col,
-.history-table-full td.tax-cell,
+.history-table-full td.tax-cell {
+    min-width: 80px;
+    max-width: 110px; /* 統編較短 */
+}
 .history-table-full th.industry-col,
 .history-table-full td.industry-cell,
 .history-table-full th.venue-scope-col,
@@ -2006,17 +2011,23 @@ body {
 .history-table-full td.dining-style-cell,
 .history-table-full th.plan-col,
 .history-table-full td.plan-cell {
-    min-width: 100px;
-    max-width: 150px; /* 稍微縮小 */
+    min-width: 85px;
+    max-width: 120px; /* 進一步縮小 */
 }
 .history-table-full th.company-col,
-.history-table-full td.menu-name-cell,
+.history-table-full td.menu-name-cell {
+    min-width: 120px;
+    max-width: 180px; /* 進一步縮小 */
+}
 .history-table-full th.contact-col,
-.history-table-full td.contact-cell,
+.history-table-full td.contact-cell {
+    min-width: 100px;
+    max-width: 150px; /* 聯絡人較短 */
+}
 .history-table-full th.line-col,
 .history-table-full td.line-cell {
-    min-width: 140px;
-    max-width: 220px; /* 稍微縮小 */
+    min-width: 100px;
+    max-width: 150px; /* LINE 較短 */
 }
 
 /* 長文字欄位省略顯示 */
