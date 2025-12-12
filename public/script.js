@@ -1428,8 +1428,11 @@ function initFillStateStyling() {
     const selector = 'input[type="text"], input[type="tel"], input[type="number"], input[type="date"], select, textarea';
     document.querySelectorAll(selector).forEach(el => {
         markFillState(el);
-        el.addEventListener('input', () => markFillState(el));
-        el.addEventListener('change', () => markFillState(el));
+        if (!el.dataset._fillStateBound) {
+            el.addEventListener('input', () => markFillState(el));
+            el.addEventListener('change', () => markFillState(el));
+            el.dataset._fillStateBound = '1';
+        }
     });
 }
 
@@ -2602,15 +2605,44 @@ function clearCart() {
     
     cart = [];
     
-    // 清除客戶資訊
-    if (elements.customerName) {
-        elements.customerName.value = '';
-    }
-    if (elements.customerTaxId) {
-        elements.customerTaxId.value = '';
-    }
+    // 清除客戶／訂單資訊
+    const resetFields = [
+        'companyName',
+        'customerName',
+        'customerTaxId',
+        'contactName',
+        'contactPhone',
+        'lineName',
+        'planType',
+        'planTypeCustom',
+        'industrySelect',
+        'industrySelectCustom',
+        'venueContentSelect',
+        'venueContentSelectCustom',
+        'venueScope',
+        'venueScopeCustom',
+        'diningStyle',
+        'diningStyleCustom',
+        'paymentMethod',
+        'paymentMethodCustom',
+        'discount',
+        'depositPaid'
+    ];
+    resetFields.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (el.tagName === 'SELECT') {
+            el.value = '';
+        } else {
+            el.value = '';
+        }
+    });
+    
     // 清除用餐日期時間
     setDiningDateTime('');
+    
+    // 重新標記填寫狀態
+    initFillStateStyling();
     
     renderCart();
     renderMenu(); // 重新渲染菜單以移除選中狀態
@@ -3194,14 +3226,6 @@ async function showIndustryManager() {
 function closeIndustryModal() {
     const modal = document.getElementById('industryModal');
     if (modal) modal.style.display = 'none';
-}
-
-// 將產業管理函式暴露到全局，以便 HTML 中的 onclick 可以調用
-if (typeof window !== 'undefined') {
-    window.showIndustryManager = showIndustryManager;
-    window.closeIndustryModal = closeIndustryModal;
-    window.addIndustryOption = addIndustryOption;
-    window.deleteIndustryOption = deleteIndustryOption;
 }
 
 // 將產業管理函式暴露到全局，以便 HTML 中的 onclick 可以調用

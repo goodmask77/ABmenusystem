@@ -37,9 +37,21 @@ git add -A
 echo -e "${BLUE}💾 提交變更...${NC}"
 git commit -m "$COMMIT_MSG"
 
+# GitHub Token (從環境變數或 git config 讀取)
+if [ -z "$GITHUB_TOKEN" ]; then
+    GITHUB_TOKEN=$(git config --get github.token 2>/dev/null || echo "")
+fi
+
+if [ -z "$GITHUB_TOKEN" ]; then
+    echo -e "${YELLOW}⚠️  未設定 GITHUB_TOKEN，嘗試使用 origin URL${NC}"
+    REPO_URL="origin"
+else
+    REPO_URL="https://${GITHUB_TOKEN}@github.com/goodmask77/ABmenusystem.git"
+fi
+
 # 推送到 GitHub
 echo -e "${BLUE}📤 推送到 GitHub...${NC}"
-if git push origin main; then
+if git push "${REPO_URL}" main; then
     echo -e "${GREEN}✅ 成功推送到 GitHub${NC}"
 else
     echo -e "${YELLOW}⚠️  Push 失敗，可能需要設定認證${NC}"
