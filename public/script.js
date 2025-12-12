@@ -4761,21 +4761,50 @@ function openHistoryColumnSettings() {
     openModal('historyColumnSettingsModal');
 }
 
+function getHistoryColumnClass(id) {
+    switch (id) {
+        case 'select': return 'checkbox-col';
+        case 'pin': return 'pin-col';
+        case 'actions': return 'actions-col';
+        case 'people': return 'people-col';
+        case 'total': return 'total-col';
+        case 'perPerson': return 'perperson-col';
+        case 'depositPaid': return 'deposit-col';
+        case 'taxId': return 'tax-col';
+        case 'industry': return 'industry-col';
+        case 'company': return 'company-col';
+        case 'contact': return 'contact-col';
+        case 'line': return 'line-col';
+        case 'plan': return 'plan-col';
+        case 'venueContent': return 'venue-content-col';
+        case 'venueScope': return 'venue-scope-col';
+        case 'diningStyle': return 'dining-style-col';
+        default: return '';
+    }
+}
+
 function renderHistoryHeaderCell(col) {
     const sortField = col.sortField;
     const isSortable = !!sortField;
     const sortClass = isSortable && historySort.field === sortField ? 'sort-' + historySort.direction : '';
+    const colClass = getHistoryColumnClass(col.id);
+    const classNames = [];
+    if (colClass) classNames.push(colClass);
+    if (isSortable) classNames.push('sortable');
+    if (sortClass) classNames.push(sortClass);
+    const classAttr = classNames.join(' ');
+
     switch (col.id) {
         case 'select':
-            return `<th class="checkbox-col" onclick="event.stopPropagation();">
+            return `<th class="${classAttr}" onclick="event.stopPropagation();">
                 <input type="checkbox" id="selectAllCheckbox" title="全選/取消全選">
             </th>`;
         case 'pin':
-            return `<th class="pin-col ${sortClass}" onclick="event.stopPropagation(); ${isSortable ? `sortHistoryBy('${sortField}')` : ''}">釘選</th>`;
+            return `<th class="${classAttr}" onclick="event.stopPropagation(); ${isSortable ? `sortHistoryBy('${sortField}')` : ''}">釘選</th>`;
         case 'actions':
-            return `<th class="actions-col" onclick="event.stopPropagation();">操作</th>`;
+            return `<th class="${classAttr}" onclick="event.stopPropagation();">操作</th>`;
         default:
-            return `<th class="sortable ${sortClass}" onclick="sortHistoryBy('${sortField || ''}')">${col.label}</th>`;
+            return `<th class="${classAttr}" onclick="sortHistoryBy('${sortField || ''}')">${col.label}</th>`;
     }
 }
 

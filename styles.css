@@ -504,8 +504,7 @@ body {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.85rem;
-    min-width: 2000px; /* 確保所有欄位都能顯示 */
-    table-layout: auto; /* 允許自動調整欄位寬度 */
+    table-layout: auto; /* 內容自適應 */
 }
 
 .history-table-full thead {
@@ -516,7 +515,7 @@ body {
 }
 
 .history-table-full th {
-    padding: 0.6rem 0.4rem;
+    padding: 0.45rem 0.35rem;
     text-align: left;
     font-weight: 600;
     border-bottom: 2px solid #dee2e6;
@@ -531,7 +530,10 @@ body {
 }
 
 .history-table-full th.sortable:after {
-    content: " ⇅";
+    content: "⇅";
+    display: inline-block;
+    width: 0.9rem;
+    text-align: center;
     font-size: 0.7rem;
     color: #999;
     margin-left: 0.3rem;
@@ -539,13 +541,13 @@ body {
 }
 
 .history-table-full th.sort-asc:after {
-    content: " ↑";
+    content: "↑";
     color: #007bff;
     opacity: 1;
 }
 
 .history-table-full th.sort-desc:after {
-    content: " ↓";
+    content: "↓";
     color: #007bff;
     opacity: 1;
 }
@@ -585,7 +587,7 @@ body {
 }
 
 .history-table-full td {
-    padding: 0.5rem 0.4rem;
+    padding: 0.45rem 0.35rem;
     border-bottom: 1px solid #e9ecef;
     white-space: nowrap;
 }
@@ -1899,100 +1901,126 @@ body {
     text-align: left;
 }
 
-/* 歷史訂單表格對齊 - 徹底修正 */
+/* 歷史訂單表格對齊與欄寬 - 內容自適應優先 */
 .history-table-full {
     table-layout: auto;
 }
 
 .history-table-full th {
-    text-align: left !important; /* 強制標題置左 */
-    padding: 0.6rem 0.4rem;
+    text-align: left !important;
+    padding: 0.45rem 0.35rem;
     font-weight: 600;
     border-bottom: 2px solid #dee2e6;
     white-space: nowrap;
 }
 
 .history-table-full td {
-    text-align: left !important; /* 預設所有內容置左 */
-    padding: 0.5rem 0.4rem;
+    text-align: left !important;
+    padding: 0.45rem 0.35rem;
     vertical-align: middle;
     white-space: nowrap;
 }
 
 /* 文字欄位：置左對齊 */
-.history-table-full td.date-cell,
+.history-table-full th.company-col,
 .history-table-full td.menu-name-cell,
-.history-table-full td.plan-cell,
-.history-table-full td.line-cell,
+.history-table-full th.contact-col,
 .history-table-full td.contact-cell,
-.history-table-full td.phone-cell,
+.history-table-full th.line-col,
+.history-table-full td.line-cell,
+.history-table-full td.plan-cell,
 .history-table-full td.industry-cell,
 .history-table-full td.company-cell,
 .history-table-full td.tax-cell,
 .history-table-full td.venue-content-cell,
 .history-table-full td.venue-cell,
-.history-table-full td.payment-cell,
 .history-table-full td.dining-style-cell {
     text-align: left !important;
 }
 
 /* 數字欄位：右對齊 */
+.history-table-full th.people-col,
 .history-table-full td.people-cell,
+.history-table-full th.total-col,
 .history-table-full td.total-cell,
-.history-table-full td.deposit-cell,
-.history-table-full td.perperson-cell {
+.history-table-full th.perperson-col,
+.history-table-full td.perperson-cell,
+.history-table-full th.deposit-col,
+.history-table-full td.deposit-cell {
     text-align: right !important;
 }
 
-/* 釘選和操作欄位：置中 */
+/* 控制欄位：置中 */
 .history-table-full td.pin-col,
 .history-table-full td.actions-cell,
 .history-table-full th.pin-col,
-.history-table-full th.actions-col {
-    text-align: center !important;
-}
-
-/* 勾選欄位：置中 */
+.history-table-full th.actions-col,
 .history-table-full td.checkbox-col,
 .history-table-full th.checkbox-col {
     text-align: center !important;
-    width: 40px;
 }
 
-.menu-name-cell:hover {
-    color: #0056b3;
-    text-decoration: underline;
+/* 欄寬策略：極短 / 中等 / 長文字 */
+.history-table-full th.checkbox-col,
+.history-table-full td.checkbox-col {
+    width: 48px;
+    min-width: 44px;
+    max-width: 56px;
 }
-
-.date-cell {
-    font-size: 0.9rem;
-    color: #666;
-    width: 18%;
+.history-table-full th.pin-col,
+.history-table-full td.pin-col,
+.history-table-full th.actions-col,
+.history-table-full td.actions-col {
+    width: 52px;
+    min-width: 48px;
+    max-width: 64px;
+}
+.history-table-full th.people-col,
+.history-table-full td.people-cell {
+    min-width: 92px;
+    max-width: 130px;
+}
+.history-table-full th.total-col,
+.history-table-full td.total-cell,
+.history-table-full th.perperson-col,
+.history-table-full td.perperson-cell,
+.history-table-full th.deposit-col,
+.history-table-full td.deposit-cell {
+    min-width: 92px;
+    max-width: 140px;
+}
+.history-table-full th.tax-col,
+.history-table-full td.tax-cell,
+.history-table-full th.industry-col,
+.history-table-full td.industry-cell,
+.history-table-full th.venue-scope-col,
+.history-table-full td.venue-cell,
+.history-table-full th.venue-content-col,
+.history-table-full td.venue-content-cell,
+.history-table-full th.dining-style-col,
+.history-table-full td.dining-style-cell,
+.history-table-full th.plan-col,
+.history-table-full td.plan-cell {
+    min-width: 110px;
+    max-width: 170px;
+}
+.history-table-full th.company-col,
+.history-table-full td.menu-name-cell,
+.history-table-full th.contact-col,
+.history-table-full td.contact-cell,
+.history-table-full th.line-col,
+.history-table-full td.line-cell {
     min-width: 160px;
-    font-weight: 400;
-    white-space: nowrap;
-    line-height: 1.5;
+    max-width: 280px;
 }
 
-.count-cell,
-.people-cell,
-.table-cell {
-    text-align: center;
-    width: 8%;
-    min-width: 60px;
-    font-weight: 500;
-    color: #333;
-    font-size: 0.9rem;
-}
-
-.total-cell,
-.perperson-cell {
-    text-align: right;
-    font-weight: 600;
-    width: 10%;
-    min-width: 80px;
-    font-size: 0.9rem;
+/* 長文字欄位省略顯示 */
+.history-table-full td.menu-name-cell,
+.history-table-full td.contact-cell,
+.history-table-full td.line-cell {
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .total-cell {
