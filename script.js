@@ -1593,10 +1593,18 @@ function getDiningDateTime(customHour = null) {
         } else {
             hour = '';
         }
+    } else if (hour) {
+        // 確保小時是兩位數格式
+        hour = String(parseInt(hour)).padStart(2, '0');
     }
     
-    if (date && hour && minute) {
-        return `${date}T${hour}:${minute}`;
+    // 確保分鐘是兩位數格式
+    const minuteFormatted = minute ? String(parseInt(minute)).padStart(2, '0') : '';
+    
+    if (date && hour && minuteFormatted) {
+        const result = `${date}T${hour}:${minuteFormatted}`;
+        console.log('📅 getDiningDateTime 結果:', { date, hour, minute: minuteFormatted, result });
+        return result;
     }
     return '';
 }
@@ -1632,20 +1640,29 @@ function setDiningDateTime(dateTimeStr) {
         // 處理時間：如果在 12-22 範圍內，直接選擇；否則使用自訂
         const customHourInput = document.getElementById('diningHourCustom');
         if (hour >= 12 && hour <= 22) {
-            if (elements.diningHour) elements.diningHour.value = hourStr;
+            // 確保設置正確的小時值（兩位數格式）
+            if (elements.diningHour) {
+                elements.diningHour.value = hourStr;
+                console.log('✅ 設置小時:', hourStr, '實際值:', elements.diningHour.value);
+            }
             if (customHourInput) {
                 customHourInput.style.display = 'none';
                 customHourInput.value = '';
             }
         } else {
             // 不在範圍內，使用自訂輸入框
-            if (elements.diningHour) elements.diningHour.value = '__CUSTOM__';
+            if (elements.diningHour) {
+                elements.diningHour.value = '__CUSTOM__';
+            }
             if (customHourInput) {
                 customHourInput.value = hourStr;
                 customHourInput.style.display = 'block';
             }
         }
-        if (elements.diningMinute) elements.diningMinute.value = minute;
+        if (elements.diningMinute) {
+            elements.diningMinute.value = minute;
+            console.log('✅ 設置分鐘:', minute, '實際值:', elements.diningMinute.value);
+        }
         
         // 更新所有日期時間欄位的顏色狀態
         if (elements.diningDate) markFillState(elements.diningDate);
@@ -4389,12 +4406,26 @@ async function confirmSaveMenu() {
         }
     }
     
-    // 取得所有訂單資訊
+    // 取得所有訂單資訊（確保獲取最新值，在保存前最後一次獲取）
+    // 注意：必須在保存前最後一次獲取，確保使用最新的輸入框值
     const orderInfo = getOrderInfo();
+    // 重新獲取日期時間，確保使用最新的值
     const diningDateTime = getDiningDateTime();
     
+    // 調試：確認獲取到的值
+    console.log('🔍 保存前的訂單資訊:', {
+        orderInfo,
+        diningDateTime,
+        diningDate: elements.diningDate?.value,
+        diningHour: elements.diningHour?.value,
+        diningMinute: elements.diningMinute?.value,
+        diningHourCustom: document.getElementById('diningHourCustom')?.value,
+        isUpdate: currentEditingOrderId !== null,
+        orderId: currentEditingOrderId
+    });
+    
     // 使用公司名稱作為菜單名稱
-    const menuName = companyName;
+    const menuName = orderInfo.companyName || companyName;
     
     const menuSnapshot = deepClone(menuData);
     const createdBy = currentUser?.username || '未知';
@@ -4407,7 +4438,7 @@ async function confirmSaveMenu() {
     // 建立購物車預覽
     const cartPreview = cart.slice(0, 3).map(item => item.name).join(', ') + (cart.length > 3 ? '...' : '');
     
-    // 儲存訂單到 Supabase
+    // 儲存訂單到 Supabase（確保使用最新的 orderInfo 和 diningDateTime）
     const supabaseOrder = {
         company_name: orderInfo.companyName || null,
         tax_id: orderInfo.taxId || null,
@@ -4422,9 +4453,9 @@ async function confirmSaveMenu() {
         payment_method: orderInfo.paymentMethod || null,
         discount: orderInfo.discount || '',
         deposit_paid: orderInfo.depositPaid || 0,
-        dining_datetime: diningDateTime || null,
-        table_count: tableCount || 1,
-        people_count: peopleCount || 1,
+        dining_datetime: diningDateTime || null, // 使用最新獲取的日期時間
+        table_count: orderInfo.tableCount || tableCount || 1,
+        people_count: orderInfo.peopleCount || peopleCount || 1,
         subtotal: subtotal || 0,
         service_fee: serviceFee || 0,
         total: estimatedTotal || 0,
@@ -4433,12 +4464,40 @@ async function confirmSaveMenu() {
         created_by: createdBy || '未知'
     };
     
+    // 調試：確認保存的資料
+    console.log('💾 準備保存到 Supabase 的資料:', {
+        dining_datetime: supabaseOrder.dining_datetime,
+        company_name: supabaseOrder.company_name,
+        venue_content: supabaseOrder.venue_content,
+        discount: supabaseOrder.discount,
+        allFields: supabaseOrder
+    });
+    
     // 判斷是新增還是更新
     const isUpdate = currentEditingOrderId !== null;
-    console.log(isUpdate ? '準備更新訂單到 Supabase...' : '準備儲存訂單到 Supabase...', supabaseOrder);
+    console.log(isUpdate ? '準備更新訂單到 Supabase...' : '準備儲存訂單到 Supabase...', {
+        isUpdate,
+        orderId: currentEditingOrderId,
+        supabaseOrder,
+        diningDateTime: supabaseOrder.dining_datetime,
+        orderInfo: supabaseOrder
+    });
     
     // 儲存或更新訂單
     const savedOrder = await saveOrUpdateOrderToSupabase(supabaseOrder, currentEditingOrderId);
+    
+    // 調試：確認保存後的值
+    if (savedOrder) {
+        console.log('✅ 保存後的訂單資料:', {
+            id: savedOrder.id,
+            dining_datetime: savedOrder.dining_datetime,
+            company_name: savedOrder.company_name,
+            orderInfo: {
+                companyName: savedOrder.company_name,
+                diningDateTime: savedOrder.dining_datetime
+            }
+        });
+    }
     if (!savedOrder) {
         console.error('儲存/更新訂單失敗');
         alert('儲存失敗，請檢查 Supabase 連線\n\n請開啟瀏覽器 Console (F12) 查看詳細錯誤訊息');
@@ -4467,10 +4526,13 @@ async function confirmSaveMenu() {
             planType: savedOrder.plan_type,
             lineName: savedOrder.line_name,
             industry: savedOrder.industry,
+            venueContent: savedOrder.venue_content,
             venueScope: savedOrder.venue_scope,
             diningStyle: savedOrder.dining_style,
             paymentMethod: savedOrder.payment_method,
-            depositPaid: savedOrder.deposit_paid || 0
+            discount: savedOrder.discount || '',
+            depositPaid: savedOrder.deposit_paid || 0,
+            diningDateTime: savedOrder.dining_datetime
         },
         meta: {
             itemCount: cartItemCount,
@@ -5561,6 +5623,10 @@ function loadHistoryMenuByData(row) {
     // 載入訂單資訊
     if (menu.orderInfo) {
         setOrderInfo(menu.orderInfo);
+        // 如果 orderInfo 中有 diningDateTime，也要設置（優先使用 orderInfo 中的值）
+        if (menu.orderInfo.diningDateTime) {
+            setDiningDateTime(menu.orderInfo.diningDateTime);
+        }
     } else {
         // 兼容舊格式
         if (menu.customerName && elements.companyName) elements.companyName.value = menu.customerName;
@@ -5569,10 +5635,21 @@ function loadHistoryMenuByData(row) {
         initFillStateStyling();
     }
     
-    // 設定用餐日期時間
-    if (menu.diningDateTime) {
+    // 設定用餐日期時間（如果 orderInfo 中沒有，使用 menu.diningDateTime）
+    if (menu.diningDateTime && (!menu.orderInfo || !menu.orderInfo.diningDateTime)) {
         setDiningDateTime(menu.diningDateTime);
     }
+    
+    // 調試：確認載入的值
+    console.log('🔍 載入訂單後的資料:', {
+        menuId: menu.id,
+        diningDateTime: menu.diningDateTime || menu.orderInfo?.diningDateTime,
+        orderInfo: menu.orderInfo,
+        currentDiningDate: elements.diningDate?.value,
+        currentDiningHour: elements.diningHour?.value,
+        currentDiningMinute: elements.diningMinute?.value,
+        currentDiningHourCustom: document.getElementById('diningHourCustom')?.value
+    });
     
     // 更新介面
     renderCart();
