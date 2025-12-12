@@ -1721,15 +1721,53 @@ function setDiningDateTime(dateTimeStr) {
         return;
     }
     try {
-        const dt = new Date(dateTimeStr);
-        if (isNaN(dt.getTime())) return;
-        const year = dt.getFullYear();
-        const month = String(dt.getMonth() + 1).padStart(2, '0');
-        const day = String(dt.getDate()).padStart(2, '0');
-        const hour = dt.getHours();
+        // 【關鍵修復】避免時區轉換：直接從 ISO 字串解析，不使用 new Date()
+        // 例如："2026-01-01T13:30:00+00:00" 或 "2026-01-01T13:30:00"
+        let year, month, day, hour, minute;
+        
+        if (typeof dateTimeStr === 'string' && dateTimeStr.includes('T')) {
+            // ISO 格式：直接解析字串，避免時區轉換
+            const parts = dateTimeStr.split('T');
+            if (parts.length >= 2) {
+                const datePart = parts[0]; // "2026-01-01"
+                const timePart = parts[1]; // "13:30:00+00:00" 或 "13:30:00"
+                
+                // 解析日期
+                const dateParts = datePart.split('-');
+                if (dateParts.length === 3) {
+                    year = parseInt(dateParts[0], 10);
+                    month = parseInt(dateParts[1], 10);
+                    day = parseInt(dateParts[2], 10);
+                }
+                
+                // 解析時間（只取前 5 個字元 "HH:MM"）
+                const timeOnly = timePart.substring(0, 5); // "13:30"
+                const timeParts = timeOnly.split(':');
+                if (timeParts.length === 2) {
+                    hour = parseInt(timeParts[0], 10);
+                    minute = parseInt(timeParts[1], 10);
+                }
+            }
+        }
+        
+        // 如果字串解析失敗，回退到 Date 物件（但這會導致時區轉換）
+        if (!year || !month || !day || hour === undefined || minute === undefined) {
+            console.warn('⚠️ 無法直接解析 ISO 字串，回退到 Date 物件（可能會有時區轉換）:', dateTimeStr);
+            const dt = new Date(dateTimeStr);
+            if (isNaN(dt.getTime())) return;
+            year = dt.getFullYear();
+            month = dt.getMonth() + 1;
+            day = dt.getDate();
+            hour = dt.getHours();
+            minute = dt.getMinutes();
+        }
+        
+        const monthStr = String(month).padStart(2, '0');
+        const dayStr = String(day).padStart(2, '0');
         const hourStr = String(hour).padStart(2, '0');
-        const minute = String(Math.floor(dt.getMinutes() / 10) * 10).padStart(2, '0');
-        if (elements.diningDate) elements.diningDate.value = `${year}-${month}-${day}`;
+        const minuteStr = String(Math.floor(minute / 10) * 10).padStart(2, '0');
+        
+        if (elements.diningDate) elements.diningDate.value = `${year}-${monthStr}-${dayStr}`;
         
         // 處理時間：如果在 12-22 範圍內，直接選擇；否則使用自訂
         const customHourInput = document.getElementById('diningHourCustom');
@@ -1737,7 +1775,7 @@ function setDiningDateTime(dateTimeStr) {
             // 確保設置正確的小時值（兩位數格式）
             if (elements.diningHour) {
                 elements.diningHour.value = hourStr;
-                console.log('✅ 設置小時:', hourStr, '實際值:', elements.diningHour.value);
+                console.log('✅ 設置小時（直接解析，無時區轉換）:', hourStr, '原始字串:', dateTimeStr);
             }
             if (customHourInput) {
                 customHourInput.style.display = 'none';
@@ -1754,8 +1792,8 @@ function setDiningDateTime(dateTimeStr) {
             }
         }
         if (elements.diningMinute) {
-            elements.diningMinute.value = minute;
-            console.log('✅ 設置分鐘:', minute, '實際值:', elements.diningMinute.value);
+            elements.diningMinute.value = minuteStr;
+            console.log('✅ 設置分鐘（直接解析，無時區轉換）:', minuteStr, '原始字串:', dateTimeStr);
         }
         
         // 更新所有日期時間欄位的顏色狀態
