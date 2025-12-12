@@ -4171,8 +4171,10 @@ async function loadOrdersFromSupabase() {
             name: order.company_name || '未命名',
             customerName: order.company_name,
             customerTaxId: order.tax_id,
-            diningDateTime: order.dining_datetime,
-            savedAt: order.created_at,
+            // ✅ 保存 Supabase 原始資料（唯一資料來源）
+            dining_datetime: order.dining_datetime, // Supabase 原始欄位名稱
+            diningDateTime: order.dining_datetime,   // 轉換後的欄位名稱（兼容）
+            savedAt: order.updated_at || order.created_at, // 使用 updated_at 優先
             peopleCount: order.people_count || 1,
             tableCount: order.table_count || 1,
                 cart: cartItems,
@@ -4189,7 +4191,9 @@ async function loadOrdersFromSupabase() {
                 diningStyle: order.dining_style,
                 paymentMethod: order.payment_method,
                 discount: order.discount,
-                    depositPaid: order.deposit_paid || 0
+                    depositPaid: order.deposit_paid || 0,
+                // ✅ orderInfo 中的 diningDateTime 也來自 Supabase（確保一致性）
+                diningDateTime: order.dining_datetime
             },
             meta: {
                     itemCount: itemCount,
