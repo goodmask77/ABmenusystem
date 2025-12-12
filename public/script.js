@@ -4506,15 +4506,23 @@ async function confirmSaveMenu() {
     
     console.log(`訂單已成功${isUpdate ? '更新' : '儲存'}到 Supabase，ID:`, savedOrder.id);
     
-    // 更新快取
+    // 更新快取（確保使用最新的 savedOrder 資料）
     const orderIndex = supabaseOrders.findIndex(o => o.id === savedOrder.id);
+    
+    // 調試：確認 savedOrder 的資料
+    console.log('🔍 準備更新快取的資料:', {
+        savedOrderId: savedOrder.id,
+        savedOrderDiningDatetime: savedOrder.dining_datetime,
+        savedOrderCompanyName: savedOrder.company_name
+    });
+    
     const updatedOrder = {
         id: savedOrder.id,
         name: savedOrder.company_name || menuName,
         customerName: savedOrder.company_name,
         customerTaxId: savedOrder.tax_id,
-        diningDateTime: savedOrder.dining_datetime,
-        savedAt: savedOrder.created_at || savedOrder.updated_at,
+        diningDateTime: savedOrder.dining_datetime || null, // 確保使用最新的值
+        savedAt: savedOrder.updated_at || savedOrder.created_at,
         peopleCount: savedOrder.people_count || peopleCount,
         tableCount: savedOrder.table_count || tableCount,
         cart: Array.isArray(savedOrder.cart_items) ? savedOrder.cart_items : cart,
@@ -4532,7 +4540,7 @@ async function confirmSaveMenu() {
             paymentMethod: savedOrder.payment_method,
             discount: savedOrder.discount || '',
             depositPaid: savedOrder.deposit_paid || 0,
-            diningDateTime: savedOrder.dining_datetime
+            diningDateTime: savedOrder.dining_datetime || null // 確保使用最新的值
         },
         meta: {
             itemCount: cartItemCount,
@@ -4544,6 +4552,14 @@ async function confirmSaveMenu() {
         fromSupabase: true,
         isPinned: savedOrder.is_pinned || false
     };
+    
+    // 調試：確認更新後的訂單資料
+    console.log('🔍 更新後的訂單物件:', {
+        id: updatedOrder.id,
+        diningDateTime: updatedOrder.diningDateTime,
+        orderInfoDiningDateTime: updatedOrder.orderInfo.diningDateTime,
+        companyName: updatedOrder.orderInfo.companyName
+    });
     
     if (orderIndex >= 0) {
         // 更新現有訂單
@@ -4559,6 +4575,19 @@ async function confirmSaveMenu() {
     }
     
     console.log('快取已更新，目前訂單數量:', supabaseOrders.length);
+    console.log('🔍 更新後的快取訂單資料:', {
+        id: updatedOrder.id,
+        diningDateTime: updatedOrder.diningDateTime,
+        orderInfoDiningDateTime: updatedOrder.orderInfo.diningDateTime,
+        companyName: updatedOrder.orderInfo.companyName
+    });
+    
+    // 重新渲染歷史列表（確保顯示最新資料）
+    const historyModal = document.getElementById('historyModal');
+    if (historyModal && historyModal.style.display === 'block') {
+        console.log('🔄 歷史列表 modal 已開啟，重新渲染列表...');
+        renderHistoryList();
+    }
     
     // 重置編輯狀態
     currentEditingOrderId = null;
@@ -4993,7 +5022,20 @@ function renderHistoryCell(col, menu, metrics, idx) {
                 </button>
             </td>`;
         case 'date':
-            const displayDate = menu.diningDateTime ? formatDate(new Date(menu.diningDateTime)) : formatDate(new Date(menu.savedAt));
+            // 優先使用 orderInfo.diningDateTime，其次使用 menu.diningDateTime，最後使用 savedAt
+            const dateTimeToDisplay = orderInfo.diningDateTime || menu.diningDateTime || menu.savedAt;
+            const displayDate = dateTimeToDisplay ? formatDate(new Date(dateTimeToDisplay)) : '--';
+            // 調試：確認日期顯示
+            if (menuId && menuId === currentEditingOrderId) {
+                console.log('📅 渲染日期欄位:', {
+                    menuId,
+                    orderInfoDiningDateTime: orderInfo.diningDateTime,
+                    menuDiningDateTime: menu.diningDateTime,
+                    savedAt: menu.savedAt,
+                    dateTimeToDisplay,
+                    displayDate
+                });
+            }
             return `<td class="date-cell">${displayDate}</td>`;
         case 'company':
             return `<td class="menu-name-cell" title="${companyName}">${companyName || '--'}</td>`;
