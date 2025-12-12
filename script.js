@@ -5225,37 +5225,21 @@ function renderHistoryCell(col, menu, metrics, idx) {
                 </button>
             </td>`;
         case 'date':
-            // ✅ 歷史列表顯示時間：只信 Supabase
-            // 停止使用 menu.diningDateTime 和 orderInfo.diningDateTime（如果它不是來自 Supabase）
-            // 唯一資料來源：Supabase 回傳的 dining_datetime
-            const rawDiningDateTime = 
-                menu.dining_datetime ||  // 直接從 Supabase 原始資料（如果保存了）
-                menu.diningDateTime ||   // 從轉換後的 menu 物件（來自 order.dining_datetime）
+            // 歷史列表唯一可信來源：Supabase 回傳的 dining_datetime（或相容欄位）
+            // 禁止 new Date()，避免 UTC->本地時區導致 12:00 變 20:00
+            const rawDiningDateTime =
+                (menu && (menu.dining_datetime || menu.diningDateTime)) ||
+                (orderInfo && (orderInfo.dining_datetime || orderInfo.diningDateTime)) ||
                 null;
-            
-            if (!rawDiningDateTime) {
-                console.warn('[History] 無 dining_datetime，orderId:', menu.id);
-            }
-            
-            const dateTimeToDisplay = rawDiningDateTime
-                ? formatDate(new Date(rawDiningDateTime))
-                : '--';
-            
-            // 調試：確認使用的資料來源
-            const isRecentlyUpdated = menu.savedAt && (new Date() - new Date(menu.savedAt)) < 5000; // 5秒內更新的
-            if (isRecentlyUpdated || menuId) {
-                console.log('📋 [History] 渲染日期 - 只使用 Supabase 資料:', {
-                    orderId: menuId,
-                    rawDiningDateTime,
-                    dateTimeToDisplay,
-                    source: menu.dining_datetime ? 'menu.dining_datetime（Supabase原始）' : 
-                           (menu.diningDateTime ? 'menu.diningDateTime（來自Supabase轉換）' : '無資料'),
-                    fromSupabase: menu.fromSupabase,
-                    // 驗證：不應該使用 orderInfo.diningDateTime（除非它來自 Supabase）
-                    orderInfoDiningDateTime: orderInfo.diningDateTime,
-                    menuDiningDateTime: menu.diningDateTime
-                });
-            }
+
+            const dateTimeToDisplay = formatDiningDateTime24H(rawDiningDateTime);
+
+            // Debug：確認沒有被時區轉換
+            console.log('[History] dining_datetime raw -> display (24H):', {
+                orderId: (menu && (menu.id || menu.orderId)) || null,
+                rawDiningDateTime,
+                dateTimeToDisplay,
+            });
             
             return `<td class="date-cell">${dateTimeToDisplay}</td>`;
         case 'company':
@@ -5410,9 +5394,10 @@ function renderHistoryList() {
                 result = bPrice - aPrice;
                 break;
             case 'date':
-                const dateA = a.diningDateTime ? new Date(a.diningDateTime) : new Date(a.savedAt);
-                const dateB = b.diningDateTime ? new Date(b.diningDateTime) : new Date(b.savedAt);
-                result = dateB - dateA;
+                // 使用字串排序，避免時區轉換問題
+                const da = (a.dining_datetime || a.diningDateTime || a.savedAt || '');
+                const db = (b.dining_datetime || b.diningDateTime || b.savedAt || '');
+                result = db.localeCompare(da); // 新到舊（ISO 字串可直接比）
                 break;
             case 'name':
             case 'companyName':
@@ -6215,6 +6200,23 @@ function formatDate(date) {
         hour: '2-digit',
         minute: '2-digit'
     });
+}
+
+// ====== 24H 顯示：禁止 new Date()，避免時區轉換 ======
+function formatDiningDateTime24H(raw) {
+    // raw example: "2026-01-08T12:00:00+00:00" or "2026-01-08T12:00:00"
+    if (!raw || typeof raw !== 'string') return '--';
+
+    const parts = raw.split('T');
+    if (parts.length < 2) return '--';
+
+    const datePart = parts[0];                 // "2026-01-08"
+    const timePart = parts[1];                 // "12:00:00+00:00" / "12:00:00"
+    const hh = timePart.slice(0, 2);           // "12"
+    const mm = timePart.slice(3, 5);           // "00"
+
+    // 24H 直接輸出，不做任何時區換算
+    return `${datePart.replace(/-/g, '/')} ${hh}:${mm}`;
 }
 
 function deepClone(value) {
