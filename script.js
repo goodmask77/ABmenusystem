@@ -714,6 +714,8 @@ let currentUser = null;
 let postLoginAction = null;
 let changeLogEntries = [];
 let lastChangeFingerprint = null;
+let isUserEditing = false; // 追蹤用戶是否正在編輯
+let pendingMenuSync = null; // 待處理的菜單同步
 
 // 功能 B：追蹤當前編輯的訂單 ID（null 表示新訂單）
 let currentEditingOrderId = null;
@@ -2026,6 +2028,36 @@ function setupRealtimeSync() {
             },
             async (payload) => {
                 console.log('收到 menu_items 變更:', payload);
+                
+                // 檢查是否正在進行編輯操作
+                const activeElement = document.activeElement;
+                const isInputFocused = activeElement && (
+                    activeElement.tagName === 'INPUT' ||
+                    activeElement.tagName === 'TEXTAREA' ||
+                    activeElement.isContentEditable
+                );
+                
+                // 檢查是否有拖曳操作正在進行（Sortable 會設置特定 class）
+                const isDragging = document.querySelector('.sortable-ghost, .sortable-drag');
+                
+                // 如果用戶正在編輯或拖曳，延遲同步
+                if (isInputFocused || isDragging || isUserEditing) {
+                    console.log('用戶正在編輯/拖曳，延遲同步');
+                    pendingMenuSync = async () => {
+                        await loadStateFromSupabase();
+                        renderMenu();
+                        showSyncStatus('已同步菜單變更', 'success');
+                        pendingMenuSync = null;
+                    };
+                    // 等待 1 秒後再嘗試同步
+                    setTimeout(() => {
+                        if (pendingMenuSync && !isInputFocused && !isDragging && !isUserEditing) {
+                            pendingMenuSync();
+                        }
+                    }, 1000);
+                    return;
+                }
+                
                 // 重新載入菜單狀態以確保同步
                 await loadStateFromSupabase();
                 renderMenu();
@@ -2697,11 +2729,22 @@ function setupSortable() {
             ghostClass: 'sortable-ghost',
             dragClass: 'sortable-drag',
             filter: '.category-tab.active', // 防止拖拽 "全部" 標籤
+            onStart: function() {
+                isUserEditing = true; // 標記開始拖曳
+            },
             onEnd: function(evt) {
                 // 跳過 "全部" 標籤 (index 0)
                 if (evt.oldIndex > 0 && evt.newIndex > 0) {
                     reorderCategories(evt.oldIndex - 1, evt.newIndex - 1);
                 }
+                // 延遲清除編輯標記，確保同步操作不會立即執行
+                setTimeout(() => {
+                    isUserEditing = false;
+                    // 如果有待處理的同步，現在執行
+                    if (pendingMenuSync) {
+                        pendingMenuSync();
+                    }
+                }, 500);
             }
         });
         sortableInstances.push(instance);
@@ -2721,8 +2764,18 @@ function setupSortable() {
             ghostClass: 'sortable-ghost',
             dragClass: 'sortable-drag',
             filter: '.empty-cart',
+            onStart: function() {
+                isUserEditing = true; // 標記開始拖曳
+            },
             onEnd: function(evt) {
                 reorderCartItems(evt.oldIndex, evt.newIndex);
+                // 延遲清除編輯標記
+                setTimeout(() => {
+                    isUserEditing = false;
+                    if (pendingMenuSync) {
+                        pendingMenuSync();
+                    }
+                }, 500);
             }
         });
         sortableInstances.push(instance);
@@ -2739,8 +2792,18 @@ function setupCategoryItemSortable() {
                 ghostClass: 'sortable-ghost',
                 dragClass: 'sortable-drag',
                 group: 'menu-items',
+                onStart: function() {
+                    isUserEditing = true; // 標記開始拖曳
+                },
                 onEnd: function(evt) {
                     reorderCategoryItems(category.id, evt.oldIndex, evt.newIndex);
+                    // 延遲清除編輯標記
+                    setTimeout(() => {
+                        isUserEditing = false;
+                        if (pendingMenuSync) {
+                            pendingMenuSync();
+                        }
+                    }, 500);
                 }
             });
             sortableInstances.push(instance);
