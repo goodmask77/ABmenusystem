@@ -257,7 +257,38 @@
                         </div>
                     </div>
 
-                    <!-- 分析欄位：插入在「費用資訊」與「匯出」按鈕區之間 -->
+                    <!-- 新的控制區域 -->
+                    <div class="cart-controls">
+                        <div class="control-row">
+                            <div class="control-item">
+                                <label>桌數:</label>
+                                <div class="counter-controls">
+                                    <button id="decreaseTable" class="btn-counter">-</button>
+                                    <input type="number" id="tableCount" value="1" min="1" max="99">
+                                    <button id="increaseTable" class="btn-counter">+</button>
+                                </div>
+                            </div>
+                            <div class="control-item">
+                                <label>用餐人數:</label>
+                                <div class="counter-controls">
+                                    <button id="decreasePeople" class="btn-counter">-</button>
+                                    <input type="number" id="peopleCount" value="1" min="1" max="99">
+                                    <button id="increasePeople" class="btn-counter">+</button>
+                                </div>
+                            </div>
+                            <div class="control-item">
+                                <label>人均:</label>
+                                <div class="per-person-display">
+                                    <span id="perPerson">$0</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="total-items-row">
+                            <span>總餐點數量: <span id="totalItems">0</span> 道</span>
+                        </div>
+                    </div>
+
+                    <!-- 分析欄位：插入在「總餐點數量」下方，匯出按鈕上方 -->
                     <section class="analysis-panel" id="analysisPanel">
                         <div class="analysis-row">
                             <div class="analysis-item">
@@ -294,36 +325,6 @@
                         </div>
                     </section>
 
-                    <!-- 新的控制區域 -->
-                    <div class="cart-controls">
-                        <div class="control-row">
-                            <div class="control-item">
-                                <label>桌數:</label>
-                                <div class="counter-controls">
-                                    <button id="decreaseTable" class="btn-counter">-</button>
-                                    <input type="number" id="tableCount" value="1" min="1" max="99">
-                                    <button id="increaseTable" class="btn-counter">+</button>
-                                </div>
-                            </div>
-                            <div class="control-item">
-                                <label>用餐人數:</label>
-                                <div class="counter-controls">
-                                    <button id="decreasePeople" class="btn-counter">-</button>
-                                    <input type="number" id="peopleCount" value="1" min="1" max="99">
-                                    <button id="increasePeople" class="btn-counter">+</button>
-                                </div>
-                            </div>
-                            <div class="control-item">
-                                <label>人均:</label>
-                                <div class="per-person-display">
-                                    <span id="perPerson">$0</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="total-items-row">
-                            <span>總餐點數量: <span id="totalItems">0</span> 道</span>
-                        </div>
-                    </div>
                     <div class="cart-export-controls" style="margin-top: 0.8rem; display: flex; gap: 0.4rem;">
                         <button id="exportCartExcel" class="btn btn-export" style="flex: 1;">
                             <i class="fas fa-file-excel"></i> 匯出Excel
