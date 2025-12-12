@@ -809,6 +809,16 @@ body {
     justify-content: center;
 }
 
+/* 統一按鈕高度：更新訂單、儲存菜單、刪除按鈕 */
+#updateOrder,
+#saveMenu,
+#deleteOrder {
+    padding: 0.8rem;
+    font-size: 1rem;
+    align-items: center;
+    justify-content: center;
+}
+
 /* 購物車控制區域 */
 .cart-controls {
     margin-top: 1rem;
