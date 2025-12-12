@@ -2531,21 +2531,27 @@ function bindEvents() {
         elements.peopleCountInput.addEventListener('change', updatePeopleCount);
         elements.peopleCountInput.addEventListener('input', () => {
             // 即時更新分析欄位
-            updateAnalysisPanel();
+            if (typeof updateAnalysisPanel === 'function') {
+                updateAnalysisPanel();
+            }
         });
     }
     
     // 客戶預算輸入框事件監聽
     document.addEventListener('input', (e) => {
         if (e.target && e.target.id === 'customerBudget') {
-            updateAnalysisPanel();
+            if (typeof updateAnalysisPanel === 'function') {
+                updateAnalysisPanel();
+            }
         }
     });
     
     document.addEventListener('change', (e) => {
         const id = e.target && e.target.id;
         if (id === 'peopleCount' || id === 'diners' || id === 'diningPeople' || id === 'guestCount') {
-            updateAnalysisPanel();
+            if (typeof updateAnalysisPanel === 'function') {
+                updateAnalysisPanel();
+            }
         }
     });
     
@@ -3016,7 +3022,9 @@ function removeFromCart(itemId) {
     updateCartSummary();
     persistCartState();
     // 更新分析欄位
-    updateAnalysisPanel();
+    if (typeof updateAnalysisPanel === 'function') {
+        updateAnalysisPanel();
+    }
 }
 
 function updateCartItemQuantity(itemId, quantity) {
@@ -3048,10 +3056,12 @@ function changePeopleCount(delta) {
         peopleCount = newCount;
         elements.peopleCountInput.value = peopleCount;
         console.log(`人數已更改為: ${peopleCount}`);
-        updateCartSummary();
+            updateCartSummary();
         persistCartState();
         // 更新分析欄位
-        updateAnalysisPanel();
+        if (typeof updateAnalysisPanel === 'function') {
+            updateAnalysisPanel();
+        }
     }
 }
 
@@ -3066,7 +3076,9 @@ function updatePeopleCount() {
         updateCartSummary();
         persistCartState();
         // 更新分析欄位
-        updateAnalysisPanel();
+        if (typeof updateAnalysisPanel === 'function') {
+            updateAnalysisPanel();
+        }
     } else {
         elements.peopleCountInput.value = peopleCount;
     }
@@ -3213,8 +3225,100 @@ function updateCartSummary() {
     elements.perPerson.textContent = `$${perPersonDisplay}`;
     elements.totalItems.textContent = totalItemsCount;
     
-    // 更新分析欄位
-    updateAnalysisPanel();
+    // 更新分析欄位（如果函數存在）
+    if (typeof updateAnalysisPanel === 'function') {
+        updateAnalysisPanel();
+    }
+}
+
+// ====== 分析欄位計算功能 ======
+
+function formatMoney(n) {
+    const v = Number.isFinite(n) ? n : 0;
+    return '$' + Math.round(v).toLocaleString('en-US');
+}
+
+function updateAnalysisPanel() {
+    const budgetEl = document.getElementById('customerBudget');
+    const remainingEl = document.getElementById('remainingBudget');
+    const foodTotalEl = document.getElementById('foodTotal');
+    const foodPerEl = document.getElementById('foodPerPerson');
+    const drinkTotalEl = document.getElementById('drinkTotal');
+    const drinkPerEl = document.getElementById('drinkPerPerson');
+
+    if (!budgetEl || !remainingEl || !foodTotalEl || !foodPerEl || !drinkTotalEl || !drinkPerEl) {
+        // 如果元素不存在，靜默返回（可能是分析欄位還沒載入）
+        return;
+    }
+
+    // 1) 取得用餐人數
+    const diners = peopleCount || 1;
+
+    // 2) 取得「總計」(已含服務費)
+    const totals = calculateTotalsWithoutDiscount(cart, diners);
+    const discountValue = calculateDiscountValue(totals.subtotal, elements.discount?.value || '');
+    const grandTotal = Math.max(totals.total - discountValue, 0);
+
+    // 3) 從購物車拆「餐點/酒水」金額（含服務費）
+    const serviceRate = 0.10; // 服務費 10%
+    let foodSubtotal = 0;
+    let drinkSubtotal = 0;
+
+    for (const item of cart) {
+        const qty = item.quantity || 1;
+        const price = item.price || 0;
+        const line = price * qty;
+
+        // 根據 categoryId 找到對應的 category，判斷是否為酒水
+        const category = menuData.categories.find(c => c.id === item.categoryId);
+        const categoryName = category ? (category.name || '').toLowerCase() : '';
+        const itemName = (item.name || '').toLowerCase();
+        const itemNameEn = (item.nameEn || item.enName || '').toLowerCase();
+
+        const isDrink =
+            categoryName.includes('drink') ||
+            categoryName.includes('beverage') ||
+            categoryName.includes('酒') ||
+            categoryName.includes('wine') ||
+            categoryName.includes('beer') ||
+            categoryName.includes('cocktail') ||
+            itemName.includes('酒') ||
+            itemName.includes('beer') ||
+            itemName.includes('wine') ||
+            itemName.includes('cocktail') ||
+            itemName.includes('drink') ||
+            itemNameEn.includes('beer') ||
+            itemNameEn.includes('wine') ||
+            itemNameEn.includes('cocktail') ||
+            itemNameEn.includes('drink') ||
+            itemNameEn.includes('beverage');
+
+        if (isDrink) {
+            drinkSubtotal += line;
+        } else {
+            foodSubtotal += line;
+        }
+    }
+
+    const foodTotal = foodSubtotal * (1 + serviceRate);
+    const drinkTotal = drinkSubtotal * (1 + serviceRate);
+
+    const foodPer = diners > 0 ? (foodTotal / diners) : 0;
+    const drinkPer = diners > 0 ? (drinkTotal / diners) : 0;
+
+    // 4) 剩餘金額
+    const budget = parseInt(budgetEl.value, 10) || 0;
+    const remaining = budget - grandTotal;
+
+    // 5) 更新 UI
+    remainingEl.textContent = formatMoney(remaining);
+    foodTotalEl.textContent = formatMoney(foodTotal);
+    foodPerEl.textContent = formatMoney(foodPer);
+    drinkTotalEl.textContent = formatMoney(drinkTotal);
+    drinkPerEl.textContent = formatMoney(drinkPer);
+
+    // Debug log
+    console.log('[Analysis] updated', { budget, remaining, grandTotal, foodTotal, drinkTotal, diners });
 }
 
 // 排序功能
