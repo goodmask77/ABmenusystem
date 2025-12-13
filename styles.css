@@ -1929,6 +1929,21 @@ body {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* 已完成的訂單：灰色背景 */
+.history-row.completed-row {
+    background-color: #f5f5f5;
+    opacity: 0.7;
+}
+
+.history-row.completed-row:hover {
+    background: linear-gradient(90deg, #e9e9e9 0%, #f5f5f5 100%);
+    opacity: 0.85;
+}
+
+.history-row.completed-row td {
+    color: #6c757d;
+}
+
 .history-row:last-child td {
     border-bottom: none;
 }
@@ -1997,8 +2012,10 @@ body {
 
 /* 控制欄位：置中 */
 .history-table-full td.pin-col,
+.history-table-full td.completed-col,
 .history-table-full td.actions-cell,
 .history-table-full th.pin-col,
+.history-table-full th.completed-col,
 .history-table-full th.actions-col,
 .history-table-full td.checkbox-col,
 .history-table-full th.checkbox-col {

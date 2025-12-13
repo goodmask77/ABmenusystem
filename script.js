@@ -3139,7 +3139,7 @@ function changePeopleCount(delta) {
         peopleCount = newCount;
         elements.peopleCountInput.value = peopleCount;
         console.log(`人數已更改為: ${peopleCount}`);
-            updateCartSummary();
+        updateCartSummary();
         persistCartState();
         // 更新分析欄位
         if (typeof updateAnalysisPanel === 'function') {
@@ -4473,7 +4473,9 @@ async function loadOrdersFromSupabase() {
                     createdBy: order.created_by || '未知'
                 },
                 fromSupabase: true, // 標記來源
-                isPinned: order.is_pinned || false // 功能 D：釘選狀態
+                isPinned: order.is_pinned || false, // 功能 D：釘選狀態
+                is_completed: order.is_completed || false, // 完成狀態
+                isCompleted: order.is_completed || false // 兼容欄位名稱
             };
         });
         
@@ -4494,20 +4496,30 @@ function getMergedOrders() {
     // 只返回 Supabase 訂單
     const merged = [...supabaseOrders];
     
-    // 功能 D：先按釘選狀態排序（釘選的在前），然後按時間排序（最新在前）
+    // 功能 D：先按完成狀態排序（未完成在前），然後按釘選狀態排序（釘選的在前），最後按時間排序（最新在前）
     merged.sort((a, b) => {
+        const completedA = a.is_completed || a.isCompleted || false;
+        const completedB = b.is_completed || b.isCompleted || false;
         const pinnedA = a.isPinned || false;
         const pinnedB = b.isPinned || false;
         
-        // 先比較釘選狀態
+        // 先比較完成狀態（未完成的在前）
+        if (completedA !== completedB) {
+            return completedA ? 1 : -1; // 未完成的在前
+        }
+        
+        // 完成狀態相同，比較釘選狀態
         if (pinnedA !== pinnedB) {
             return pinnedB ? 1 : -1; // 釘選的在前
         }
         
-        // 釘選狀態相同，按時間排序
-        const dateA = new Date(a.savedAt || a.created_at || 0);
-        const dateB = new Date(b.savedAt || b.created_at || 0);
-        return dateB - dateA; // 最新的在前
+        // 完成和釘選狀態都相同，按時間排序
+        const dateA = a.dining_datetime || a.diningDateTime || a.savedAt || a.created_at || '';
+        const dateB = b.dining_datetime || b.diningDateTime || b.savedAt || b.created_at || '';
+        if (dateA && dateB) {
+            return dateB.localeCompare(dateA); // 最新的在前（使用字串比較避免時區問題）
+        }
+        return 0;
     });
     
     return merged;
@@ -5320,6 +5332,7 @@ const HISTORY_COLUMN_KEY = 'history_columns_config_v2';
 const historyColumnDefinitions = [
     { id: 'select', label: '勾選欄位', sortable: false },
     { id: 'pin', label: '釘選', sortable: false, sortField: 'pinned' },
+    { id: 'completed', label: '完成', sortable: false },
     { id: 'date', label: '用餐日期', sortable: true, sortField: 'date' },
     { id: 'company', label: '公司名稱', sortable: true, sortField: 'companyName' },
     { id: 'taxId', label: '統編', sortable: true, sortField: 'taxId' },
@@ -5514,6 +5527,11 @@ function renderHistoryCell(col, menu, metrics, idx) {
                 <button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="toggleOrderPin('${menuId}', event)" title="${isPinned ? '取消釘選' : '釘選'}">
                     <i class="fas fa-thumbtack"></i>
                 </button>
+            </td>`;
+        case 'completed':
+            const isCompleted = menu.is_completed || menu.isCompleted || false;
+            return `<td class="completed-col" onclick="event.stopPropagation();">
+                <input type="checkbox" class="completed-checkbox" data-menu-id="${menuId}" ${isCompleted ? 'checked' : ''} onchange="toggleOrderCompleted('${menuId}', this.checked, event)">
             </td>`;
         case 'date':
             // 歷史列表唯一可信來源：Supabase 回傳的 dining_datetime（或相容欄位）
@@ -5758,9 +5776,10 @@ function renderHistoryList() {
         const menuId = menu.id || '';
         const menuIdx = idx;
         const isPinned = menu.isPinned || false;
+        const isCompleted = menu.is_completed || menu.isCompleted || false;
         const rowCells = activeColumns.map(col => renderHistoryCell(col, menu, metrics, idx)).join('');
         return `
-            <tr class="history-row ${isPinned ? 'pinned-row' : ''}" data-menu-id="${menuId}" data-idx="${menuIdx}" data-pinned="${isPinned}" onclick="loadHistoryMenuByData(this)" style="cursor: pointer;">
+            <tr class="history-row ${isPinned ? 'pinned-row' : ''} ${isCompleted ? 'completed-row' : ''}" data-menu-id="${menuId}" data-idx="${menuIdx}" data-pinned="${isPinned}" data-completed="${isCompleted}" onclick="loadHistoryMenuByData(this)" style="cursor: pointer;">
                 ${rowCells}
             </tr>
         `;
