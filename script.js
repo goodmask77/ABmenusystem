@@ -2461,14 +2461,61 @@ function restoreCartState() {
                 elements.venueContentSelect.value = '';
             }
         }
+        if (payload?.planType !== undefined && elements.planType) {
+            const planTypeValue = payload.planType || '';
+            if (planTypeValue) {
+                const planOptions = loadLocalOptions('planType');
+                if (planOptions.includes(planTypeValue)) {
+                    elements.planType.value = planTypeValue;
+                } else {
+                    console.warn('方案選項不存在，無法恢復:', planTypeValue);
+                    elements.planType.value = '';
+                }
+            } else {
+                elements.planType.value = '';
+            }
+        }
         if (payload?.venueScope !== undefined && elements.venueScope) {
-            elements.venueScope.value = payload.venueScope || '';
+            const venueScopeValue = payload.venueScope || '';
+            if (venueScopeValue) {
+                const venueScopeOptions = loadLocalOptions('venueScope');
+                if (venueScopeOptions.includes(venueScopeValue)) {
+                    elements.venueScope.value = venueScopeValue;
+                } else {
+                    console.warn('包場範圍選項不存在，無法恢復:', venueScopeValue);
+                    elements.venueScope.value = '';
+                }
+            } else {
+                elements.venueScope.value = '';
+            }
         }
         if (payload?.diningStyle !== undefined && elements.diningStyle) {
-            elements.diningStyle.value = payload.diningStyle || '';
+            const diningStyleValue = payload.diningStyle || '';
+            if (diningStyleValue) {
+                const diningStyleOptions = loadLocalOptions('diningStyle');
+                if (diningStyleOptions.includes(diningStyleValue)) {
+                    elements.diningStyle.value = diningStyleValue;
+                } else {
+                    console.warn('用餐方式選項不存在，無法恢復:', diningStyleValue);
+                    elements.diningStyle.value = '';
+                }
+            } else {
+                elements.diningStyle.value = '';
+            }
         }
         if (payload?.paymentMethod !== undefined && elements.paymentMethod) {
-            elements.paymentMethod.value = payload.paymentMethod || '';
+            const paymentMethodValue = payload.paymentMethod || '';
+            if (paymentMethodValue) {
+                const paymentOptions = loadLocalOptions('paymentMethod');
+                if (paymentOptions.includes(paymentMethodValue)) {
+                    elements.paymentMethod.value = paymentMethodValue;
+                } else {
+                    console.warn('付款方式選項不存在，無法恢復:', paymentMethodValue);
+                    elements.paymentMethod.value = '';
+                }
+            } else {
+                elements.paymentMethod.value = '';
+            }
         }
         if (payload?.discount !== undefined && elements.discount) {
             elements.discount.value = payload.discount || '';
