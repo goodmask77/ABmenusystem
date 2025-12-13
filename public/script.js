@@ -1250,6 +1250,12 @@ const elements = {
     total: document.getElementById('total'),
     perPerson: document.getElementById('perPerson'),
     totalItems: document.getElementById('totalItems'),
+    foodItemTypes: document.getElementById('foodItemTypes'),
+    foodItemCount: document.getElementById('foodItemCount'),
+    softDrinkItemTypes: document.getElementById('softDrinkItemTypes'),
+    softDrinkItemCount: document.getElementById('softDrinkItemCount'),
+    drinkItemTypes: document.getElementById('drinkItemTypes'),
+    drinkItemCount: document.getElementById('drinkItemCount'),
     loginModal: document.getElementById('loginModal'),
     accountModal: document.getElementById('accountModal'),
     loginUsername: document.getElementById('loginUsername'),
@@ -3284,12 +3290,89 @@ function removeInvalidCartItems() {
     return false;
 }
 
+// 判斷項目分類類型的輔助函數
+function getItemCategoryType(item) {
+    // 定義餐點分類名稱
+    const foodCategoryNames = [
+        'Fried & Loved',
+        'Salads & Soup',
+        'Appetizers',
+        'NY-Style Pizza',
+        'La Pasta',
+        'Risotto & Main Dishes',
+        'All Day Brunch',
+        'Sweetie'
+    ];
+
+    // 定義酒水分類名稱
+    const drinkCategoryNames = [
+        'Beer',
+        'Draft Cocktail',
+        'HAPPY',
+        'HAPPY (Wine)'
+    ];
+
+    // 定義軟飲分類名稱
+    const softDrinkCategoryNames = [
+        'Soft Drink',
+        '包場專用'
+    ];
+
+    // 根據 categoryId 找到對應的分類
+    const categoryId = item.categoryId || '';
+    const category = menuData.categories.find(c => c.id === categoryId);
+    const categoryName = category ? (category.name || '') : '';
+    const categoryNameLower = categoryName.toLowerCase();
+
+    // 檢查是否為軟飲
+    if (softDrinkCategoryNames.some(name => categoryName === name || categoryNameLower.includes(name.toLowerCase()))) {
+        return 'softDrink';
+    }
+    // 檢查是否為酒水
+    if (drinkCategoryNames.some(name => categoryName === name || categoryNameLower.includes(name.toLowerCase())) ||
+        categoryNameLower.includes('beer') ||
+        categoryNameLower.includes('cocktail') ||
+        categoryNameLower.includes('wine') ||
+        categoryNameLower.includes('happy')) {
+        return 'drink';
+    }
+    // 檢查是否為餐點
+    if (foodCategoryNames.some(name => categoryName === name || categoryNameLower.includes(name.toLowerCase()))) {
+        return 'food';
+    }
+    // 預設歸類為餐點
+    return 'food';
+}
+
 // 計算購物車摘要
 function updateCartSummary() {
     const totals = calculateTotalsWithoutDiscount(cart, peopleCount);
     const discountValue = calculateDiscountValue(totals.subtotal, elements.discount?.value || '');
-    const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0); // 總餐點數量
     
+    // 統計餐點、軟飲、酒水的種類數和總道數
+    const foodItems = new Set();
+    const softDrinkItems = new Set();
+    const drinkItems = new Set();
+    let foodCount = 0;
+    let softDrinkCount = 0;
+    let drinkCount = 0;
+
+    for (const item of cart) {
+        const categoryType = getItemCategoryType(item);
+        const qty = item.quantity || 1;
+
+        if (categoryType === 'food') {
+            foodItems.add(item.id);
+            foodCount += qty;
+        } else if (categoryType === 'softDrink') {
+            softDrinkItems.add(item.id);
+            softDrinkCount += qty;
+        } else if (categoryType === 'drink') {
+            drinkItems.add(item.id);
+            drinkCount += qty;
+        }
+    }
+
     console.log(`計算詳情 - 小計: $${totals.subtotal}, 折扣(僅顯示): $${discountValue}, 服務費: $${totals.serviceFee}, 總計: $${totals.total}, 人數: ${peopleCount}, 人均: $${totals.perPerson}`);
     
     elements.subtotal.textContent = `$${totals.subtotal}`;
@@ -3306,7 +3389,19 @@ function updateCartSummary() {
         ? Math.round(discountedTotal / Math.max(peopleCount, 1))
         : totals.perPerson;
     elements.perPerson.textContent = `$${perPersonDisplay}`;
-    elements.totalItems.textContent = totalItemsCount;
+    
+    // 更新分類統計顯示
+    if (elements.foodItemTypes) elements.foodItemTypes.textContent = foodItems.size;
+    if (elements.foodItemCount) elements.foodItemCount.textContent = foodCount;
+    if (elements.softDrinkItemTypes) elements.softDrinkItemTypes.textContent = softDrinkItems.size;
+    if (elements.softDrinkItemCount) elements.softDrinkItemCount.textContent = softDrinkCount;
+    if (elements.drinkItemTypes) elements.drinkItemTypes.textContent = drinkItems.size;
+    if (elements.drinkItemCount) elements.drinkItemCount.textContent = drinkCount;
+    
+    // 兼容舊的 totalItems（如果存在）
+    if (elements.totalItems) {
+        elements.totalItems.textContent = foodCount + softDrinkCount + drinkCount;
+    }
     
     // 更新分析欄位（如果函數存在）
     if (typeof updateAnalysisPanel === 'function') {
