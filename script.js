@@ -1826,6 +1826,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     await initChangeLog();
     await loadIndustryOptions(); // 載入產業選項
     await loadVenueContentOptions(); // 載入包場內容選項
+    
+    // 在選項載入完成後，再次恢復購物車狀態（確保下拉選單的選項已載入）
+    restoreCartState();
+    
     restoreCurrentUser();
     updateAuthUI();
     initFillStateStyling();
@@ -2418,10 +2422,44 @@ function restoreCartState() {
             elements.lineName.value = payload.lineName || '';
         }
         if (payload?.industry !== undefined && elements.industrySelect) {
-            elements.industrySelect.value = payload.industry || '';
+            const industryValue = payload.industry || '';
+            // 檢查選項是否存在，如果不存在則延遲設置
+            if (industryValue && industryOptions && industryOptions.length > 0) {
+                const optionExists = industryOptions.some(opt => 
+                    (opt.name || opt.label || '') === industryValue || 
+                    (opt.value || '') === industryValue
+                );
+                if (optionExists) {
+                    elements.industrySelect.value = industryValue;
+                } else {
+                    console.warn('產業選項不存在，無法恢復:', industryValue);
+                }
+            } else if (industryValue) {
+                // 如果選項還沒載入，先設置值，稍後會由選項載入邏輯處理
+                elements.industrySelect.value = industryValue;
+            } else {
+                elements.industrySelect.value = '';
+            }
         }
         if (payload?.venueContent !== undefined && elements.venueContentSelect) {
-            elements.venueContentSelect.value = payload.venueContent || '';
+            const venueContentValue = payload.venueContent || '';
+            // 檢查選項是否存在，如果不存在則延遲設置
+            if (venueContentValue && venueContentOptions && venueContentOptions.length > 0) {
+                const optionExists = venueContentOptions.some(opt => 
+                    (opt.name || opt.label || '') === venueContentValue || 
+                    (opt.value || '') === venueContentValue
+                );
+                if (optionExists) {
+                    elements.venueContentSelect.value = venueContentValue;
+                } else {
+                    console.warn('包場內容選項不存在，無法恢復:', venueContentValue);
+                }
+            } else if (venueContentValue) {
+                // 如果選項還沒載入，先設置值，稍後會由選項載入邏輯處理
+                elements.venueContentSelect.value = venueContentValue;
+            } else {
+                elements.venueContentSelect.value = '';
+            }
         }
         if (payload?.venueScope !== undefined && elements.venueScope) {
             elements.venueScope.value = payload.venueScope || '';
