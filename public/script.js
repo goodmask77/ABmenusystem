@@ -3534,7 +3534,14 @@ function updateAnalysisPanel() {
     const budget = parseInt(budgetEl.value, 10) || 0;
     const remaining = budget - grandTotal;
 
-    // 5) 更新 UI
+    // 5) 計算餐標比例（總計/客戶預算 * 100%）
+    let budgetRatio = 0;
+    if (budget > 0) {
+        budgetRatio = (grandTotal / budget) * 100;
+    }
+    const budgetRatioText = budgetRatio > 0 ? `${budgetRatio.toFixed(1)}%` : '0%';
+
+    // 6) 更新 UI
     remainingEl.textContent = formatMoney(remaining);
     foodTotalEl.textContent = formatMoney(foodTotal);
     foodPerEl.textContent = formatMoney(foodPer);
@@ -3542,9 +3549,12 @@ function updateAnalysisPanel() {
     drinkPerEl.textContent = formatMoney(drinkPer);
     softDrinkTotalEl.textContent = formatMoney(softDrinkTotal);
     softDrinkPerEl.textContent = formatMoney(softDrinkPer);
+    if (budgetRatioEl) {
+        budgetRatioEl.textContent = budgetRatioText;
+    }
 
     // Debug log
-    console.log('[Analysis] updated', { budget, remaining, grandTotal, foodTotal, drinkTotal, softDrinkTotal, diners });
+    console.log('[Analysis] updated', { budget, remaining, grandTotal, foodTotal, drinkTotal, softDrinkTotal, diners, budgetRatio });
 }
 
 // 排序功能
