@@ -5492,6 +5492,8 @@ function renderHistoryHeaderCell(col) {
             </th>`;
         case 'pin':
             return `<th class="${classAttr}" onclick="event.stopPropagation(); ${isSortable ? `sortHistoryBy('${sortField}')` : ''}">釘選</th>`;
+        case 'completed':
+            return `<th class="completed-col ${classAttr}" onclick="event.stopPropagation();">完成</th>`;
         case 'actions':
             return `<th class="${classAttr}" onclick="event.stopPropagation();">操作</th>`;
         default:
