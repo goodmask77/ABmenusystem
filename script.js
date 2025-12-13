@@ -2356,7 +2356,10 @@ function persistCartState() {
             companyName: elements.companyName?.value || '',
             contactName: elements.contactName?.value || '',
             contactPhone: elements.contactPhone?.value || '',
+            planType: elements.planType?.value || '',
+            lineName: elements.lineName?.value || '',
             industry: elements.industrySelect?.value || '',
+            venueContent: elements.venueContentSelect?.value || '',
             venueScope: elements.venueScope?.value || '',
             diningStyle: elements.diningStyle?.value || '',
             paymentMethod: elements.paymentMethod?.value || '',
@@ -2399,33 +2402,46 @@ function restoreCartState() {
             setDiningDateTime(payload.diningDateTime);
         }
         // 恢復訂單欄位
-        if (payload?.companyName && elements.companyName) {
-            elements.companyName.value = payload.companyName;
+        if (payload?.companyName !== undefined && elements.companyName) {
+            elements.companyName.value = payload.companyName || '';
         }
-        if (payload?.contactName && elements.contactName) {
-            elements.contactName.value = payload.contactName;
+        if (payload?.contactName !== undefined && elements.contactName) {
+            elements.contactName.value = payload.contactName || '';
         }
-        if (payload?.contactPhone && elements.contactPhone) {
-            elements.contactPhone.value = payload.contactPhone;
+        if (payload?.contactPhone !== undefined && elements.contactPhone) {
+            elements.contactPhone.value = payload.contactPhone || '';
         }
-        if (payload?.industry && elements.industrySelect) {
-            elements.industrySelect.value = payload.industry;
+        if (payload?.planType !== undefined && elements.planType) {
+            elements.planType.value = payload.planType || '';
         }
-        if (payload?.venueScope && elements.venueScope) {
-            elements.venueScope.value = payload.venueScope;
+        if (payload?.lineName !== undefined && elements.lineName) {
+            elements.lineName.value = payload.lineName || '';
         }
-        if (payload?.diningStyle && elements.diningStyle) {
-            elements.diningStyle.value = payload.diningStyle;
+        if (payload?.industry !== undefined && elements.industrySelect) {
+            elements.industrySelect.value = payload.industry || '';
         }
-        if (payload?.paymentMethod && elements.paymentMethod) {
-            elements.paymentMethod.value = payload.paymentMethod;
+        if (payload?.venueContent !== undefined && elements.venueContentSelect) {
+            elements.venueContentSelect.value = payload.venueContent || '';
+        }
+        if (payload?.venueScope !== undefined && elements.venueScope) {
+            elements.venueScope.value = payload.venueScope || '';
+        }
+        if (payload?.diningStyle !== undefined && elements.diningStyle) {
+            elements.diningStyle.value = payload.diningStyle || '';
+        }
+        if (payload?.paymentMethod !== undefined && elements.paymentMethod) {
+            elements.paymentMethod.value = payload.paymentMethod || '';
         }
         if (payload?.discount !== undefined && elements.discount) {
-            elements.discount.value = payload.discount;
+            elements.discount.value = payload.discount || '';
         }
-        if (payload?.depositPaid && elements.depositPaid) {
-            elements.depositPaid.value = payload.depositPaid;
+        if (payload?.depositPaid !== undefined && elements.depositPaid) {
+            elements.depositPaid.value = payload.depositPaid || '';
         }
+        
+        // 更新填寫狀態顏色
+        initFillStateStyling();
+        
         return true;
     } catch (error) {
         console.warn('載入購物車狀態失敗：', error);
