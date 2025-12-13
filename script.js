@@ -5687,7 +5687,16 @@ function renderHistoryList() {
     });
     
     // 排序（擴展支援所有欄位）
+    // 先按完成狀態排序（未完成在前），然後按用戶選擇的排序欄位排序
     filteredMenus.sort((a, b) => {
+        // 先比較完成狀態（未完成的在前）
+        const completedA = a.is_completed || a.isCompleted || false;
+        const completedB = b.is_completed || b.isCompleted || false;
+        if (completedA !== completedB) {
+            return completedA ? 1 : -1; // 未完成的在前
+        }
+        
+        // 完成狀態相同，再按用戶選擇的排序欄位排序
         let result = 0;
         const orderInfoA = a.orderInfo || {};
         const orderInfoB = b.orderInfo || {};
