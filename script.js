@@ -3328,8 +3328,10 @@ function updateAnalysisPanel() {
     const foodPerEl = document.getElementById('foodPerPerson');
     const drinkTotalEl = document.getElementById('drinkTotal');
     const drinkPerEl = document.getElementById('drinkPerPerson');
+    const softDrinkTotalEl = document.getElementById('softDrinkTotal');
+    const softDrinkPerEl = document.getElementById('softDrinkPerPerson');
 
-    if (!budgetEl || !remainingEl || !foodTotalEl || !foodPerEl || !drinkTotalEl || !drinkPerEl) {
+    if (!budgetEl || !remainingEl || !foodTotalEl || !foodPerEl || !drinkTotalEl || !drinkPerEl || !softDrinkTotalEl || !softDrinkPerEl) {
         // 如果元素不存在，靜默返回（可能是分析欄位還沒載入）
         return;
     }
@@ -3342,52 +3344,62 @@ function updateAnalysisPanel() {
     const discountValue = calculateDiscountValue(totals.subtotal, elements.discount?.value || '');
     const grandTotal = Math.max(totals.total - discountValue, 0);
 
-    // 3) 從購物車拆「餐點/酒水」金額（含服務費）
+    // 3) 從購物車拆「餐點/酒水/軟飲」金額（含服務費）
     const serviceRate = 0.10; // 服務費 10%
     let foodSubtotal = 0;
     let drinkSubtotal = 0;
+    let softDrinkSubtotal = 0;
+
+    // 定義餐點分類 ID（第一張圖的分類）
+    const foodCategoryIds = [
+        'fried-loved',           // Fried & Loved
+        'salads-soup',           // Salads & Soup
+        'ny-style-pizza',        // NY-Style Pizza
+        'la-pasta',              // La Pasta
+        'risotto-main',          // Risotto & Main Dishes
+        'all-day-brunch'         // All Day Brunch
+    ];
+
+    // 定義酒水分類 ID（第二張圖的分類：Beer, Draft Cocktail, HAPPY (Wine)）
+    const drinkCategoryIds = [
+        'happy'                  // HAPPY (包含紅白酒和調酒)
+    ];
+
+    // 定義軟飲分類 ID
+    const softDrinkCategoryIds = [
+        'soft-drink'             // Soft Drink
+    ];
 
     for (const item of cart) {
         const qty = item.quantity || 1;
         const price = item.price || 0;
         const line = price * qty;
 
-        // 根據 categoryId 找到對應的 category，判斷是否為酒水
-        const category = menuData.categories.find(c => c.id === item.categoryId);
-        const categoryName = category ? (category.name || '').toLowerCase() : '';
-        const itemName = (item.name || '').toLowerCase();
-        const itemNameEn = (item.nameEn || item.enName || '').toLowerCase();
-
-        const isDrink =
-            categoryName.includes('drink') ||
-            categoryName.includes('beverage') ||
-            categoryName.includes('酒') ||
-            categoryName.includes('wine') ||
-            categoryName.includes('beer') ||
-            categoryName.includes('cocktail') ||
-            itemName.includes('酒') ||
-            itemName.includes('beer') ||
-            itemName.includes('wine') ||
-            itemName.includes('cocktail') ||
-            itemName.includes('drink') ||
-            itemNameEn.includes('beer') ||
-            itemNameEn.includes('wine') ||
-            itemNameEn.includes('cocktail') ||
-            itemNameEn.includes('drink') ||
-            itemNameEn.includes('beverage');
-
-        if (isDrink) {
+        // 根據 categoryId 判斷分類
+        const categoryId = item.categoryId || '';
+        
+        if (softDrinkCategoryIds.includes(categoryId)) {
+            // 軟飲
+            softDrinkSubtotal += line;
+        } else if (drinkCategoryIds.includes(categoryId)) {
+            // 酒水（Beer, Draft Cocktail, HAPPY (Wine)）
             drinkSubtotal += line;
+        } else if (foodCategoryIds.includes(categoryId)) {
+            // 餐點（Fried & Loved, Salads & Soup, Appetizers, NY-Style Pizza, La Pasta, Risotto & Main Dishes, All Day Brunch）
+            foodSubtotal += line;
         } else {
+            // 預設歸類為餐點（兼容舊資料或未分類的項目）
             foodSubtotal += line;
         }
     }
 
     const foodTotal = foodSubtotal * (1 + serviceRate);
     const drinkTotal = drinkSubtotal * (1 + serviceRate);
+    const softDrinkTotal = softDrinkSubtotal * (1 + serviceRate);
 
     const foodPer = diners > 0 ? (foodTotal / diners) : 0;
     const drinkPer = diners > 0 ? (drinkTotal / diners) : 0;
+    const softDrinkPer = diners > 0 ? (softDrinkTotal / diners) : 0;
 
     // 4) 剩餘金額
     const budget = parseInt(budgetEl.value, 10) || 0;
@@ -3399,9 +3411,11 @@ function updateAnalysisPanel() {
     foodPerEl.textContent = formatMoney(foodPer);
     drinkTotalEl.textContent = formatMoney(drinkTotal);
     drinkPerEl.textContent = formatMoney(drinkPer);
+    softDrinkTotalEl.textContent = formatMoney(softDrinkTotal);
+    softDrinkPerEl.textContent = formatMoney(softDrinkPer);
 
     // Debug log
-    console.log('[Analysis] updated', { budget, remaining, grandTotal, foodTotal, drinkTotal, diners });
+    console.log('[Analysis] updated', { budget, remaining, grandTotal, foodTotal, drinkTotal, softDrinkTotal, diners });
 }
 
 // 排序功能
