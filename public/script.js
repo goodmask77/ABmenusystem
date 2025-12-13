@@ -7121,6 +7121,58 @@ async function toggleOrderPin(orderId, event) {
     }
 }
 
+// 切換訂單完成狀態
+async function toggleOrderCompleted(orderId, completed, event) {
+    if (event) event.stopPropagation();
+    
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) {
+            alert('無法連線到 Supabase');
+            return;
+        }
+        
+        console.log(`切換訂單完成狀態: ${orderId}, ${completed}`);
+        
+        // 更新 Supabase
+        const { error } = await client
+            .from('menu_orders')
+            .update({ is_completed: completed })
+            .eq('id', orderId);
+        
+        if (error) {
+            console.error('更新完成狀態失敗：', error);
+            alert('更新失敗：' + error.message);
+            // 恢復 checkbox 狀態
+            const checkbox = event?.target;
+            if (checkbox) {
+                checkbox.checked = !completed;
+            }
+            return;
+        }
+        
+        // 更新快取
+        const order = supabaseOrders.find(o => o.id === orderId);
+        if (order) {
+            order.is_completed = completed;
+            order.isCompleted = completed;
+        }
+        
+        // 重新渲染歷史列表（會自動重新排序）
+        renderHistoryList();
+        
+        console.log('✅ 訂單完成狀態已更新');
+    } catch (error) {
+        console.error('切換完成狀態失敗：', error);
+        alert('操作失敗：' + error.message);
+        // 恢復 checkbox 狀態
+        const checkbox = event?.target;
+        if (checkbox) {
+            checkbox.checked = !completed;
+        }
+    }
+}
+
 // ========== 功能 E：歷史訂單分析 ==========
 /**
  * 顯示歷史訂單分析視圖
