@@ -2603,8 +2603,8 @@ body {
 /* 固定 3 欄布局，確保對齊 */
 .analysis-row {
     display: grid;
-    /* 第一欄（客戶預算）固定最小寬度，最大不超過內容；其他三欄平均分配 */
-    grid-template-columns: minmax(220px, max-content) 1fr 1fr 1fr;
+    /* 第一欄（客戶預算）固定最小寬度，最大不超過內容；其他兩欄平均分配 */
+    grid-template-columns: minmax(220px, max-content) 1fr 1fr;
     gap: 24px;
     align-items: center;
     min-height: 32px; /* 確保每列高度一致 */
