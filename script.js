@@ -3350,24 +3350,30 @@ function updateAnalysisPanel() {
     let drinkSubtotal = 0;
     let softDrinkSubtotal = 0;
 
-    // 定義餐點分類 ID（第一張圖的分類）
-    const foodCategoryIds = [
-        'fried-loved',           // Fried & Loved
-        'salads-soup',           // Salads & Soup
-        'ny-style-pizza',        // NY-Style Pizza
-        'la-pasta',              // La Pasta
-        'risotto-main',          // Risotto & Main Dishes
-        'all-day-brunch'         // All Day Brunch
+    // 定義餐點分類名稱（第一張圖的分類）
+    const foodCategoryNames = [
+        'Fried & Loved',
+        'Salads & Soup',
+        'Appetizers',
+        'NY-Style Pizza',
+        'La Pasta',
+        'Risotto & Main Dishes',
+        'All Day Brunch',
+        'Sweetie'  // 甜點也算餐點
     ];
 
-    // 定義酒水分類 ID（第二張圖的分類：Beer, Draft Cocktail, HAPPY (Wine)）
-    const drinkCategoryIds = [
-        'happy'                  // HAPPY (包含紅白酒和調酒)
+    // 定義酒水分類名稱（第二張圖的分類：Beer, Draft Cocktail, HAPPY (Wine)）
+    const drinkCategoryNames = [
+        'Beer',
+        'Draft Cocktail',
+        'HAPPY',
+        'HAPPY (Wine)'
     ];
 
-    // 定義軟飲分類 ID
-    const softDrinkCategoryIds = [
-        'soft-drink'             // Soft Drink
+    // 定義軟飲分類名稱
+    const softDrinkCategoryNames = [
+        'Soft Drink',
+        '包場專用'
     ];
 
     for (const item of cart) {
@@ -3375,20 +3381,47 @@ function updateAnalysisPanel() {
         const price = item.price || 0;
         const line = price * qty;
 
-        // 根據 categoryId 判斷分類
+        // 根據 categoryId 找到對應的分類
         const categoryId = item.categoryId || '';
-        
-        if (softDrinkCategoryIds.includes(categoryId)) {
-            // 軟飲
+        const category = menuData.categories.find(c => c.id === categoryId);
+        const categoryName = category ? (category.name || '') : '';
+        const categoryNameLower = categoryName.toLowerCase();
+
+        // 根據分類名稱判斷（支援動態添加的分類）
+        let isSoftDrink = false;
+        let isDrink = false;
+        let isFood = false;
+
+        // 檢查是否為軟飲
+        if (softDrinkCategoryNames.some(name => categoryName === name || categoryNameLower.includes(name.toLowerCase()))) {
+            isSoftDrink = true;
+        }
+        // 檢查是否為酒水
+        else if (drinkCategoryNames.some(name => categoryName === name || categoryNameLower.includes(name.toLowerCase())) ||
+                 categoryNameLower.includes('beer') ||
+                 categoryNameLower.includes('cocktail') ||
+                 categoryNameLower.includes('wine') ||
+                 categoryNameLower.includes('happy')) {
+            isDrink = true;
+        }
+        // 檢查是否為餐點
+        else if (foodCategoryNames.some(name => categoryName === name || categoryNameLower.includes(name.toLowerCase()))) {
+            isFood = true;
+        }
+        // 預設歸類為餐點（兼容舊資料或未分類的項目）
+        else {
+            isFood = true;
+        }
+
+        // 根據判斷結果累加金額
+        if (isSoftDrink) {
             softDrinkSubtotal += line;
-        } else if (drinkCategoryIds.includes(categoryId)) {
-            // 酒水（Beer, Draft Cocktail, HAPPY (Wine)）
+        } else if (isDrink) {
             drinkSubtotal += line;
-        } else if (foodCategoryIds.includes(categoryId)) {
-            // 餐點（Fried & Loved, Salads & Soup, Appetizers, NY-Style Pizza, La Pasta, Risotto & Main Dishes, All Day Brunch）
+        } else if (isFood) {
             foodSubtotal += line;
         } else {
-            // 預設歸類為餐點（兼容舊資料或未分類的項目）
+            // 最後的 fallback：歸類為餐點
             foodSubtotal += line;
         }
     }
