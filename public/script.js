@@ -3425,6 +3425,7 @@ function updateAnalysisPanel() {
     const drinkPerEl = document.getElementById('drinkPerPerson');
     const softDrinkTotalEl = document.getElementById('softDrinkTotal');
     const softDrinkPerEl = document.getElementById('softDrinkPerPerson');
+    const budgetRatioEl = document.getElementById('budgetRatio');
 
     if (!budgetEl || !remainingEl || !foodTotalEl || !foodPerEl || !drinkTotalEl || !drinkPerEl || !softDrinkTotalEl || !softDrinkPerEl) {
         // 如果元素不存在，靜默返回（可能是分析欄位還沒載入）
