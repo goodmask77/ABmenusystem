@@ -6790,11 +6790,9 @@ function renderMenuItem(categoryId, item) {
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
-            <div class="item-metrics" onclick="event.stopPropagation();">
-                <input class="item-weight-input" type="number" min="0" step="1" value="${weightValue}" placeholder="" ${weightDisabled ? 'disabled' : ''} onchange="updateItemWeight('${categoryId}', '${item.id}', this.value)" />
-            </div>
             <div class="item-header">
-                <div>
+                <div class="item-main">
+                    <input class="item-weight-input" type="number" min="0" step="1" value="${weightValue}" placeholder="" ${weightDisabled ? 'disabled' : ''} onchange="updateItemWeight('${categoryId}', '${item.id}', this.value)" onclick="event.stopPropagation();" />
                     <span class="item-name">${item.name}</span>
                     ${englishName ? `<span class="item-name-en">${englishName}</span>` : ''}
                 </div>

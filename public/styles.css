@@ -326,7 +326,7 @@ body {
 .item-metrics {
     display: flex;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: 0;
 }
 
 .item-weight-input {
@@ -337,6 +337,7 @@ body {
     background: #f8f9fa;
     color: #212529;
     font-size: 0.95rem;
+    flex-shrink: 0;
 }
 
 .item-weight-input:disabled {
@@ -353,7 +354,14 @@ body {
 .item-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
+}
+
+.item-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
 }
 
 .item-name {
