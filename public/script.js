@@ -6791,11 +6791,7 @@ function renderMenuItem(categoryId, item) {
                 </button>
             </div>
             <div class="item-metrics" onclick="event.stopPropagation();">
-                <label class="item-weight-input">
-                    <span>重</span>
-                    <input type="number" min="0" step="1" value="${weightValue}" placeholder="g" ${weightDisabled ? 'disabled' : ''} onchange="updateItemWeight('${categoryId}', '${item.id}', this.value)" />
-                    <span>g</span>
-                </label>
+                <input class="item-weight-input" type="number" min="0" step="1" value="${weightValue}" placeholder="" ${weightDisabled ? 'disabled' : ''} onchange="updateItemWeight('${categoryId}', '${item.id}', this.value)" />
             </div>
             <div class="item-header">
                 <div>

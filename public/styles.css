@@ -325,40 +325,22 @@ body {
 
 .item-metrics {
     display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
+    align-items: center;
     margin-bottom: 6px;
 }
 
 .item-weight-input {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
+    width: 64px;
+    padding: 6px 8px;
     border: 1px solid #dee2e6;
     border-radius: 6px;
     background: #f8f9fa;
-    color: #495057;
-    font-size: 0.9rem;
-    min-width: 120px;
-}
-
-.item-weight-input span {
-    font-weight: 700;
-    color: #6c757d;
-}
-
-.item-weight-input input {
-    width: 80px;
-    border: none;
-    background: transparent;
-    padding: 2px 4px;
-    font-size: 0.95rem;
     color: #212529;
-    outline: none;
+    font-size: 0.95rem;
 }
 
-.item-weight-input input[disabled] {
+.item-weight-input:disabled {
+    background: #f5f5f5;
     color: #6c757d;
 }
 
@@ -366,10 +348,6 @@ body {
     background: #2b3035;
     border-color: #3c4248;
     color: #f8f9fa;
-}
-
-.menu-item.selected .item-weight-input span {
-    color: #ced4da;
 }
 
 .item-header {
