@@ -92,155 +92,6 @@
                 </div>
 
                 <div class="cart-summary">
-                    <!-- 客戶資訊區域 - 整合版 -->
-                    <div class="order-info-section">
-                        <div class="order-info-grid">
-                            <!-- 第一行：基本資訊 -->
-                            <div class="order-field">
-                                <label>公司名稱:</label>
-                                <input type="text" id="companyName" class="input-field" placeholder="選填">
-                        </div>
-                            <div class="order-field">
-                                <label>統一編號:</label>
-                            <input type="text" id="customerTaxId" class="input-field" placeholder="選填">
-                        </div>
-                            <div class="order-field">
-                                <label>姓名:</label>
-                                <input type="text" id="contactName" class="input-field" placeholder="選填">
-                            </div>
-                            <div class="order-field">
-                                <label>手機:</label>
-                                <input type="tel" id="contactPhone" class="input-field" placeholder="選填">
-                            </div>
-                            
-                            <!-- 第二行：方案和LINE -->
-                            <div class="order-field">
-                                <label>方案:</label>
-                                <div style="display: flex; gap: 0.3rem;">
-                                    <div class="customizable-select-wrapper" style="flex: 1;">
-                                    <select id="planType" class="input-field">
-                                        <option value="">請選擇</option>
-                                    </select>
-                                    </div>
-                                    <button id="managePlanType" class="btn btn-small" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" title="管理方案">
-                                        <i class="fas fa-cog"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="order-field">
-                                <label>LINE名稱:</label>
-                                <input type="text" id="lineName" class="input-field" placeholder="選填">
-                            </div>
-                            <div class="order-field">
-                                <label>產業別:</label>
-                                <div style="display: flex; gap: 0.3rem;">
-                                    <div class="customizable-select-wrapper" style="flex: 1;">
-                                        <select id="industrySelect" class="input-field">
-                                            <option value="">請選擇</option>
-                                        </select>
-                                    </div>
-                                    <button id="manageIndustry" class="btn btn-small" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" title="管理產業別">
-                                        <i class="fas fa-cog"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="order-field">
-                                <label>包場內容:</label>
-                                <div style="display: flex; gap: 0.3rem;">
-                                    <div class="customizable-select-wrapper" style="flex: 1;">
-                                        <select id="venueContentSelect" class="input-field">
-                                            <option value="">請選擇</option>
-                                        </select>
-                                    </div>
-                                    <button id="manageVenueContent" class="btn btn-small" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" title="管理包場內容">
-                                        <i class="fas fa-cog"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="order-field datetime-field">
-                                <label>用餐日期時間:</label>
-                                <div style="display: flex; gap: 0.3rem; align-items: center;">
-                                    <input type="date" id="diningDate" class="input-field date-input" style="flex: 1;">
-                                    <select id="diningHour" class="input-field time-select" style="width: 60px;">
-                                <option value="">時</option>
-                                <option value="12">12</option>
-                                <option value="13">13</option>
-                                <option value="14">14</option>
-                                <option value="15">15</option>
-                                <option value="16">16</option>
-                                <option value="17">17</option>
-                                <option value="18">18</option>
-                                <option value="19">19</option>
-                                <option value="20">20</option>
-                                <option value="21">21</option>
-                                <option value="22">22</option>
-                                        <option value="__CUSTOM__">其他（自訂）</option>
-                            </select>
-                                    <input type="number" id="diningHourCustom" class="input-field custom-input" placeholder="時" min="0" max="23" style="display: none; width: 60px; margin-top: 0.3rem;">
-                                    <span>:</span>
-                                    <select id="diningMinute" class="input-field time-select" style="width: 60px;">
-                                <option value="">分</option>
-                                <option value="00">00</option>
-                                <option value="10">10</option>
-                                <option value="20">20</option>
-                                <option value="30">30</option>
-                                <option value="40">40</option>
-                                <option value="50">50</option>
-                            </select>
-                                </div>
-                            </div>
-                            
-                            <!-- 第三行：其他選項 -->
-                            <div class="order-field">
-                                <label>包場範圍:</label>
-                                <div style="display: flex; gap: 0.3rem;">
-                                    <div class="customizable-select-wrapper" style="flex: 1;">
-                                        <select id="venueScope" class="input-field">
-                                            <option value="">請選擇</option>
-                                        </select>
-                                    </div>
-                                    <button id="manageVenueScope" class="btn btn-small" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" title="管理包場範圍">
-                                        <i class="fas fa-cog"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="order-field">
-                                <label>用餐方式:</label>
-                                <div style="display: flex; gap: 0.3rem;">
-                                    <div class="customizable-select-wrapper" style="flex: 1;">
-                                        <select id="diningStyle" class="input-field">
-                                            <option value="">請選擇</option>
-                                        </select>
-                                    </div>
-                                    <button id="manageDiningStyle" class="btn btn-small" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" title="管理用餐方式">
-                                        <i class="fas fa-cog"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="order-field">
-                                <label>付款:</label>
-                                <div style="display: flex; gap: 0.3rem;">
-                                    <div class="customizable-select-wrapper" style="flex: 1;">
-                                        <select id="paymentMethod" class="input-field">
-                                            <option value="">請選擇</option>
-                                        </select>
-                                    </div>
-                                    <button id="managePaymentMethod" class="btn btn-small" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" title="管理付款方式">
-                                        <i class="fas fa-cog"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="order-field">
-                                <label>折扣（% 或 金額）:</label>
-                                <input type="text" id="discount" class="input-field" placeholder="例如 10% 或 500">
-                            </div>
-                            <div class="order-field">
-                                <label>已付訂金:</label>
-                                <input type="number" id="depositPaid" class="input-field" placeholder="0" min="0" step="0.01">
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- 小計、服務費、總計放同一行 -->
                     <div class="summary-inline">
                         <div class="summary-item">
@@ -396,6 +247,149 @@
                             </div>
                         </div>
                     </section>
+
+                    <div class="order-info-section">
+                        <div class="order-info-grid">
+                            <div class="order-field">
+                                <label>公司名稱:</label>
+                                <input type="text" id="companyName" class="input-field" placeholder="選填">
+                            </div>
+                            <div class="order-field">
+                                <label>統一編號:</label>
+                                <input type="text" id="customerTaxId" class="input-field" placeholder="選填">
+                            </div>
+                            <div class="order-field">
+                                <label>姓名:</label>
+                                <input type="text" id="contactName" class="input-field" placeholder="選填">
+                            </div>
+                            <div class="order-field">
+                                <label>手機:</label>
+                                <input type="tel" id="contactPhone" class="input-field" placeholder="選填">
+                            </div>
+                            <div class="order-field">
+                                <label>方案:</label>
+                                <div style="display: flex; gap: 0.3rem;">
+                                    <div class="customizable-select-wrapper" style="flex: 1;">
+                                        <select id="planType" class="input-field">
+                                            <option value="">請選擇</option>
+                                        </select>
+                                    </div>
+                                    <button id="managePlanType" class="btn btn-small" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" title="管理方案">
+                                        <i class="fas fa-cog"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="order-field">
+                                <label>LINE名稱:</label>
+                                <input type="text" id="lineName" class="input-field" placeholder="選填">
+                            </div>
+                            <div class="order-field">
+                                <label>產業別:</label>
+                                <div style="display: flex; gap: 0.3rem;">
+                                    <div class="customizable-select-wrapper" style="flex: 1;">
+                                        <select id="industrySelect" class="input-field">
+                                            <option value="">請選擇</option>
+                                        </select>
+                                    </div>
+                                    <button id="manageIndustry" class="btn btn-small" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" title="管理產業別">
+                                        <i class="fas fa-cog"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="order-field">
+                                <label>包場內容:</label>
+                                <div style="display: flex; gap: 0.3rem;">
+                                    <div class="customizable-select-wrapper" style="flex: 1;">
+                                        <select id="venueContentSelect" class="input-field">
+                                            <option value="">請選擇</option>
+                                        </select>
+                                    </div>
+                                    <button id="manageVenueContent" class="btn btn-small" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" title="管理包場內容">
+                                        <i class="fas fa-cog"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="order-field datetime-field">
+                                <label>用餐日期時間:</label>
+                                <div style="display: flex; gap: 0.3rem; align-items: center;">
+                                    <input type="date" id="diningDate" class="input-field date-input" style="flex: 1;">
+                                    <select id="diningHour" class="input-field time-select" style="width: 60px;">
+                                        <option value="">時</option>
+                                        <option value="12">12</option>
+                                        <option value="13">13</option>
+                                        <option value="14">14</option>
+                                        <option value="15">15</option>
+                                        <option value="16">16</option>
+                                        <option value="17">17</option>
+                                        <option value="18">18</option>
+                                        <option value="19">19</option>
+                                        <option value="20">20</option>
+                                        <option value="21">21</option>
+                                        <option value="22">22</option>
+                                        <option value="__CUSTOM__">其他（自訂）</option>
+                                    </select>
+                                    <input type="number" id="diningHourCustom" class="input-field custom-input" placeholder="時" min="0" max="23" style="display: none; width: 60px; margin-top: 0.3rem;">
+                                    <span>:</span>
+                                    <select id="diningMinute" class="input-field time-select" style="width: 60px;">
+                                        <option value="">分</option>
+                                        <option value="00">00</option>
+                                        <option value="10">10</option>
+                                        <option value="20">20</option>
+                                        <option value="30">30</option>
+                                        <option value="40">40</option>
+                                        <option value="50">50</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="order-field">
+                                <label>包場範圍:</label>
+                                <div style="display: flex; gap: 0.3rem;">
+                                    <div class="customizable-select-wrapper" style="flex: 1;">
+                                        <select id="venueScope" class="input-field">
+                                            <option value="">請選擇</option>
+                                        </select>
+                                    </div>
+                                    <button id="manageVenueScope" class="btn btn-small" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" title="管理包場範圍">
+                                        <i class="fas fa-cog"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="order-field">
+                                <label>用餐方式:</label>
+                                <div style="display: flex; gap: 0.3rem;">
+                                    <div class="customizable-select-wrapper" style="flex: 1;">
+                                        <select id="diningStyle" class="input-field">
+                                            <option value="">請選擇</option>
+                                        </select>
+                                    </div>
+                                    <button id="manageDiningStyle" class="btn btn-small" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" title="管理用餐方式">
+                                        <i class="fas fa-cog"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="order-field">
+                                <label>付款:</label>
+                                <div style="display: flex; gap: 0.3rem;">
+                                    <div class="customizable-select-wrapper" style="flex: 1;">
+                                        <select id="paymentMethod" class="input-field">
+                                            <option value="">請選擇</option>
+                                        </select>
+                                    </div>
+                                    <button id="managePaymentMethod" class="btn btn-small" style="padding: 0.3rem 0.6rem; font-size: 0.85rem;" title="管理付款方式">
+                                        <i class="fas fa-cog"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="order-field">
+                                <label>折扣（% 或 金額）:</label>
+                                <input type="text" id="discount" class="input-field" placeholder="例如 10% 或 500">
+                            </div>
+                            <div class="order-field">
+                                <label>已付訂金:</label>
+                                <input type="number" id="depositPaid" class="input-field" placeholder="0" min="0" step="0.01">
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="cart-export-controls" style="margin-top: 0.8rem; display: flex; gap: 0.4rem;">
                         <button id="exportCartExcel" class="btn btn-export" style="flex: 1;">
