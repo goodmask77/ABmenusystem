@@ -293,13 +293,13 @@
                     <!-- 餐點分析區塊 -->
                     <section class="analysis-panel weight-analysis-panel" id="weightAnalysisPanel">
                         <div class="analysis-title">餐點分析</div>
+
                         <div class="analysis-row">
                             <div class="analysis-item">
-                                <label for="satietyBaseline">飽足比率：</label>
+                                <label for="satietyBaseline">吃飽重量：</label>
                                 <div class="satiety-field">
                                     <input id="satietyBaseline" type="number" min="0" step="10" value="500" />
-                                    <span class="satiety-unit">g/人為飽足</span>
-                                    <span class="analysis-value" id="satietyRatio">0%</span>
+                                    <span class="satiety-unit">g/人</span>
                                 </div>
                             </div>
                             <div class="analysis-item">
@@ -314,6 +314,10 @@
 
                         <div class="analysis-row">
                             <div class="analysis-item">
+                                <span class="analysis-label">飽足比率：</span>
+                                <span class="analysis-value" id="satietyRatio">0%</span>
+                            </div>
+                            <div class="analysis-item">
                                 <span class="analysis-label">軟飲總重：</span>
                                 <span class="analysis-value" id="softDrinkWeightTotal">0 ml</span>
                             </div>
@@ -321,19 +325,21 @@
                                 <span class="analysis-label">軟飲人均：</span>
                                 <span class="analysis-value" id="softDrinkWeightPerPerson">0 ml</span>
                             </div>
-                            <div class="analysis-item">
-                                <span class="analysis-label">酒水總重：</span>
-                                <span class="analysis-value" id="drinkWeightTotal">0 ml</span>
-                            </div>
                         </div>
 
                         <div class="analysis-row">
                             <div class="analysis-item">
+                                <span class="analysis-label"></span>
+                                <span class="analysis-value"></span>
+                            </div>
+                            <div class="analysis-item">
+                                <span class="analysis-label">酒水總重：</span>
+                                <span class="analysis-value" id="drinkWeightTotal">0 ml</span>
+                            </div>
+                            <div class="analysis-item">
                                 <span class="analysis-label">酒水人均：</span>
                                 <span class="analysis-value" id="drinkWeightPerPerson">0 ml</span>
                             </div>
-                            <div class="analysis-item"></div>
-                            <div class="analysis-item"></div>
                         </div>
                     </section>
 
