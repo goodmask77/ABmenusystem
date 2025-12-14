@@ -1444,7 +1444,8 @@ function getOrderInfo() {
         depositPaid: parseFloat(elements.depositPaid?.value) || 0,
         diningDateTime: getDiningDateTime(),
         tableCount: tableCount,
-        peopleCount: peopleCount
+        peopleCount: peopleCount,
+        customerBudget: parseFloat(elements.customerBudget?.value) || 0
     };
 }
 
@@ -1456,6 +1457,9 @@ function setOrderInfo(info) {
     if (info.contactName && elements.contactName) elements.contactName.value = info.contactName;
     if (info.contactPhone && elements.contactPhone) elements.contactPhone.value = info.contactPhone;
     if (info.lineName && elements.lineName) elements.lineName.value = info.lineName;
+    if (typeof info.customerBudget !== 'undefined' && elements.customerBudget) {
+        elements.customerBudget.value = info.customerBudget ?? '';
+    }
     
     // 本地管理的選單：只設置存在於當前選項列表中的值
     if (info.planType && elements.planType) {
@@ -2377,6 +2381,7 @@ function persistCartState() {
             discount: elements.discount?.value || '',
             depositPaid: elements.depositPaid?.value || '',
             satietyBaseline: getSatietyBaseline(),
+            customerBudget: parseFloat(elements.customerBudget?.value) || 0,
             updatedAt: new Date().toISOString()
         };
         localStorage.setItem(CART_STATE_KEY, JSON.stringify(payload));
@@ -2406,6 +2411,9 @@ function restoreCartState() {
         const satietyInput = document.getElementById('satietyBaseline');
         if (satietyInput && Number(payload?.satietyBaseline) >= 0) {
             satietyInput.value = payload.satietyBaseline;
+        }
+        if (elements.customerBudget && typeof payload?.customerBudget !== 'undefined') {
+            elements.customerBudget.value = payload.customerBudget;
         }
         // 恢復客戶資訊
         if (payload?.customerName && elements.customerName) {
@@ -2717,6 +2725,7 @@ function bindEvents() {
             if (typeof updateAnalysisPanel === 'function') {
                 updateAnalysisPanel();
             }
+            persistCartState();
         }
         if (e.target && e.target.id === 'satietyBaseline') {
             if (typeof updateWeightAnalysisPanel === 'function') {
@@ -4866,7 +4875,8 @@ async function loadOrdersFromSupabase() {
                 diningStyle: order.dining_style,
                 paymentMethod: order.payment_method,
                 discount: order.discount,
-                    depositPaid: order.deposit_paid || 0,
+            depositPaid: order.deposit_paid || 0,
+                customerBudget: Number.isFinite(order.customer_budget) ? Number(order.customer_budget) : 0,
                 // ✅ orderInfo 中的 diningDateTime 也來自 Supabase（確保一致性）
                 diningDateTime: order.dining_datetime
             },
@@ -5304,6 +5314,7 @@ async function confirmSaveMenu(isNewOrder = false) {
         dining_datetime: diningDateTime || null, // 使用最新獲取的日期時間
         table_count: orderInfo.tableCount || tableCount || 1,
         people_count: orderInfo.peopleCount || peopleCount || 1,
+        customer_budget: orderInfo.customerBudget || null,
         subtotal: subtotal || 0,
         service_fee: serviceFee || 0,
         total: estimatedTotal || 0,
