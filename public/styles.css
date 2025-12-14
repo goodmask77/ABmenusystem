@@ -323,6 +323,50 @@ body {
     font-weight: 700;
 }
 
+.item-metrics {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.item-metric-input {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: #f8f9fa;
+    color: #495057;
+    font-size: 0.85rem;
+}
+
+.item-metric-input span {
+    font-weight: 700;
+    color: #6c757d;
+}
+
+.item-metric-input input {
+    width: 64px;
+    border: none;
+    background: transparent;
+    padding: 2px 4px;
+    font-size: 0.85rem;
+    color: #212529;
+    outline: none;
+}
+
+.menu-item.selected .item-metric-input {
+    background: #2b3035;
+    border-color: #3c4248;
+    color: #f8f9fa;
+}
+
+.menu-item.selected .item-metric-input span {
+    color: #ced4da;
+}
+
 .item-header {
     display: flex;
     justify-content: space-between;
@@ -2697,4 +2741,61 @@ body {
     #customerBudget {
         width: 100%;
     }
+}
+
+/* 餐點分析新區塊 */
+.weight-analysis-panel {
+    background: #1f2a35;
+    border: 1px solid #334155;
+    color: #e2e8f0;
+}
+
+.weight-analysis-panel .analysis-title {
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+    color: #f8fafc;
+}
+
+.satiety-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+#satietyBaseline {
+    width: 90px;
+    min-width: 90px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.08);
+    color: #f8fafc;
+    outline: none;
+    box-sizing: border-box;
+    height: 32px;
+}
+
+#satietyBaseline::placeholder {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.satiety-unit {
+    color: rgba(226, 232, 240, 0.85);
+    font-size: 0.9rem;
+}
+
+.weight-analysis-panel .analysis-value {
+    color: #fbbf24;
+    font-weight: 800;
+}
+
+.metric-inputs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px;
+    margin-top: 8px;
 }
