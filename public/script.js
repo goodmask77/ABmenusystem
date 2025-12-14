@@ -6634,6 +6634,9 @@ function loadHistoryMenuByData(row) {
     initFillStateStyling();
     
     // 更新介面
+    // 重新渲染左側菜單，讓選取狀態與購物車同步
+    activeCategory = 'all';
+    renderMenu();
     renderCart();
     updateCartSummary();
     persistCartState();
