@@ -330,40 +330,45 @@ body {
     margin-bottom: 6px;
 }
 
-.item-metric-input {
+.item-weight-input {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 3px 6px;
+    gap: 6px;
+    padding: 6px 10px;
     border: 1px solid #dee2e6;
     border-radius: 6px;
     background: #f8f9fa;
     color: #495057;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
+    min-width: 120px;
 }
 
-.item-metric-input span {
+.item-weight-input span {
     font-weight: 700;
     color: #6c757d;
 }
 
-.item-metric-input input {
-    width: 64px;
+.item-weight-input input {
+    width: 80px;
     border: none;
     background: transparent;
     padding: 2px 4px;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     color: #212529;
     outline: none;
 }
 
-.menu-item.selected .item-metric-input {
+.item-weight-input input[disabled] {
+    color: #6c757d;
+}
+
+.menu-item.selected .item-weight-input {
     background: #2b3035;
     border-color: #3c4248;
     color: #f8f9fa;
 }
 
-.menu-item.selected .item-metric-input span {
+.menu-item.selected .item-weight-input span {
     color: #ced4da;
 }
 
@@ -2764,6 +2769,7 @@ body {
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+    min-width: 0;
 }
 
 #satietyBaseline {
@@ -2793,9 +2799,13 @@ body {
     font-weight: 800;
 }
 
+.weight-analysis-panel .analysis-row {
+    grid-template-columns: minmax(220px, max-content) 1fr 1fr;
+}
+
 .metric-inputs {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 8px;
     margin-top: 8px;
 }

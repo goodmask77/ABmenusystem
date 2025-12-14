@@ -706,6 +706,11 @@ const CHANGELOG_LOCAL_KEY = 'MENU_CHANGELOG';
 const ADMIN_USERNAME = 'goodmask77';
 const CURRENT_USER_KEY = 'CURRENT_USER';
 const DEFAULT_SATIETY_BASELINE = 500;
+const CATEGORY_TYPE = {
+    FOOD: 'food',
+    SOFT: 'softDrink',
+    DRINK: 'drink'
+};
 let supabaseClient = null;
 let supabaseSyncQueue = Promise.resolve();
 let supabaseInitialized = false;
@@ -2130,8 +2135,6 @@ async function syncItemToMenuItems(item, categoryName, action = 'upsert') {
                     price: item.price,
                     category: categoryName,
                     food_weight_g: item.foodWeight ?? null,
-                    soft_drink_ml: item.softDrinkMl ?? null,
-                    drink_ml: item.drinkMl ?? null,
                     inserted_at: new Date().toISOString()
                 }, { onConflict: 'id' });
             if (error) throw error;
@@ -3080,8 +3083,6 @@ function showItemModal(categoryId = null) {
     document.getElementById('itemDescription').value = '';
     document.getElementById('itemPrice').value = '';
     document.getElementById('itemFoodWeight').value = '';
-    document.getElementById('itemSoftDrinkMl').value = '';
-    document.getElementById('itemDrinkMl').value = '';
     document.getElementById('itemModal').style.display = 'block';
 }
 
@@ -3098,8 +3099,6 @@ function editItem(categoryId, itemId) {
     document.getElementById('itemDescription').value = item.description || '';
     document.getElementById('itemPrice').value = item.price;
     document.getElementById('itemFoodWeight').value = Number.isFinite(item.foodWeight) ? item.foodWeight : '';
-    document.getElementById('itemSoftDrinkMl').value = Number.isFinite(item.softDrinkMl) ? item.softDrinkMl : '';
-    document.getElementById('itemDrinkMl').value = Number.isFinite(item.drinkMl) ? item.drinkMl : '';
     document.getElementById('itemModal').style.display = 'block';
 }
 
@@ -3110,8 +3109,6 @@ function saveItem() {
     const description = document.getElementById('itemDescription').value.trim();
     const price = parseFloat(document.getElementById('itemPrice').value);
     const foodWeight = normalizeMetricValue(document.getElementById('itemFoodWeight').value);
-    const softDrinkMl = normalizeMetricValue(document.getElementById('itemSoftDrinkMl').value);
-    const drinkMl = normalizeMetricValue(document.getElementById('itemDrinkMl').value);
     
     if (!name || isNaN(price) || price < 0) {
         alert('請輸入有效的品項名稱和價格');
@@ -3132,8 +3129,6 @@ function saveItem() {
             item.description = description;
             item.price = price;
             item.foodWeight = foodWeight;
-            item.softDrinkMl = softDrinkMl;
-            item.drinkMl = drinkMl;
             itemToSync = item;
             
             // 更新購物車中的品項資訊
@@ -3143,8 +3138,6 @@ function saveItem() {
                     cartItem.nameEn = nameEn;
                     cartItem.price = price;
                     cartItem.foodWeight = foodWeight;
-                    cartItem.softDrinkMl = softDrinkMl;
-                    cartItem.drinkMl = drinkMl;
                 }
             });
         }
@@ -3156,9 +3149,7 @@ function saveItem() {
             nameEn,
             description,
             price,
-            foodWeight,
-            softDrinkMl,
-            drinkMl
+            foodWeight
         };
         category.items.push(newItem);
         itemToSync = newItem;
@@ -3166,7 +3157,7 @@ function saveItem() {
     
     // 同步到 menu_items 表
     if (itemToSync) {
-        syncItemToMenuItems(itemToSync, category.name, 'upsert');
+    syncItemToMenuItems(itemToSync, category.name, 'upsert');
     }
     
     renderMenu();
@@ -3177,26 +3168,18 @@ function saveItem() {
     saveToStorage();
 }
 
-function updateItemMetric(categoryId, itemId, field, value) {
+function updateItemWeight(categoryId, itemId, value) {
     if (!ensureEditorAccess()) return;
     const category = menuData.categories.find(c => c.id === categoryId);
     const item = category?.items.find(i => i.id === itemId);
     if (!item) return;
 
     const numericValue = normalizeMetricValue(value);
-    if (field === 'foodWeight') {
-        item.foodWeight = numericValue;
-    } else if (field === 'softDrinkMl') {
-        item.softDrinkMl = numericValue;
-    } else if (field === 'drinkMl') {
-        item.drinkMl = numericValue;
-    }
+    item.foodWeight = numericValue;
 
     cart.forEach(cartItem => {
         if (cartItem.id === itemId) {
             cartItem.foodWeight = item.foodWeight;
-            cartItem.softDrinkMl = item.softDrinkMl;
-            cartItem.drinkMl = item.drinkMl;
         }
     });
 
@@ -3205,7 +3188,7 @@ function updateItemMetric(categoryId, itemId, field, value) {
     renderCart();
     updateCartSummary();
     persistCartState();
-    saveToStorage({ reason: 'structure-change', summary: `更新品項「${item.name}」重量/容量` });
+    saveToStorage({ reason: 'structure-change', summary: `更新品項「${item.name}」重量` });
 }
 
 async function deleteItem(categoryId, itemId) {
@@ -3258,9 +3241,7 @@ function addToCart(categoryId, itemId) {
             price: item.price,
             quantity: tableCount, // 使用桌數作為初始數量
             categoryId: categoryId,
-            foodWeight: metrics.foodWeight,
-            softDrinkMl: metrics.softDrinkMl,
-            drinkMl: metrics.drinkMl
+            foodWeight: metrics.weight
         };
         cart.push(cartItem);
         persistCartState();
@@ -3526,11 +3507,19 @@ function normalizeMetricValue(value) {
 }
 
 function mergeMetricsFromSource(source = {}) {
-    return {
-        foodWeight: normalizeMetricValue(source.foodWeight ?? source.food_weight_g ?? source.foodWeightG),
-        softDrinkMl: normalizeMetricValue(source.softDrinkMl ?? source.softDrinkVolume ?? source.soft_drink_ml),
-        drinkMl: normalizeMetricValue(source.drinkMl ?? source.drinkVolume ?? source.drink_ml)
-    };
+    const weight =
+        normalizeMetricValue(
+            source.foodWeight ??
+            source.food_weight_g ??
+            source.foodWeightG ??
+            source.softDrinkMl ??
+            source.softDrinkVolume ??
+            source.soft_drink_ml ??
+            source.drinkMl ??
+            source.drinkVolume ??
+            source.drink_ml
+        );
+    return { weight };
 }
 
 function resolveCartItemMetrics(cartItem) {
@@ -3792,12 +3781,15 @@ function updateWeightAnalysisPanel() {
     for (const item of cart) {
         const qty = item.quantity || 1;
         const metrics = resolveCartItemMetrics(item);
-        if (metrics.type === 'food' && Number.isFinite(metrics.foodWeight)) {
-            foodWeightTotal += metrics.foodWeight * qty;
-        } else if (metrics.type === 'softDrink' && Number.isFinite(metrics.softDrinkMl)) {
-            softDrinkWeightTotal += metrics.softDrinkMl * qty;
-        } else if (metrics.type === 'drink' && Number.isFinite(metrics.drinkMl)) {
-            drinkWeightTotal += metrics.drinkMl * qty;
+        if (!Number.isFinite(metrics.weight)) continue;
+        if (metrics.type === CATEGORY_TYPE.FOOD) {
+            foodWeightTotal += metrics.weight * qty;
+        } else if (metrics.type === CATEGORY_TYPE.SOFT) {
+            softDrinkWeightTotal += metrics.weight * qty;
+        } else if (metrics.type === CATEGORY_TYPE.DRINK) {
+            drinkWeightTotal += metrics.weight * qty;
+        } else {
+            foodWeightTotal += metrics.weight * qty;
         }
     }
 
@@ -6785,9 +6777,8 @@ function renderMenuItem(categoryId, item) {
     const isInCart = cart.some(cartItem => cartItem.id === item.id);
     const englishName = item.nameEn || item.enName || '';
     const metrics = mergeMetricsFromSource(item);
-    const foodWeightValue = Number.isFinite(metrics.foodWeight) ? metrics.foodWeight : '';
-    const softDrinkValue = Number.isFinite(metrics.softDrinkMl) ? metrics.softDrinkMl : '';
-    const drinkValue = Number.isFinite(metrics.drinkMl) ? metrics.drinkMl : '';
+    const weightValue = Number.isFinite(metrics.weight) ? metrics.weight : '';
+    const weightDisabled = !isAdminMode;
     
     return `
         <div class="menu-item ${isInCart ? 'selected' : ''}" onclick="addToCart('${categoryId}', '${item.id}')">
@@ -6799,19 +6790,12 @@ function renderMenuItem(categoryId, item) {
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
-            <div class="item-metrics admin-controls" style="display: ${isAdminMode ? 'flex' : 'none'};" onclick="event.stopPropagation();">
-                <div class="item-metric-input">
-                    <span>餐</span>
-                    <input type="number" min="0" step="1" value="${foodWeightValue}" placeholder="g" onchange="updateItemMetric('${categoryId}', '${item.id}', 'foodWeight', this.value)" />
-                </div>
-                <div class="item-metric-input">
-                    <span>軟</span>
-                    <input type="number" min="0" step="10" value="${softDrinkValue}" placeholder="ml" onchange="updateItemMetric('${categoryId}', '${item.id}', 'softDrinkMl', this.value)" />
-                </div>
-                <div class="item-metric-input">
-                    <span>酒</span>
-                    <input type="number" min="0" step="10" value="${drinkValue}" placeholder="ml" onchange="updateItemMetric('${categoryId}', '${item.id}', 'drinkMl', this.value)" />
-                </div>
+            <div class="item-metrics" onclick="event.stopPropagation();">
+                <label class="item-weight-input">
+                    <span>重</span>
+                    <input type="number" min="0" step="1" value="${weightValue}" placeholder="g" ${weightDisabled ? 'disabled' : ''} onchange="updateItemWeight('${categoryId}', '${item.id}', this.value)" />
+                    <span>g</span>
+                </label>
             </div>
             <div class="item-header">
                 <div>
