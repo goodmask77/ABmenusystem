@@ -6105,6 +6105,8 @@ function renderHistoryList() {
     // 排序（擴展支援所有欄位）
     // 先按狀態優先級排序，再按用戶選擇的排序欄位排序
     filteredMenus.sort((a, b) => {
+        const sa = STATUS_PRIORITY[a.status] || 0;
+        const sb = STATUS_PRIORITY[b.status] || 0;
                 if (sa !== sb) return sb - sa;
         
         // 完成狀態相同，再按用戶選擇的排序欄位排序
