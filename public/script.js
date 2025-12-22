@@ -5997,6 +5997,9 @@ function renderHistoryCell(col, menu, metrics, idx) {
             return `<td class="industry-cell">${industry || '--'}</td>`;
         case 'actions':
             return `<td class="actions-cell" onclick="event.stopPropagation();">
+                <button class="btn-small btn-secondary" onclick="toggleOrderPin('${menuId}', event)" title="${isPinned ? '取消置頂' : '置頂'}">
+                    <i class="fas fa-thumbtack"></i>
+                </button>
                 <button class="btn-small btn-delete" onclick="deleteHistoryMenuByData(this.closest('tr'))" title="刪除">
                     <i class="fas fa-trash"></i>
                 </button>
