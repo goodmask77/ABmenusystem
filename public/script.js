@@ -5948,7 +5948,7 @@ function renderHistoryCell(col, menu, metrics, idx) {
         case 'status':
             return `<td class="status-col" onclick="event.stopPropagation();">
                 <select class="status-select" data-menu-id="${menuId}" onchange="updateOrderStatus('${menuId}', this.value, event)">
-                    ${statusOptions.map(opt => `<option value="${opt}" ${menu.status === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                    ${STATUS_OPTIONS.map(opt => `<option value="${opt}" ${menu.status === opt ? 'selected' : ''}>${opt}</option>`).join('')}
                 </select>
             </td>`;
         case 'date':
