@@ -711,6 +711,17 @@ const CATEGORY_TYPE = {
     SOFT: 'softDrink',
     DRINK: 'drink'
 };
+const STATUS_OPTIONS = ['常用', '重要', '待辦', '完成'];
+const STATUS_PRIORITY = { '常用': 4, '重要': 3, '待辦': 2, '完成': 1 };
+function getStatusSlug(status = '') {
+    switch (status) {
+        case '常用': return 'common';
+        case '重要': return 'important';
+        case '待辦': return 'todo';
+        case '完成': return 'done';
+        default: return 'todo';
+    }
+}
 let supabaseClient = null;
 let supabaseSyncQueue = Promise.resolve();
 let supabaseInitialized = false;
@@ -1428,6 +1439,8 @@ function setCustomizableSelectValue(selectId, customInputId, defaultOptions, val
 
 // 取得完整訂單資訊（更新以支援自訂下拉選單）
 function getOrderInfo() {
+    const currentOrder = currentEditingOrderId ? supabaseOrders.find(o => o.id === currentEditingOrderId) : null;
+    const status = currentOrder?.status || '待辦';
     return {
         companyName: elements.companyName?.value?.trim() || '',
         taxId: elements.customerTaxId?.value?.trim() || '',
@@ -1445,6 +1458,7 @@ function getOrderInfo() {
         diningDateTime: getDiningDateTime(),
         tableCount: tableCount,
         peopleCount: peopleCount,
+        status,
         customerBudget: parseFloat(elements.customerBudget?.value) || 0
     };
 }
@@ -4876,6 +4890,7 @@ async function loadOrdersFromSupabase() {
                 paymentMethod: order.payment_method,
                 discount: order.discount,
             depositPaid: order.deposit_paid || 0,
+                status: order.status || '待辦',
                 customerBudget: Number.isFinite(order.customer_budget) ? Number(order.customer_budget) : 0,
                 // ✅ orderInfo 中的 diningDateTime 也來自 Supabase（確保一致性）
                 diningDateTime: order.dining_datetime
@@ -4890,7 +4905,8 @@ async function loadOrdersFromSupabase() {
                 fromSupabase: true, // 標記來源
                 isPinned: order.is_pinned || false, // 功能 D：釘選狀態
                 is_completed: order.is_completed || false, // 完成狀態
-                isCompleted: order.is_completed || false // 兼容欄位名稱
+                isCompleted: order.is_completed || false, // 兼容欄位名稱
+                status: order.status || '待辦'
             };
         });
         
@@ -4910,30 +4926,16 @@ function getMergedOrders() {
     // 不再使用 localStorage，完全依賴 Supabase
     // 只返回 Supabase 訂單
     const merged = [...supabaseOrders];
-    
-    // 功能 D：先按完成狀態排序（未完成在前），然後按釘選狀態排序（釘選的在前），最後按時間排序（最新在前）
+
+    // 先按狀態優先級排序（常用 > 重要 > 待辦 > 完成），同狀態再依時間新到舊
     merged.sort((a, b) => {
-        const completedA = a.is_completed || a.isCompleted || false;
-        const completedB = b.is_completed || b.isCompleted || false;
-        const pinnedA = a.isPinned || false;
-        const pinnedB = b.isPinned || false;
-        
-        // 先比較完成狀態（未完成的在前）
-        if (completedA !== completedB) {
-            return completedA ? 1 : -1; // 未完成的在前
-        }
-        
-        // 完成狀態相同，比較釘選狀態
-        if (pinnedA !== pinnedB) {
-            return pinnedB ? 1 : -1; // 釘選的在前
-        }
-        
-        // 完成和釘選狀態都相同，按時間排序
+        const sa = STATUS_PRIORITY[a.status] || 0;
+        const sb = STATUS_PRIORITY[b.status] || 0;
+        if (sa !== sb) return sb - sa;
+
         const dateA = a.dining_datetime || a.diningDateTime || a.savedAt || a.created_at || '';
         const dateB = b.dining_datetime || b.diningDateTime || b.savedAt || b.created_at || '';
-        if (dateA && dateB) {
-            return dateB.localeCompare(dateA); // 最新的在前（使用字串比較避免時區問題）
-        }
+        if (dateA && dateB) return dateB.localeCompare(dateA);
         return 0;
     });
     
@@ -5057,6 +5059,7 @@ async function syncLocalOrdersToSupabase() {
                 dining_datetime: menu.diningDateTime || null,
                 table_count: menu.tableCount || 1,
                 people_count: menu.peopleCount || 1,
+                status: menu.status || '待辦',
                 subtotal: subtotal,
                 service_fee: serviceFee,
                 total: total,
@@ -5315,6 +5318,7 @@ async function confirmSaveMenu(isNewOrder = false) {
         table_count: orderInfo.tableCount || tableCount || 1,
         people_count: orderInfo.peopleCount || peopleCount || 1,
         customer_budget: orderInfo.customerBudget || null,
+        status: orderInfo.status || '待辦',
         subtotal: subtotal || 0,
         service_fee: serviceFee || 0,
         total: estimatedTotal || 0,
@@ -5427,6 +5431,7 @@ async function confirmSaveMenu(isNewOrder = false) {
             paymentMethod: finalOrderData.payment_method,
             discount: finalOrderData.discount || '',
             depositPaid: finalOrderData.deposit_paid || 0,
+            status: finalOrderData.status || '待辦',
             // 單一資料來源：orderInfo.diningDateTime 也直接來自 Supabase 回傳值
             diningDateTime: finalOrderData.dining_datetime || null
         },
@@ -5438,7 +5443,8 @@ async function confirmSaveMenu(isNewOrder = false) {
             createdBy: finalOrderData.created_by || createdBy
         },
         fromSupabase: true,
-        isPinned: finalOrderData.is_pinned || false
+        isPinned: finalOrderData.is_pinned || false,
+        status: finalOrderData.status || '待辦'
     };
     
     // 【關鍵修復】直接更新 supabaseOrders 陣列中的對應項目（確保是同一份陣列引用）
@@ -5747,8 +5753,7 @@ async function showHistoryModal() {
 const HISTORY_COLUMN_KEY = 'history_columns_config_v2';
 const historyColumnDefinitions = [
     { id: 'select', label: '勾選欄位', sortable: false },
-    { id: 'pin', label: '釘選', sortable: false, sortField: 'pinned' },
-    { id: 'completed', label: '完成', sortable: false },
+    { id: 'status', label: '狀態', sortable: true, sortField: 'status' },
     { id: 'date', label: '用餐日期', sortable: true, sortField: 'date' },
     { id: 'company', label: '公司名稱', sortable: true, sortField: 'companyName' },
     { id: 'taxId', label: '統編', sortable: true, sortField: 'taxId' },
@@ -5870,7 +5875,7 @@ function openHistoryColumnSettings() {
 function getHistoryColumnClass(id) {
     switch (id) {
         case 'select': return 'checkbox-col';
-        case 'pin': return 'pin-col';
+        case 'status': return 'status-col';
         case 'date': return 'date-col';
         case 'actions': return 'actions-col';
         case 'people': return 'people-col';
@@ -5906,10 +5911,8 @@ function renderHistoryHeaderCell(col) {
             return `<th class="${classAttr}" onclick="event.stopPropagation();">
                 <input type="checkbox" id="selectAllCheckbox" title="全選/取消全選">
             </th>`;
-        case 'pin':
-            return `<th class="${classAttr}" onclick="event.stopPropagation(); ${isSortable ? `sortHistoryBy('${sortField}')` : ''}">釘選</th>`;
-        case 'completed':
-            return `<th class="completed-col ${classAttr}" onclick="event.stopPropagation();">完成</th>`;
+        case 'status':
+            return `<th class="${classAttr}" onclick="sortHistoryBy('${sortField || ''}')">狀態</th>`;
         case 'actions':
             return `<th class="${classAttr}" onclick="event.stopPropagation();">操作</th>`;
         default:
@@ -5935,21 +5938,17 @@ function renderHistoryCell(col, menu, metrics, idx) {
     const menuId = menu.id || '';
     const menuIdx = idx;
     const isPinned = menu.isPinned || false;
+    const statusOptions = ['常用', '重要', '待辦', '完成'];
     switch (col.id) {
         case 'select':
             return `<td class="checkbox-col" onclick="event.stopPropagation();">
                 <input type="checkbox" class="order-checkbox" data-menu-id="${menuId}">
             </td>`;
-        case 'pin':
-            return `<td class="pin-col" onclick="event.stopPropagation();">
-                <button class="pin-btn ${isPinned ? 'pinned' : ''}" onclick="toggleOrderPin('${menuId}', event)" title="${isPinned ? '取消釘選' : '釘選'}">
-                    <i class="fas fa-thumbtack"></i>
-                </button>
-            </td>`;
-        case 'completed':
-            const isCompleted = menu.is_completed || menu.isCompleted || false;
-            return `<td class="completed-col" onclick="event.stopPropagation();">
-                <input type="checkbox" class="completed-checkbox" data-menu-id="${menuId}" ${isCompleted ? 'checked' : ''} onchange="toggleOrderCompleted('${menuId}', this.checked, event)">
+        case 'status':
+            return `<td class="status-col" onclick="event.stopPropagation();">
+                <select class="status-select" data-menu-id="${menuId}" onchange="updateOrderStatus('${menuId}', this.value, event)">
+                    ${statusOptions.map(opt => `<option value="${opt}" ${menu.status === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                </select>
             </td>`;
         case 'date':
             // 歷史列表唯一可信來源：Supabase 回傳的 dining_datetime（或相容欄位）
@@ -6103,14 +6102,12 @@ function renderHistoryList() {
     });
     
     // 排序（擴展支援所有欄位）
-    // 先按完成狀態排序（未完成在前），然後按用戶選擇的排序欄位排序
+    // 先按狀態優先級排序，再按用戶選擇的排序欄位排序
     filteredMenus.sort((a, b) => {
-        // 先比較完成狀態（未完成的在前）
-        const completedA = a.is_completed || a.isCompleted || false;
-        const completedB = b.is_completed || b.isCompleted || false;
-        if (completedA !== completedB) {
-            return completedA ? 1 : -1; // 未完成的在前
-        }
+        const statusPriority = { '常用': 4, '重要': 3, '待辦': 2, '完成': 1 };
+        const sa = statusPriority[a.status] || 0;
+        const sb = statusPriority[b.status] || 0;
+        if (sa !== sb) return sb - sa;
         
         // 完成狀態相同，再按用戶選擇的排序欄位排序
         let result = 0;
@@ -6118,10 +6115,10 @@ function renderHistoryList() {
         const orderInfoB = b.orderInfo || {};
         
         switch (sortBy) {
-            case 'pinned':
-                const pinnedA = a.isPinned ? 1 : 0;
-                const pinnedB = b.isPinned ? 1 : 0;
-                result = pinnedB - pinnedA;
+            case 'status':
+                const sA = STATUS_PRIORITY[a.status] || 0;
+                const sB = STATUS_PRIORITY[b.status] || 0;
+                result = sB - sA;
                 break;
             case 'price':
             case 'perPerson':
@@ -6203,10 +6200,11 @@ function renderHistoryList() {
         const menuId = menu.id || '';
         const menuIdx = idx;
         const isPinned = menu.isPinned || false;
-        const isCompleted = menu.is_completed || menu.isCompleted || false;
+        const isCompleted = menu.status === '完成';
         const rowCells = activeColumns.map(col => renderHistoryCell(col, menu, metrics, idx)).join('');
+        const statusClass = `status-${getStatusSlug(menu.status)}`;
         return `
-            <tr class="history-row ${isPinned ? 'pinned-row' : ''} ${isCompleted ? 'completed-row' : ''}" data-menu-id="${menuId}" data-idx="${menuIdx}" data-pinned="${isPinned}" data-completed="${isCompleted}" onclick="loadHistoryMenuByData(this)" style="cursor: pointer;">
+            <tr class="history-row ${isPinned ? 'pinned-row' : ''} ${isCompleted ? 'completed-row' : ''} ${statusClass}" data-menu-id="${menuId}" data-idx="${menuIdx}" data-pinned="${isPinned}" data-completed="${isCompleted}" data-status="${menu.status || ''}" onclick="loadHistoryMenuByData(this)" style="cursor: pointer;">
                 ${rowCells}
             </tr>
         `;
@@ -6391,6 +6389,7 @@ if (typeof window !== 'undefined') {
     window.updateBatchDeleteButton = updateBatchDeleteButton;
     window.batchDeleteOrders = batchDeleteOrders;
     window.openHistoryColumnSettings = openHistoryColumnSettings;
+    window.updateOrderStatus = updateOrderStatus;
 }
 
 // 歷史紀錄排序函數
@@ -7550,6 +7549,44 @@ async function toggleOrderPin(orderId, event) {
     } catch (error) {
         console.error('切換釘選狀態失敗：', error);
         alert('操作失敗：' + error.message);
+    }
+}
+
+// 更新訂單狀態（常用/重要/待辦/完成）
+async function updateOrderStatus(orderId, status, event) {
+    if (event) event.stopPropagation();
+    const allowed = ['常用', '重要', '待辦', '完成'];
+    if (!allowed.includes(status)) status = '待辦';
+
+    try {
+        const client = supabaseClient || await initSupabaseClient();
+        if (!client) {
+            alert('無法連線到 Supabase');
+            return;
+        }
+
+        const { error } = await client
+            .from('menu_orders')
+            .update({ status })
+            .eq('id', orderId);
+
+        if (error) {
+            console.error('更新狀態失敗：', error);
+            alert('更新失敗：' + error.message);
+            return;
+        }
+
+        // 更新快取
+        const order = supabaseOrders.find(o => o.id === orderId);
+        if (order) {
+            order.status = status;
+        }
+
+        renderHistoryList();
+        console.log(`✅ 訂單狀態更新為 ${status}`);
+    } catch (err) {
+        console.error('更新狀態失敗：', err);
+        alert('更新失敗：' + err.message);
     }
 }
 

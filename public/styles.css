@@ -1984,6 +1984,39 @@ body {
     color: #6c757d;
 }
 
+/* 狀態顏色 */
+.history-row.status-common {
+    background: #fff7d6;
+}
+
+.history-row.status-important {
+    background: #ffe0e0;
+}
+
+.history-row.status-todo {
+    background: #e9f7ef;
+}
+
+.history-row.status-done {
+    background: #f1f3f5;
+    opacity: 0.9;
+}
+
+.status-select {
+    width: 110px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1px solid #ced4da;
+    background: #fff;
+    font-size: 0.9rem;
+}
+
+.status-select:focus {
+    outline: none;
+    border-color: #409eff;
+    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+}
+
 .history-row:last-child td {
     border-bottom: none;
 }
@@ -2053,9 +2086,11 @@ body {
 /* 控制欄位：置中 */
 .history-table-full td.pin-col,
 .history-table-full td.completed-col,
+.history-table-full td.status-col,
 .history-table-full td.actions-cell,
 .history-table-full th.pin-col,
 .history-table-full th.completed-col,
+.history-table-full th.status-col,
 .history-table-full th.actions-col,
 .history-table-full td.checkbox-col,
 .history-table-full th.checkbox-col {
@@ -2162,6 +2197,12 @@ body {
 .actions-cell {
     width: 7%;
     min-width: 80px;
+    text-align: center;
+}
+
+.status-col {
+    width: 10%;
+    min-width: 120px;
     text-align: center;
 }
 
