@@ -1989,6 +1989,10 @@ body {
     background: #fff7d6;
 }
 
+.history-row.status-none {
+    background: #ffffff;
+}
+
 .history-row.status-important {
     background: #ffe0e0;
 }

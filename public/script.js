@@ -711,10 +711,11 @@ const CATEGORY_TYPE = {
     SOFT: 'softDrink',
     DRINK: 'drink'
 };
-const STATUS_OPTIONS = ['常用', '重要', '待辦', '完成'];
-const STATUS_PRIORITY = { '常用': 4, '重要': 3, '待辦': 2, '完成': 1 };
+const STATUS_OPTIONS = ['無', '常用', '重要', '待辦', '完成'];
+const STATUS_PRIORITY = { '常用': 5, '重要': 4, '待辦': 3, '無': 2, '完成': 1 };
 function getStatusSlug(status = '') {
     switch (status) {
+        case '無': return 'none';
         case '常用': return 'common';
         case '重要': return 'important';
         case '待辦': return 'todo';
@@ -1440,7 +1441,7 @@ function setCustomizableSelectValue(selectId, customInputId, defaultOptions, val
 // 取得完整訂單資訊（更新以支援自訂下拉選單）
 function getOrderInfo() {
     const currentOrder = currentEditingOrderId ? supabaseOrders.find(o => o.id === currentEditingOrderId) : null;
-    const status = currentOrder?.status || '待辦';
+    const status = currentOrder?.status || '無';
     return {
         companyName: elements.companyName?.value?.trim() || '',
         taxId: elements.customerTaxId?.value?.trim() || '',
@@ -4890,7 +4891,7 @@ async function loadOrdersFromSupabase() {
                 paymentMethod: order.payment_method,
                 discount: order.discount,
             depositPaid: order.deposit_paid || 0,
-                status: order.status || '待辦',
+                status: order.status || '無',
                 customerBudget: Number.isFinite(order.customer_budget) ? Number(order.customer_budget) : 0,
                 // ✅ orderInfo 中的 diningDateTime 也來自 Supabase（確保一致性）
                 diningDateTime: order.dining_datetime
@@ -5318,7 +5319,7 @@ async function confirmSaveMenu(isNewOrder = false) {
         table_count: orderInfo.tableCount || tableCount || 1,
         people_count: orderInfo.peopleCount || peopleCount || 1,
         customer_budget: orderInfo.customerBudget || null,
-        status: orderInfo.status || '待辦',
+        status: orderInfo.status || '無',
         subtotal: subtotal || 0,
         service_fee: serviceFee || 0,
         total: estimatedTotal || 0,
@@ -6104,10 +6105,7 @@ function renderHistoryList() {
     // 排序（擴展支援所有欄位）
     // 先按狀態優先級排序，再按用戶選擇的排序欄位排序
     filteredMenus.sort((a, b) => {
-        const statusPriority = { '常用': 4, '重要': 3, '待辦': 2, '完成': 1 };
-        const sa = statusPriority[a.status] || 0;
-        const sb = statusPriority[b.status] || 0;
-        if (sa !== sb) return sb - sa;
+                if (sa !== sb) return sb - sa;
         
         // 完成狀態相同，再按用戶選擇的排序欄位排序
         let result = 0;
@@ -7555,8 +7553,8 @@ async function toggleOrderPin(orderId, event) {
 // 更新訂單狀態（常用/重要/待辦/完成）
 async function updateOrderStatus(orderId, status, event) {
     if (event) event.stopPropagation();
-    const allowed = ['常用', '重要', '待辦', '完成'];
-    if (!allowed.includes(status)) status = '待辦';
+    const allowed = ['無', '常用', '重要', '待辦', '完成'];
+    if (!allowed.includes(status)) status = '無';
 
     try {
         const client = supabaseClient || await initSupabaseClient();
