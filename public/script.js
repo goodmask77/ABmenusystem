@@ -4868,6 +4868,13 @@ async function loadOrdersFromSupabase() {
             const itemCount = cartItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
             const preview = cartItems.slice(0, 3).map(i => i.name || i.nameEn || '未知').join(', ') || '無品項';
             
+            const parsedCustomerBudget = Number.isFinite(order.customer_budget)
+                ? Number(order.customer_budget)
+                : (() => {
+                    const n = parseFloat(order.customer_budget);
+                    return Number.isFinite(n) ? n : 0;
+                })();
+
             return {
             id: order.id,
             name: order.company_name || '未命名',
@@ -4895,7 +4902,7 @@ async function loadOrdersFromSupabase() {
                 discount: order.discount,
             depositPaid: order.deposit_paid || 0,
                 status: order.status || '無',
-                customerBudget: Number.isFinite(order.customer_budget) ? Number(order.customer_budget) : 0,
+                customerBudget: parsedCustomerBudget,
                 // ✅ orderInfo 中的 diningDateTime 也來自 Supabase（確保一致性）
                 diningDateTime: order.dining_datetime
             },
