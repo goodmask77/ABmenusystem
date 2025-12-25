@@ -1472,6 +1472,9 @@ function setOrderInfo(info) {
     if (info.contactName && elements.contactName) elements.contactName.value = info.contactName;
     if (info.contactPhone && elements.contactPhone) elements.contactPhone.value = info.contactPhone;
     if (info.lineName && elements.lineName) elements.lineName.value = info.lineName;
+    if (elements.customerBudget && typeof info.customerBudget !== 'undefined') {
+        elements.customerBudget.value = info.customerBudget || '';
+    }
     if (typeof info.customerBudget !== 'undefined' && elements.customerBudget) {
         elements.customerBudget.value = info.customerBudget ?? '';
     }
@@ -5532,6 +5535,7 @@ function clearOrderForm() {
     if (elements.lineName) elements.lineName.value = '';
     if (elements.industrySelect) elements.industrySelect.value = '';
     if (elements.depositPaid) elements.depositPaid.value = '';
+    if (elements.customerBudget) elements.customerBudget.value = '';
     if (elements.diningDate) elements.diningDate.value = '';
     if (elements.diningHour) elements.diningHour.value = '';
     if (elements.diningMinute) elements.diningMinute.value = '';
