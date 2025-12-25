@@ -5548,6 +5548,10 @@ function clearOrderForm() {
     // 清除購物車
     cart = [];
     renderCart();
+    renderMenu();
+    activeCategory = 'all';
+    clearCartStateStorage();
+    persistCartState();
     
     // 更新填寫狀態顏色（清空後所有欄位應該是空的）
     initFillStateStyling();
