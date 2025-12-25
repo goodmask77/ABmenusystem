@@ -5767,6 +5767,7 @@ const historyColumnDefinitions = [
     { id: 'people', label: '人數/桌數', sortable: true, sortField: 'people' },
     { id: 'total', label: '總額', sortable: true, sortField: 'total' },
     { id: 'perPerson', label: '人均', sortable: true, sortField: 'perPerson' },
+    { id: 'customerBudget', label: '客戶預算', sortable: true, sortField: 'customerBudget' },
     { id: 'depositPaid', label: '已付訂金', sortable: true, sortField: 'depositPaid' },
     { id: 'industry', label: '產業別', sortable: true, sortField: 'industry' },
     { id: 'actions', label: '操作', sortable: false }
@@ -5892,6 +5893,7 @@ function getHistoryColumnClass(id) {
         case 'venueContent': return 'venue-content-col';
         case 'venueScope': return 'venue-scope-col';
         case 'diningStyle': return 'dining-style-col';
+        case 'customerBudget': return 'budget-col';
         default: return '';
     }
 }
@@ -5991,6 +5993,9 @@ function renderHistoryCell(col, menu, metrics, idx) {
             return `<td class="total-cell">${typeof total === 'number' ? '$' + Math.round(total).toLocaleString() : '--'}</td>`;
         case 'perPerson':
             return `<td class="perperson-cell">${typeof perPerson === 'number' ? '$' + Math.round(perPerson).toLocaleString() : '--'}</td>`;
+        case 'customerBudget':
+            const budget = orderInfo.customerBudget || 0;
+            return `<td class="budget-cell">${budget > 0 ? '$' + Math.round(budget).toLocaleString() : '--'}</td>`;
         case 'depositPaid':
             return `<td class="deposit-cell">${depositPaid > 0 ? '$' + depositPaid.toLocaleString() : '--'}</td>`;
         case 'industry':
@@ -6180,6 +6185,9 @@ function renderHistoryList() {
                 break;
             case 'depositPaid':
                 result = (orderInfoB.depositPaid || 0) - (orderInfoA.depositPaid || 0);
+                break;
+            case 'customerBudget':
+                result = (orderInfoB.customerBudget || 0) - (orderInfoA.customerBudget || 0);
                 break;
             default:
                 result = 0;

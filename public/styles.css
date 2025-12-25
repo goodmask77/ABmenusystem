@@ -2210,6 +2210,11 @@ body {
     text-align: center;
 }
 
+.budget-col, .budget-cell {
+    text-align: right !important;
+    min-width: 90px;
+}
+
 .actions-cell .btn-small {
     margin: 0 0.1rem;
     padding: 0.3rem 0.5rem;
