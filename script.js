@@ -1222,6 +1222,7 @@ let menuData = {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
 };
+const DEFAULT_MENU_DATA = JSON.parse(JSON.stringify(menuData));
 
 // DOM 元素
 const elements = {
@@ -1912,6 +1913,15 @@ async function prepareInitialState() {
         console.warn('無法從 Supabase 載入菜單，使用預設資料');
         saveToStorage({ skipChangeLog: true, reason: 'bootstrap' });
     }
+
+    // 若菜單為空，嘗試從 menu_items 重建，失敗則回復預設
+    if (!Array.isArray(menuData?.categories) || menuData.categories.length === 0) {
+        const rebuilt = await rebuildMenuFromMenuItems();
+        if (!rebuilt) {
+            menuData = JSON.parse(JSON.stringify(DEFAULT_MENU_DATA));
+            saveToStorage({ skipChangeLog: true, reason: 'bootstrap-default' });
+        }
+    }
     
     // 恢復購物車（購物車仍可保留在 localStorage）
     const cartRestored = restoreCartState();
@@ -2210,6 +2220,53 @@ async function loadStateFromSupabase() {
         return true;
     } catch (error) {
         console.error('處理 Supabase 狀態時發生錯誤：', error);
+        return false;
+    }
+}
+
+function buildCategoryIdFromName(name) {
+    const base = (name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return base || generateId();
+}
+
+async function rebuildMenuFromMenuItems() {
+    const client = supabaseClient || await initSupabaseClient();
+    if (!client) return false;
+    try {
+        const { data, error } = await client
+            .from('menu_items')
+            .select('*')
+            .order('category', { ascending: true })
+            .order('inserted_at', { ascending: true });
+        if (error) throw error;
+        if (!data || data.length === 0) return false;
+
+        const categoryMap = new Map();
+        data.forEach(item => {
+            const categoryName = item.category || 'Uncategorized';
+            if (!categoryMap.has(categoryName)) {
+                const existing = menuData.categories.find(c => c.name === categoryName);
+                const id = existing?.id || buildCategoryIdFromName(categoryName);
+                categoryMap.set(categoryName, { id, name: categoryName, items: [] });
+            }
+            categoryMap.get(categoryName).items.push({
+                id: item.id,
+                name: item.name,
+                nameEn: item.name_en || '',
+                price: Number(item.price) || 0,
+                description: '',
+                foodWeight: item.food_weight_g ?? null
+            });
+        });
+
+        menuData = {
+            ...menuData,
+            categories: Array.from(categoryMap.values())
+        };
+        saveToStorage({ skipChangeLog: true, reason: 'rebuild-menu' });
+        return true;
+    } catch (err) {
+        console.warn('從 menu_items 重建菜單失敗：', err);
         return false;
     }
 }
