@@ -2330,10 +2330,14 @@ async function initAccounts() {
 function applyStatePayload(payload) {
     const incomingCategories = Array.isArray(payload?.menu?.categories) ? payload.menu.categories : null;
     if (incomingCategories && incomingCategories.length > 0) {
+        const normalizedCategories = incomingCategories.map(category => ({
+            ...category,
+            items: Array.isArray(category.items) ? category.items.filter(Boolean) : []
+        }));
         menuData = {
             ...menuData,
             ...payload.menu,
-            categories: incomingCategories
+            categories: normalizedCategories
         };
     }
     peopleCount = Number(payload?.peopleCount) > 0 ? payload.peopleCount : 1;
@@ -6854,7 +6858,7 @@ function renderMenu() {
                 </div>
             </div>
             <div class="category-items" id="category-${category.id}">
-                ${category.items.map(item => renderMenuItem(category.id, item)).join('')}
+                ${(Array.isArray(category.items) ? category.items.filter(Boolean) : []).map(item => renderMenuItem(category.id, item)).join('')}
             </div>
         </div>
     `).join('');
