@@ -2241,11 +2241,12 @@ async function initAccounts() {
 }
 
 function applyStatePayload(payload) {
-    if (payload?.menu?.categories) {
+    const incomingCategories = Array.isArray(payload?.menu?.categories) ? payload.menu.categories : null;
+    if (incomingCategories && incomingCategories.length > 0) {
         menuData = {
             ...menuData,
             ...payload.menu,
-            categories: payload.menu.categories
+            categories: incomingCategories
         };
     }
     peopleCount = Number(payload?.peopleCount) > 0 ? payload.peopleCount : 1;
