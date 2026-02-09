@@ -2281,17 +2281,17 @@ async function rebuildMenuFromMenuItems() {
             }
             categoryMap.get(categoryName).items.push({
                 id: item.id,
-                name: item.name,
+                name: item.name || '(未命名)',
                 nameEn: item.name_en || '',
                 price: Number(item.price) || 0,
                 description: '',
-                foodWeight: item.food_weight_g ?? null
+                foodWeight: normalizeMetricValue(item.food_weight_g)
             });
         });
 
         menuData = {
             ...menuData,
-            categories: Array.from(categoryMap.values())
+            categories: normalizeMenuCategories(Array.from(categoryMap.values()))
         };
         saveToStorage({ skipChangeLog: true, reason: 'rebuild-menu' });
         return true;
@@ -2330,10 +2330,7 @@ async function initAccounts() {
 function applyStatePayload(payload) {
     const incomingCategories = Array.isArray(payload?.menu?.categories) ? payload.menu.categories : null;
     if (incomingCategories && incomingCategories.length > 0) {
-        const normalizedCategories = incomingCategories.map(category => ({
-            ...category,
-            items: Array.isArray(category.items) ? category.items.filter(Boolean) : []
-        }));
+        const normalizedCategories = normalizeMenuCategories(incomingCategories);
         menuData = {
             ...menuData,
             ...payload.menu,
@@ -3593,7 +3590,33 @@ function getItemCategoryType(item) {
 // 解析與標準化重量/容量欄位
 function normalizeMetricValue(value) {
     const num = parseFloat(value);
-    return Number.isFinite(num) && num >= 0 ? num : null;
+    return Number.isFinite(num) && num >= 0 ? num : 0;
+}
+
+function normalizeMenuCategories(categories = []) {
+    return categories.map((category, index) => {
+        const name = category?.name || `未分類${index + 1}`;
+        const id = category?.id || buildCategoryIdFromName(name);
+        const items = Array.isArray(category?.items)
+            ? category.items
+                .filter(Boolean)
+                .map(item => ({
+                    ...item,
+                    id: item?.id || generateId(),
+                    name: item?.name || '(未命名)',
+                    nameEn: item?.nameEn || item?.enName || '',
+                    price: Number(item?.price) || 0,
+                    description: item?.description || '',
+                    foodWeight: normalizeMetricValue(item?.foodWeight ?? item?.food_weight_g ?? item?.foodWeightG)
+                }))
+            : [];
+        return {
+            ...category,
+            id,
+            name,
+            items
+        };
+    });
 }
 
 function mergeMetricsFromSource(source = {}) {
