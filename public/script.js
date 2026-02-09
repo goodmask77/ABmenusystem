@@ -1274,6 +1274,7 @@ const elements = {
     softDrinkItemCount: document.getElementById('softDrinkItemCount'),
     drinkItemTypes: document.getElementById('drinkItemTypes'),
     drinkItemCount: document.getElementById('drinkItemCount'),
+    customerBudget: document.getElementById('customerBudget'),
     loginModal: document.getElementById('loginModal'),
     accountModal: document.getElementById('accountModal'),
     loginUsername: document.getElementById('loginUsername'),
