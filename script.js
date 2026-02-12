@@ -3351,7 +3351,7 @@ function updatePeopleCount() {
         return;
     }
     const count = parseInt(elements.peopleCountInput.value);
-    if (count >= 1 && count <= 99) {
+    if (count >= 1 && count <= 300) {
         peopleCount = count;
         updateCartSummary();
         persistCartState();
