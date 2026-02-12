@@ -716,6 +716,7 @@ let changeLogEntries = [];
 let lastChangeFingerprint = null;
 let isUserEditing = false; // 追蹤用戶是否正在編輯
 let pendingMenuSync = null; // 待處理的菜單同步
+let isSavingMenu = false;
 
 // 功能 B：追蹤當前編輯的訂單 ID（null 表示新訂單）
 let currentEditingOrderId = null;
@@ -5144,6 +5145,16 @@ async function deleteOrderFromSupabaseById(orderId) {
 }
 
 async function confirmSaveMenu(isNewOrder = false) {
+    if (isSavingMenu) {
+        return;
+    }
+    isSavingMenu = true;
+    const confirmButton = document.getElementById('confirmSaveMenu');
+    if (confirmButton) {
+        confirmButton.disabled = true;
+        confirmButton.dataset.originalText = confirmButton.textContent;
+        confirmButton.textContent = '儲存中...';
+    }
     // 確保 Supabase 已初始化
     console.log('檢查 Supabase 連線狀態...');
     const client = supabaseClient || await initSupabaseClient();
@@ -5154,7 +5165,12 @@ async function confirmSaveMenu(isNewOrder = false) {
         const retryClient = await initSupabaseClient();
         if (!retryClient) {
             alert('無法連線到 Supabase 雲端資料庫\n\n請檢查：\n1. 網路連線是否正常\n2. 瀏覽器 Console 是否有錯誤訊息\n3. 稍後再試');
-        return;
+            isSavingMenu = false;
+            if (confirmButton) {
+                confirmButton.disabled = false;
+                confirmButton.textContent = confirmButton.dataset.originalText || '確認儲存';
+            }
+            return;
         }
     }
     
@@ -5439,6 +5455,11 @@ async function confirmSaveMenu(isNewOrder = false) {
     
     alert(`訂單「${menuName}」已成功${isUpdate ? '更新' : '儲存'}！`);
     saveToStorage({ reason: 'manual-save', summary: `${isUpdate ? '更新' : '儲存'}訂單「${menuName}」`, menuName });
+    isSavingMenu = false;
+    if (confirmButton) {
+        confirmButton.disabled = false;
+        confirmButton.textContent = confirmButton.dataset.originalText || '確認儲存';
+    }
 }
 
 /**
@@ -6794,6 +6815,10 @@ function renderCart() {
 
 // 模態對話框事件
 function bindModalEvents() {
+    if (document.body.dataset.modalEventsBound === '1') {
+        return;
+    }
+    document.body.dataset.modalEventsBound = '1';
     // 關閉模態對話框
     document.querySelectorAll('.close').forEach(closeBtn => {
         closeBtn.addEventListener('click', function() {
